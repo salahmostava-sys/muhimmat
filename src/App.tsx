@@ -7,7 +7,16 @@ import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import Attendance from "./pages/Attendance";
-import ComingSoon from "./pages/ComingSoon";
+import Orders from "./pages/Orders";
+import Salaries from "./pages/Salaries";
+import Advances from "./pages/Advances";
+import Vehicles from "./pages/Vehicles";
+import ProfitLoss from "./pages/ProfitLoss";
+import Deductions from "./pages/Deductions";
+import Apps from "./pages/Apps";
+import Alerts from "./pages/Alerts";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,15 +32,16 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/employees" element={<Employees />} />
             <Route path="/attendance" element={<Attendance />} />
-            <Route path="/orders" element={<ComingSoon />} />
-            <Route path="/salaries" element={<ComingSoon />} />
-            <Route path="/advances" element={<ComingSoon />} />
-            <Route path="/vehicles" element={<ComingSoon />} />
-            <Route path="/deductions" element={<ComingSoon />} />
-            <Route path="/apps" element={<ComingSoon />} />
-            <Route path="/alerts" element={<ComingSoon />} />
-            <Route path="/reports" element={<ComingSoon />} />
-            <Route path="/settings" element={<ComingSoon />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/salaries" element={<Salaries />} />
+            <Route path="/advances" element={<Advances />} />
+            <Route path="/vehicles" element={<Vehicles />} />
+            <Route path="/pl" element={<ProfitLoss />} />
+            <Route path="/deductions" element={<Deductions />} />
+            <Route path="/apps" element={<Apps />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppLayout>

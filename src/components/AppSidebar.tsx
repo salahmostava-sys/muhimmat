@@ -12,6 +12,7 @@ import {
   Settings,
   Bell,
   Smartphone,
+  TrendingUp,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { label: 'الرواتب', icon: Wallet, path: '/salaries' },
   { label: 'السلف والأقساط', icon: CreditCard, path: '/advances' },
   { label: 'المركبات', icon: Bike, path: '/vehicles' },
+  { label: 'الأرباح والخسائر', icon: TrendingUp, path: '/pl' },
   { label: 'الخصومات', icon: FileDown, path: '/deductions' },
   { label: 'التطبيقات', icon: Smartphone, path: '/apps' },
   { label: 'التنبيهات', icon: Bell, path: '/alerts' },
