@@ -1,78 +1,156 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
-  LayoutDashboard,
-  Users,
-  Clock,
-  Package,
-  Wallet,
-  CreditCard,
-  Bike,
-  FileDown,
-  BarChart3,
-  Settings,
-  Bell,
-  Smartphone,
-  TrendingUp,
+  LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
+  Bike, FileDown, BarChart3, Bell, Smartphone, TrendingUp,
+  Settings, Map, ChevronDown, ChevronUp,
 } from 'lucide-react';
-
-const navItems = [
-  { label: 'لوحة التحكم', icon: LayoutDashboard, path: '/' },
-  { label: 'الموظفون', icon: Users, path: '/employees' },
-  { label: 'الحضور والانصراف', icon: Clock, path: '/attendance' },
-  { label: 'الطلبات اليومية', icon: Package, path: '/orders' },
-  { label: 'الرواتب', icon: Wallet, path: '/salaries' },
-  { label: 'السلف والأقساط', icon: CreditCard, path: '/advances' },
-  { label: 'المركبات', icon: Bike, path: '/vehicles' },
-  { label: 'الأرباح والخسائر', icon: TrendingUp, path: '/pl' },
-  { label: 'الخصومات', icon: FileDown, path: '/deductions' },
-  { label: 'التطبيقات', icon: Smartphone, path: '/apps' },
-  { label: 'التنبيهات', icon: Bell, path: '/alerts' },
-  { label: 'التقارير', icon: BarChart3, path: '/reports' },
-  { label: 'الإعدادات', icon: Settings, path: '/settings' },
-];
+import { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { cn } from '@/lib/utils';
 
 const AppSidebar = () => {
+  const { t } = useTranslation();
   const location = useLocation();
+  const { user } = useAuth();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    hr: true, finance: false, operations: false, settings: false,
+  });
+
+  const toggleGroup = (key: string) =>
+    setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const navGroups = [
+    {
+      key: 'hr',
+      label: t('hr'),
+      icon: '👥',
+      items: [
+        { label: t('employees'), icon: Users, path: '/employees' },
+        { label: t('attendance'), icon: Clock, path: '/attendance' },
+        { label: t('apps'), icon: Smartphone, path: '/apps' },
+        { label: t('alerts'), icon: Bell, path: '/alerts' },
+      ],
+    },
+    {
+      key: 'finance',
+      label: t('finance'),
+      icon: '💰',
+      items: [
+        { label: t('payroll'), icon: Wallet, path: '/salaries' },
+        { label: t('advances'), icon: CreditCard, path: '/advances' },
+        { label: t('deductions'), icon: FileDown, path: '/deductions' },
+        { label: t('pl'), icon: TrendingUp, path: '/pl' },
+      ],
+    },
+    {
+      key: 'operations',
+      label: t('operations'),
+      icon: '⚙️',
+      items: [
+        { label: t('orders'), icon: Package, path: '/orders' },
+        { label: t('vehicles'), icon: Bike, path: '/vehicles' },
+        { label: t('vehicleTracking'), icon: Map, path: '/vehicle-tracking' },
+      ],
+    },
+    {
+      key: 'settings',
+      label: t('settings'),
+      icon: '🔧',
+      items: [
+        { label: t('schemes'), icon: Settings, path: '/settings/schemes' },
+        { label: t('users'), icon: Users, path: '/settings/users' },
+        { label: t('permissions'), icon: Settings, path: '/settings/permissions' },
+        { label: t('reports'), icon: BarChart3, path: '/reports' },
+      ],
+    },
+  ];
+
+  // auto-open group containing active route
+  const activeGroup = navGroups.find(g => g.items.some(i => isActive(i.path)));
+  if (activeGroup && !openGroups[activeGroup.key]) {
+    setOpenGroups(prev => ({ ...prev, [activeGroup.key]: true }));
+  }
 
   return (
-    <aside className="fixed top-0 right-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
+    <aside className="fixed top-0 right-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50 border-l border-sidebar-border">
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
-        <h1 className="text-xl font-bold text-sidebar-primary-foreground">
-          🚀 نظام التوصيل
-        </h1>
-        <p className="text-xs text-sidebar-muted mt-1">إدارة متكاملة للمناديب</p>
+      <div className="p-5 border-b border-sidebar-border flex-shrink-0">
+        <Link to="/" className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-lg">
+            🚀
+          </div>
+          <div>
+            <h1 className="text-sm font-bold text-sidebar-accent-foreground leading-tight">نظام التوصيل</h1>
+            <p className="text-xs text-sidebar-muted">إدارة المناديب</p>
+          </div>
+        </Link>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-              }`}
+      {/* Dashboard link */}
+      <div className="px-3 pt-3">
+        <Link
+          to="/"
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+            isActive('/')
+              ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+          )}
+        >
+          <LayoutDashboard size={16} />
+          <span>{t('dashboard')}</span>
+        </Link>
+      </div>
+
+      {/* Nav Groups */}
+      <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-1">
+        {navGroups.map(group => (
+          <div key={group.key}>
+            <button
+              onClick={() => toggleGroup(group.key)}
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-sidebar-muted uppercase tracking-wide hover:text-sidebar-accent-foreground transition-colors rounded-lg hover:bg-sidebar-accent/50"
             >
-              <item.icon size={18} />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+              <span className="flex items-center gap-2">
+                <span>{group.icon}</span>
+                <span>{group.label}</span>
+              </span>
+              {openGroups[group.key] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+
+            {openGroups[group.key] && (
+              <div className="mt-0.5 space-y-0.5 mb-1">
+                {group.items.map(item => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                      isActive(item.path)
+                        ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium'
+                        : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    )}
+                  >
+                    <item.icon size={15} className="flex-shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground text-sm font-bold">
-            أ
+            {user?.email?.[0]?.toUpperCase() || 'أ'}
           </div>
-          <div>
-            <p className="text-sm font-medium text-sidebar-accent-foreground">أدمن</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-sidebar-accent-foreground truncate">{user?.email}</p>
             <p className="text-xs text-sidebar-muted">مدير النظام</p>
           </div>
         </div>

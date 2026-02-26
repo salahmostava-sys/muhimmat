@@ -2,8 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/context/AuthContext";
+import { LanguageProvider } from "@/context/LanguageContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import Attendance from "./pages/Attendance";
@@ -18,6 +22,7 @@ import Alerts from "./pages/Alerts";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import "@/i18n";
 
 const queryClient = new QueryClient();
 
@@ -27,24 +32,42 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/employees" element={<Employees />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/salaries" element={<Salaries />} />
-            <Route path="/advances" element={<Advances />} />
-            <Route path="/vehicles" element={<Vehicles />} />
-            <Route path="/pl" element={<ProfitLoss />} />
-            <Route path="/deductions" element={<Deductions />} />
-            <Route path="/apps" element={<Apps />} />
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppLayout>
+        <AuthProvider>
+          <LanguageProvider>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/*"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/employees" element={<Employees />} />
+                        <Route path="/attendance" element={<Attendance />} />
+                        <Route path="/orders" element={<Orders />} />
+                        <Route path="/salaries" element={<Salaries />} />
+                        <Route path="/advances" element={<Advances />} />
+                        <Route path="/vehicles" element={<Vehicles />} />
+                        <Route path="/vehicle-tracking" element={<Vehicles />} />
+                        <Route path="/pl" element={<ProfitLoss />} />
+                        <Route path="/deductions" element={<Deductions />} />
+                        <Route path="/apps" element={<Apps />} />
+                        <Route path="/alerts" element={<Alerts />} />
+                        <Route path="/reports" element={<Reports />} />
+                        <Route path="/settings" element={<Settings />} />
+                        <Route path="/settings/schemes" element={<Settings />} />
+                        <Route path="/settings/users" element={<Settings />} />
+                        <Route path="/settings/permissions" element={<Settings />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </LanguageProvider>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
