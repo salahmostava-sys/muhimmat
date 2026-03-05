@@ -371,63 +371,102 @@ export type Database = {
       employees: {
         Row: {
           allowances: Json | null
+          bank_account_number: string | null
           base_salary: number
+          city: Database["public"]["Enums"]["city_enum"] | null
           created_at: string
           dob: string | null
           email: string | null
           iban: string | null
           id: string
+          id_photo_url: string | null
           is_sponsored: boolean
+          job_title: string | null
+          join_date: string | null
           license_expiry: string | null
           license_has: boolean
+          license_photo_url: string | null
+          license_status:
+            | Database["public"]["Enums"]["license_status_enum"]
+            | null
           name: string
           name_en: string | null
           national_id: string | null
+          personal_photo_url: string | null
           phone: string | null
           residency_expiry: string | null
           salary_type: Database["public"]["Enums"]["salary_type"]
+          sponsorship_status:
+            | Database["public"]["Enums"]["sponsorship_status_enum"]
+            | null
           status: Database["public"]["Enums"]["employee_status"]
           trade_register_id: string | null
           updated_at: string
         }
         Insert: {
           allowances?: Json | null
+          bank_account_number?: string | null
           base_salary?: number
+          city?: Database["public"]["Enums"]["city_enum"] | null
           created_at?: string
           dob?: string | null
           email?: string | null
           iban?: string | null
           id?: string
+          id_photo_url?: string | null
           is_sponsored?: boolean
+          job_title?: string | null
+          join_date?: string | null
           license_expiry?: string | null
           license_has?: boolean
+          license_photo_url?: string | null
+          license_status?:
+            | Database["public"]["Enums"]["license_status_enum"]
+            | null
           name: string
           name_en?: string | null
           national_id?: string | null
+          personal_photo_url?: string | null
           phone?: string | null
           residency_expiry?: string | null
           salary_type?: Database["public"]["Enums"]["salary_type"]
+          sponsorship_status?:
+            | Database["public"]["Enums"]["sponsorship_status_enum"]
+            | null
           status?: Database["public"]["Enums"]["employee_status"]
           trade_register_id?: string | null
           updated_at?: string
         }
         Update: {
           allowances?: Json | null
+          bank_account_number?: string | null
           base_salary?: number
+          city?: Database["public"]["Enums"]["city_enum"] | null
           created_at?: string
           dob?: string | null
           email?: string | null
           iban?: string | null
           id?: string
+          id_photo_url?: string | null
           is_sponsored?: boolean
+          job_title?: string | null
+          join_date?: string | null
           license_expiry?: string | null
           license_has?: boolean
+          license_photo_url?: string | null
+          license_status?:
+            | Database["public"]["Enums"]["license_status_enum"]
+            | null
           name?: string
           name_en?: string | null
           national_id?: string | null
+          personal_photo_url?: string | null
           phone?: string | null
           residency_expiry?: string | null
           salary_type?: Database["public"]["Enums"]["salary_type"]
+          sponsorship_status?:
+            | Database["public"]["Enums"]["sponsorship_status_enum"]
+            | null
           status?: Database["public"]["Enums"]["employee_status"]
           trade_register_id?: string | null
           updated_at?: string
@@ -944,12 +983,19 @@ export type Database = {
       app_role: "admin" | "hr" | "finance" | "operations" | "viewer"
       approval_status: "pending" | "approved" | "rejected"
       attendance_status: "present" | "absent" | "leave" | "sick" | "late"
+      city_enum: "makkah" | "jeddah"
       deduction_type: "fine" | "return" | "delay" | "accident" | "other"
       employee_status: "active" | "inactive" | "ended"
       installment_status: "pending" | "deducted" | "deferred"
+      license_status_enum: "has_license" | "no_license" | "applied"
       maintenance_type: "routine" | "breakdown" | "accident"
       salary_type: "shift" | "orders"
       scheme_status: "active" | "archived"
+      sponsorship_status_enum:
+        | "sponsored"
+        | "not_sponsored"
+        | "absconded"
+        | "terminated"
       vehicle_status: "active" | "maintenance" | "inactive"
       vehicle_type: "motorcycle" | "car"
     }
@@ -1083,12 +1129,20 @@ export const Constants = {
       app_role: ["admin", "hr", "finance", "operations", "viewer"],
       approval_status: ["pending", "approved", "rejected"],
       attendance_status: ["present", "absent", "leave", "sick", "late"],
+      city_enum: ["makkah", "jeddah"],
       deduction_type: ["fine", "return", "delay", "accident", "other"],
       employee_status: ["active", "inactive", "ended"],
       installment_status: ["pending", "deducted", "deferred"],
+      license_status_enum: ["has_license", "no_license", "applied"],
       maintenance_type: ["routine", "breakdown", "accident"],
       salary_type: ["shift", "orders"],
       scheme_status: ["active", "archived"],
+      sponsorship_status_enum: [
+        "sponsored",
+        "not_sponsored",
+        "absconded",
+        "terminated",
+      ],
       vehicle_status: ["active", "maintenance", "inactive"],
       vehicle_type: ["motorcycle", "car"],
     },

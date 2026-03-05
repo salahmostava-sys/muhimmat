@@ -24,7 +24,17 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     i18n.changeLanguage(lang);
   }, [lang]);
 
-  const toggleLang = () => setLang(prev => (prev === 'ar' ? 'en' : 'ar'));
+  const toggleLang = () => {
+    setLang(prev => {
+      const next = prev === 'ar' ? 'en' : 'ar';
+      // Force layout recalculation after direction change
+      requestAnimationFrame(() => {
+        document.body.style.display = 'none';
+        requestAnimationFrame(() => { document.body.style.display = ''; });
+      });
+      return next;
+    });
+  };
 
   return (
     <LanguageContext.Provider value={{ lang, toggleLang, isRTL: lang === 'ar' }}>

@@ -1,229 +1,386 @@
-import { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { X, Check, Upload, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { salarySchemes } from '@/data/mock';
+import { differenceInDays, parseISO } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
-interface Props {
-  onClose: () => void;
-}
+interface Props { onClose: () => void; }
 
-const STEPS = ['البيانات الأساسية', 'بيانات العمل', 'الوثائق والتطبيقات'];
+const STEPS = ['البيانات الأساسية', 'الإقامة والوثائق', 'نوع الراتب', 'رفع المستندات'];
+
+const APPS = ['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا', 'تويو', 'أمازون'];
+
+const SectionTitle = ({ title }: { title: string }) => (
+  <div className="flex items-center gap-3 mb-5">
+    <span className="text-sm font-bold text-foreground">{title}</span>
+    <div className="flex-1 h-px bg-border" />
+  </div>
+);
+
+const F = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
+  <div>
+    <Label className="text-sm mb-1.5 block text-foreground/80">
+      {label} {required && <span className="text-destructive">*</span>}
+    </Label>
+    {children}
+    {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+  </div>
+);
+
+// Upload area component
+const UploadArea = ({ label, icon, file, onFile, onRemove }: {
+  label: string; icon: string; file: File | null;
+  onFile: (f: File) => void; onRemove: () => void;
+}) => {
+  const ref = useRef<HTMLInputElement>(null);
+  const [drag, setDrag] = useState(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setDrag(false);
+    const f = e.dataTransfer.files[0];
+    if (f) onFile(f);
+  };
+
+  return (
+    <div className="flex-1 min-w-[130px]">
+      <div
+        className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${drag ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
+        onClick={() => ref.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={handleDrop}
+      >
+        <input ref={ref} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
+        {file ? (
+          <div className="space-y-1">
+            {file.type.startsWith('image/') ? (
+              <img src={URL.createObjectURL(file)} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
+            ) : (
+              <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-2xl">📄</div>
+            )}
+            <p className="text-xs text-foreground truncate max-w-[120px] mx-auto">{file.name}</p>
+            <button type="button" onClick={e => { e.stopPropagation(); onRemove(); }} className="text-xs text-destructive hover:underline flex items-center gap-1 mx-auto">
+              <Trash2 size={10} /> حذف
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="text-3xl mb-2">{icon}</div>
+            <p className="text-xs font-medium text-foreground/70">{label}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">اضغط للرفع أو اسحب هنا</p>
+            <p className="text-[10px] text-muted-foreground">JPG, PNG, PDF — 5MB</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const AddEmployeeModal = ({ onClose }: Props) => {
   const [step, setStep] = useState(0);
   const { toast } = useToast();
-  const [form, setForm] = useState({
-    name: '', phone: '', nationalId: '', iban: '', email: '', birthDate: '', sponsor: '',
-    salaryType: 'orders', baseSalary: '', housingAllowance: '', transportAllowance: '',
-    schemeId: '', schemeStartDate: '', joinDate: '',
-    residencyExpiry: '', residencyNumber: '', licenseNumber: '', licenseExpiry: '',
-    apps: [] as string[],
-  });
+  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const appsList = ['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا'];
+  const [form, setForm] = useState({
+    name: '', job_title: '', phone: '', email: '',
+    national_id: '', bank_account_number: '',
+    city: '' as 'makkah' | 'jeddah' | '',
+    join_date: '',
+    residency_expiry: '',
+    license_status: 'no_license' as 'has_license' | 'no_license' | 'applied',
+    sponsorship_status: 'not_sponsored' as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated',
+    salary_type: 'orders' as 'orders' | 'shift',
+    base_salary: '',
+    selected_apps: [] as string[],
+    app_schemes: {} as Record<string, string>,
+  });
 
-  const setField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+  const [files, setFiles] = useState<{ personal: File | null; id: File | null; license: File | null }>({
+    personal: null, id: null, license: null,
+  });
+
+  const setField = useCallback((k: string, v: any) => setForm(f => ({ ...f, [k]: v })), []);
+
+  // Live residency status
+  const resStatus = (() => {
+    if (!form.residency_expiry) return null;
+    try {
+      const days = differenceInDays(parseISO(form.residency_expiry), new Date());
+      return { days, valid: days >= 0 };
+    } catch { return null; }
+  })();
+
+  const toggleApp = (app: string) => {
+    setForm(f => ({
+      ...f,
+      selected_apps: f.selected_apps.includes(app) ? f.selected_apps.filter(a => a !== app) : [...f.selected_apps, app],
+    }));
+  };
 
   const validateStep = (s: number) => {
     const errs: Record<string, string> = {};
     if (s === 0) {
-      if (!form.name || form.name.length < 3) errs.name = 'الاسم مطلوب (3 أحرف على الأقل)';
+      if (!form.name || form.name.trim().length < 2) errs.name = 'الاسم مطلوب';
       if (!form.phone || !/^(05|966)\d{8,9}$/.test(form.phone)) errs.phone = 'رقم هاتف غير صحيح';
-      if (!form.nationalId || !/^[12]\d{9}$/.test(form.nationalId)) errs.nationalId = 'رقم هوية غير صحيح (10 أرقام)';
-      if (!form.iban || !/^SA\d{22}$/.test(form.iban)) errs.iban = 'IBAN غير صحيح (SA + 22 رقم)';
-      if (!form.birthDate) errs.birthDate = 'تاريخ الميلاد مطلوب';
+      if (!form.national_id || !/^[12]\d{9}$/.test(form.national_id)) errs.national_id = 'رقم هوية غير صحيح (10 أرقام)';
     }
     if (s === 1) {
-      if (form.salaryType === 'shift' && (!form.baseSalary || parseFloat(form.baseSalary) <= 0)) errs.baseSalary = 'الراتب مطلوب';
-      if (form.salaryType === 'orders' && !form.schemeId) errs.schemeId = 'السكيمة مطلوبة';
-      if (!form.joinDate) errs.joinDate = 'تاريخ الانضمام مطلوب';
+      if (!form.residency_expiry) errs.residency_expiry = 'تاريخ انتهاء الإقامة مطلوب';
     }
     if (s === 2) {
-      if (!form.residencyExpiry) errs.residencyExpiry = 'تاريخ انتهاء الإقامة مطلوب';
+      if (form.salary_type === 'shift' && (!form.base_salary || parseFloat(form.base_salary) <= 0)) errs.base_salary = 'الراتب مطلوب';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const next = () => { if (validateStep(step)) setStep(s => Math.min(s + 1, 2)); };
+  const next = () => { if (validateStep(step)) setStep(s => Math.min(s + 1, STEPS.length - 1)); };
   const back = () => setStep(s => Math.max(s - 1, 0));
 
-  const save = () => {
-    if (!validateStep(2)) return;
-    toast({ title: 'تم إضافة المندوب بنجاح', description: form.name });
-    onClose();
-  };
+  const save = async () => {
+    if (!validateStep(step)) return;
+    setSaving(true);
+    try {
+      const payload: any = {
+        name: form.name,
+        job_title: form.job_title || null,
+        phone: form.phone || null,
+        email: form.email || null,
+        national_id: form.national_id || null,
+        bank_account_number: form.bank_account_number || null,
+        city: form.city || null,
+        join_date: form.join_date || null,
+        residency_expiry: form.residency_expiry || null,
+        license_status: form.license_status,
+        sponsorship_status: form.sponsorship_status,
+        salary_type: form.salary_type,
+        base_salary: form.salary_type === 'shift' ? parseFloat(form.base_salary) : 0,
+        status: 'active',
+      };
 
-  const toggleApp = (app: string) => {
-    setForm(f => ({
-      ...f,
-      apps: f.apps.includes(app) ? f.apps.filter(a => a !== app) : [...f.apps, app],
-    }));
-  };
+      const { data: emp, error } = await supabase.from('employees').insert(payload).select().single();
+      if (error) throw error;
 
-  const F = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
-    <div>
-      <Label className="text-sm mb-1.5 block">
-        {label} {required && <span className="text-destructive">*</span>}
-      </Label>
-      {children}
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
-    </div>
-  );
+      // Upload documents
+      if (emp) {
+        const uploads = [
+          { file: files.personal, path: `${emp.id}/personal_photo`, field: 'personal_photo_url' },
+          { file: files.id, path: `${emp.id}/id_photo`, field: 'id_photo_url' },
+          { file: files.license, path: `${emp.id}/license_photo`, field: 'license_photo_url' },
+        ];
+        const updates: Record<string, string> = {};
+        for (const u of uploads) {
+          if (u.file) {
+            const ext = u.file.name.split('.').pop();
+            const { data: upData } = await supabase.storage.from('employee-documents').upload(`${u.path}.${ext}`, u.file, { upsert: true });
+            if (upData) {
+              const { data: urlData } = supabase.storage.from('employee-documents').getPublicUrl(upData.path);
+              updates[u.field] = urlData.publicUrl;
+            }
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('employees').update(updates).eq('id', emp.id);
+        }
+      }
+
+      toast({ title: 'تم إضافة المندوب بنجاح', description: form.name });
+      onClose();
+    } catch (err: any) {
+      toast({ title: 'خطأ في الحفظ', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-border/50">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">إضافة مندوب جديد</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-colors">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <h2 className="text-lg font-bold text-foreground">إضافة مندوب جديد</h2>
+          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground">
             <X size={18} />
           </button>
         </div>
 
-        {/* Steps */}
-        <div className="flex items-center gap-0 px-6 pt-5">
+        {/* Steps indicator */}
+        <div className="flex items-center gap-0 px-6 pt-4 pb-2 shrink-0">
           {STEPS.map((s, i) => (
             <div key={s} className="flex items-center flex-1 last:flex-none">
               <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors
-                  ${i < step ? 'bg-success text-success-foreground' : i === step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                  {i < step ? <Check size={14} /> : i + 1}
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${i < step ? 'bg-success text-success-foreground' : i === step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                  {i < step ? <Check size={12} /> : i + 1}
                 </div>
-                <span className={`text-sm hidden sm:block ${i === step ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{s}</span>
+                <span className={`text-xs hidden sm:block ${i === step ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{s}</span>
               </div>
-              {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-px mx-3 ${i < step ? 'bg-success' : 'bg-border'}`} />
-              )}
+              {i < STEPS.length - 1 && <div className={`flex-1 h-px mx-2 ${i < step ? 'bg-success' : 'bg-border'}`} />}
             </div>
           ))}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Step 1 */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {/* Step 0 — البيانات الأساسية */}
           {step === 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <F label="الاسم الكامل (عربي)" required error={errors.name}>
+              <div className="sm:col-span-2"><SectionTitle title="── البيانات الأساسية ──" /></div>
+              <F label="الاسم الكامل" required error={errors.name}>
                 <Input value={form.name} onChange={e => setField('name', e.target.value)} placeholder="أحمد محمد العمري" />
+              </F>
+              <F label="المسمى الوظيفي">
+                <Input value={form.job_title} onChange={e => setField('job_title', e.target.value)} placeholder="مندوب توصيل" />
               </F>
               <F label="رقم الهاتف" required error={errors.phone}>
                 <Input value={form.phone} onChange={e => setField('phone', e.target.value)} placeholder="0551234567" dir="ltr" />
               </F>
-              <F label="رقم الهوية" required error={errors.nationalId}>
-                <Input value={form.nationalId} onChange={e => setField('nationalId', e.target.value)} placeholder="2xxxxxxxx" dir="ltr" />
-              </F>
-              <F label="رقم IBAN" required error={errors.iban}>
-                <Input value={form.iban} onChange={e => setField('iban', e.target.value)} placeholder="SA00 0000 0000 0000 0000 0000" dir="ltr" />
-              </F>
-              <F label="تاريخ الميلاد" required error={errors.birthDate}>
-                <Input type="date" value={form.birthDate} onChange={e => setField('birthDate', e.target.value)} />
-              </F>
               <F label="البريد الإلكتروني">
                 <Input type="email" value={form.email} onChange={e => setField('email', e.target.value)} placeholder="example@email.com" dir="ltr" />
               </F>
-              <F label="الكفيل / الراعي">
-                <Input value={form.sponsor} onChange={e => setField('sponsor', e.target.value)} />
+              <F label="رقم الهوية الوطنية" required error={errors.national_id}>
+                <Input value={form.national_id} onChange={e => setField('national_id', e.target.value)} placeholder="2xxxxxxxxx" dir="ltr" />
+              </F>
+              <F label="رقم الحساب البنكي">
+                <Input value={form.bank_account_number} onChange={e => setField('bank_account_number', e.target.value)} dir="ltr" />
+              </F>
+              <F label="المدينة">
+                <div className="flex gap-3 mt-1">
+                  {[{ v: 'makkah', l: 'مكة' }, { v: 'jeddah', l: 'جدة' }].map(({ v, l }) => (
+                    <button key={v} type="button" onClick={() => setField('city', v)}
+                      className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${form.city === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </F>
+              <F label="تاريخ الانضمام">
+                <Input type="date" value={form.join_date} onChange={e => setField('join_date', e.target.value)} />
               </F>
             </div>
           )}
 
-          {/* Step 2 */}
+          {/* Step 1 — الإقامة والوثائق */}
           {step === 1 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="sm:col-span-2"><SectionTitle title="── الإقامة والوثائق ──" /></div>
               <div className="sm:col-span-2">
-                <F label="نوع الراتب" required>
-                  <div className="flex gap-3 mt-1">
-                    {['orders', 'shift'].map(t => (
-                      <button key={t} onClick={() => setField('salaryType', t)}
-                        className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors
-                          ${form.salaryType === t ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
-                        {t === 'orders' ? '📦 طلبات (Orders)' : '🕐 دوام ثابت (Shift)'}
-                      </button>
-                    ))}
-                  </div>
+                <F label="تاريخ انتهاء الإقامة" required error={errors.residency_expiry}>
+                  <Input type="date" value={form.residency_expiry} onChange={e => setField('residency_expiry', e.target.value)} />
                 </F>
+                {resStatus && (
+                  <div className={`mt-2 flex items-center gap-2 text-sm font-medium px-3 py-2 rounded-lg ${resStatus.valid ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                    {resStatus.valid ? '✅' : '🔴'}
+                    <span>
+                      حالة الإقامة: {resStatus.valid ? 'صالحة' : 'منتهية'} —
+                      {resStatus.valid ? ` متبقي ${resStatus.days} يوم` : ` منذ ${Math.abs(resStatus.days!)} يوم`}
+                    </span>
+                  </div>
+                )}
               </div>
-              {form.salaryType === 'shift' ? (
-                <>
-                  <F label="الراتب الشهري (ر.س)" required error={errors.baseSalary}>
-                    <Input type="number" value={form.baseSalary} onChange={e => setField('baseSalary', e.target.value)} />
-                  </F>
-                  <F label="بدل السكن (ر.س)">
-                    <Input type="number" value={form.housingAllowance} onChange={e => setField('housingAllowance', e.target.value)} />
-                  </F>
-                  <F label="بدل النقل (ر.س)">
-                    <Input type="number" value={form.transportAllowance} onChange={e => setField('transportAllowance', e.target.value)} />
-                  </F>
-                </>
-              ) : (
-                <>
-                  <F label="السكيمة المطبقة" required error={errors.schemeId}>
-                    <Select value={form.schemeId} onValueChange={v => setField('schemeId', v)}>
-                      <SelectTrigger><SelectValue placeholder="اختر السكيمة" /></SelectTrigger>
-                      <SelectContent>
-                        {salarySchemes.filter(s => s.status === 'active').map(s => (
-                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </F>
-                  <F label="تاريخ بداية السكيمة" required>
-                    <Input type="date" value={form.schemeStartDate} onChange={e => setField('schemeStartDate', e.target.value)} />
-                  </F>
-                </>
-              )}
-              <F label="تاريخ الانضمام" required error={errors.joinDate}>
-                <Input type="date" value={form.joinDate} onChange={e => setField('joinDate', e.target.value)} />
+              <F label="حالة الرخصة">
+                <Select value={form.license_status} onValueChange={v => setField('license_status', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="has_license">لديه رخصة</SelectItem>
+                    <SelectItem value="no_license">ليس لديه رخصة</SelectItem>
+                    <SelectItem value="applied">تم التقديم عليها</SelectItem>
+                  </SelectContent>
+                </Select>
+              </F>
+              <F label="حالة الكفالة">
+                <Select value={form.sponsorship_status} onValueChange={v => setField('sponsorship_status', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sponsored">على الكفالة</SelectItem>
+                    <SelectItem value="not_sponsored">ليس على الكفالة</SelectItem>
+                    <SelectItem value="absconded">هروب</SelectItem>
+                    <SelectItem value="terminated">انتهاء الخدمة</SelectItem>
+                  </SelectContent>
+                </Select>
               </F>
             </div>
           )}
 
-          {/* Step 3 */}
+          {/* Step 2 — نوع الراتب */}
           {step === 2 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <F label="تاريخ انتهاء الإقامة" required error={errors.residencyExpiry}>
-                <Input type="date" value={form.residencyExpiry} onChange={e => setField('residencyExpiry', e.target.value)} />
-              </F>
-              <F label="رقم الإقامة">
-                <Input value={form.residencyNumber} onChange={e => setField('residencyNumber', e.target.value)} maxLength={8} dir="ltr" />
-              </F>
-              <F label="رقم رخصة القيادة">
-                <Input value={form.licenseNumber} onChange={e => setField('licenseNumber', e.target.value)} dir="ltr" />
-              </F>
-              <F label="تاريخ انتهاء الرخصة">
-                <Input type="date" value={form.licenseExpiry} onChange={e => setField('licenseExpiry', e.target.value)} />
-              </F>
-              <div className="sm:col-span-2">
-                <F label="التطبيقات المرتبطة">
-                  <div className="flex gap-2 flex-wrap mt-1">
-                    {['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا'].map(app => (
-                      <button key={app} onClick={() => toggleApp(app)}
-                        className={`px-4 py-2 rounded-lg border text-sm transition-colors
-                          ${form.apps.includes(app) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
-                        {app}
-                      </button>
-                    ))}
-                  </div>
-                </F>
+            <div className="space-y-5">
+              <SectionTitle title="── نوع الراتب ──" />
+              <div className="flex gap-3">
+                {[{ v: 'orders', l: '📦 بالطلب' }, { v: 'shift', l: '🕐 ثابت شهري' }].map(({ v, l }) => (
+                  <button key={v} type="button" onClick={() => setField('salary_type', v)}
+                    className={`flex-1 py-2.5 px-4 rounded-lg border text-sm font-medium transition-colors ${form.salary_type === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+                    {l}
+                  </button>
+                ))}
               </div>
+              {form.salary_type === 'shift' && (
+                <F label="الراتب الشهري (ر.س)" required error={errors.base_salary}>
+                  <Input type="number" value={form.base_salary} onChange={e => setField('base_salary', e.target.value)} />
+                </F>
+              )}
+
+              <SectionTitle title="── المنصات المرتبطة ──" />
+              <div className="flex flex-wrap gap-2">
+                {APPS.map(app => (
+                  <button key={app} type="button" onClick={() => toggleApp(app)}
+                    className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${form.selected_apps.includes(app) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+                    {app}
+                  </button>
+                ))}
+              </div>
+
+              {form.selected_apps.length > 0 && (
+                <div className="space-y-3 bg-muted/30 rounded-xl p-4">
+                  {form.selected_apps.map(app => (
+                    <div key={app} className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-foreground w-24 shrink-0">{app}</span>
+                      <Select value={form.app_schemes[app] || ''} onValueChange={v => setForm(f => ({ ...f, app_schemes: { ...f.app_schemes, [app]: v } }))}>
+                        <SelectTrigger className="flex-1 h-8 text-xs">
+                          <SelectValue placeholder="اختر السكيمة" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {salarySchemes.filter(s => s.status === 'active').map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3 — رفع المستندات */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <SectionTitle title="── رفع المستندات ──" />
+              <div className="flex gap-4">
+                <UploadArea label="الصورة الشخصية" icon="📷" file={files.personal}
+                  onFile={f => setFiles(p => ({ ...p, personal: f }))} onRemove={() => setFiles(p => ({ ...p, personal: null }))} />
+                <UploadArea label="صورة الهوية" icon="🪪" file={files.id}
+                  onFile={f => setFiles(p => ({ ...p, id: f }))} onRemove={() => setFiles(p => ({ ...p, id: null }))} />
+                <UploadArea label="صورة الرخصة" icon="🚗" file={files.license}
+                  onFile={f => setFiles(p => ({ ...p, license: f }))} onRemove={() => setFiles(p => ({ ...p, license: null }))} />
+              </div>
+              <p className="text-xs text-muted-foreground">الملفات المقبولة: JPG, PNG, PDF — الحجم الأقصى: 5MB لكل ملف</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-border">
-          <Button variant="outline" onClick={step === 0 ? onClose : back} className="gap-2">
-            {step === 0 ? 'إلغاء' : <><ChevronLeft size={16} /> السابق</>}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+          <Button variant="outline" onClick={step === 0 ? onClose : back} disabled={saving}>
+            {step === 0 ? 'إلغاء' : <><ChevronLeft size={15} /> السابق</>}
           </Button>
-          <Button onClick={step === 2 ? save : next} className="gap-2">
-            {step === 2 ? <><Check size={16} /> حفظ المندوب</> : <>التالي <ChevronRight size={16} /></>}
+          <Button onClick={step === STEPS.length - 1 ? save : next} disabled={saving} className="gap-2">
+            {saving ? 'جاري الحفظ...' : step === STEPS.length - 1 ? <><Check size={15} /> حفظ المندوب</> : <>التالي <ChevronRight size={15} /></>}
           </Button>
         </div>
       </div>

@@ -65,10 +65,16 @@
   html {
     direction: rtl;
     font-family: 'IBM Plex Sans Arabic', sans-serif;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  * {
+    scrollbar-width: thin;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
+    overflow-y: scroll;
   }
 }
 
