@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { X, Check, Upload, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { X, Check, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,10 +9,34 @@ import { salarySchemes } from '@/data/mock';
 import { differenceInDays, parseISO } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
-interface Props { onClose: () => void; }
+interface EmployeeData {
+  id: string;
+  name: string;
+  job_title?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  national_id?: string | null;
+  bank_account_number?: string | null;
+  city?: string | null;
+  join_date?: string | null;
+  residency_expiry?: string | null;
+  license_status?: string | null;
+  sponsorship_status?: string | null;
+  id_photo_url?: string | null;
+  license_photo_url?: string | null;
+  personal_photo_url?: string | null;
+  status: string;
+  salary_type: string;
+  base_salary: number;
+}
+
+interface Props {
+  onClose: () => void;
+  onSuccess?: () => void;
+  editEmployee?: EmployeeData | null;
+}
 
 const STEPS = ['البيانات الأساسية', 'الإقامة والوثائق', 'نوع الراتب', 'رفع المستندات'];
-
 const APPS = ['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا', 'تويو', 'أمازون'];
 
 const SectionTitle = ({ title }: { title: string }) => (
@@ -32,9 +56,8 @@ const F = ({ label, required, error, children }: { label: string; required?: boo
   </div>
 );
 
-// Upload area component
-const UploadArea = ({ label, icon, file, onFile, onRemove }: {
-  label: string; icon: string; file: File | null;
+const UploadArea = ({ label, icon, file, existingUrl, onFile, onRemove }: {
+  label: string; icon: string; file: File | null; existingUrl?: string | null;
   onFile: (f: File) => void; onRemove: () => void;
 }) => {
   const ref = useRef<HTMLInputElement>(null);
@@ -46,6 +69,8 @@ const UploadArea = ({ label, icon, file, onFile, onRemove }: {
     if (f) onFile(f);
   };
 
+  const hasContent = file || existingUrl;
+
   return (
     <div className="flex-1 min-w-[130px]">
       <div
@@ -56,14 +81,16 @@ const UploadArea = ({ label, icon, file, onFile, onRemove }: {
         onDrop={handleDrop}
       >
         <input ref={ref} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
-        {file ? (
+        {hasContent ? (
           <div className="space-y-1">
-            {file.type.startsWith('image/') ? (
-              <img src={URL.createObjectURL(file)} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
-            ) : (
-              <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-2xl">📄</div>
-            )}
-            <p className="text-xs text-foreground truncate max-w-[120px] mx-auto">{file.name}</p>
+            {file ? (
+              file.type.startsWith('image/')
+                ? <img src={URL.createObjectURL(file)} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
+                : <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-2xl">📄</div>
+            ) : existingUrl ? (
+              <img src={existingUrl} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
+            ) : null}
+            <p className="text-xs text-foreground truncate max-w-[120px] mx-auto">{file ? file.name : 'مرفوع مسبقاً'}</p>
             <button type="button" onClick={e => { e.stopPropagation(); onRemove(); }} className="text-xs text-destructive hover:underline flex items-center gap-1 mx-auto">
               <Trash2 size={10} /> حذف
             </button>
@@ -81,15 +108,20 @@ const UploadArea = ({ label, icon, file, onFile, onRemove }: {
   );
 };
 
-const AddEmployeeModal = ({ onClose }: Props) => {
+const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
+  const isEdit = !!editEmployee;
   const [step, setStep] = useState(0);
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
-    name: '', job_title: '', phone: '', email: '',
-    national_id: '', bank_account_number: '',
+    name: '',
+    job_title: '',
+    phone: '',
+    email: '',
+    national_id: '',
+    bank_account_number: '',
     city: '' as 'makkah' | 'jeddah' | '',
     join_date: '',
     residency_expiry: '',
@@ -101,13 +133,35 @@ const AddEmployeeModal = ({ onClose }: Props) => {
     app_schemes: {} as Record<string, string>,
   });
 
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (editEmployee) {
+      setForm({
+        name: editEmployee.name || '',
+        job_title: editEmployee.job_title || '',
+        phone: editEmployee.phone || '',
+        email: editEmployee.email || '',
+        national_id: editEmployee.national_id || '',
+        bank_account_number: editEmployee.bank_account_number || '',
+        city: (editEmployee.city as 'makkah' | 'jeddah' | '') || '',
+        join_date: editEmployee.join_date || '',
+        residency_expiry: editEmployee.residency_expiry || '',
+        license_status: (editEmployee.license_status as 'has_license' | 'no_license' | 'applied') || 'no_license',
+        sponsorship_status: (editEmployee.sponsorship_status as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated') || 'not_sponsored',
+        salary_type: (editEmployee.salary_type as 'orders' | 'shift') || 'orders',
+        base_salary: editEmployee.base_salary ? String(editEmployee.base_salary) : '',
+        selected_apps: [],
+        app_schemes: {},
+      });
+    }
+  }, [editEmployee]);
+
   const [files, setFiles] = useState<{ personal: File | null; id: File | null; license: File | null }>({
     personal: null, id: null, license: null,
   });
 
   const setField = useCallback((k: string, v: any) => setForm(f => ({ ...f, [k]: v })), []);
 
-  // Live residency status
   const resStatus = (() => {
     if (!form.residency_expiry) return null;
     try {
@@ -161,37 +215,49 @@ const AddEmployeeModal = ({ onClose }: Props) => {
         sponsorship_status: form.sponsorship_status,
         salary_type: form.salary_type,
         base_salary: form.salary_type === 'shift' ? parseFloat(form.base_salary) : 0,
-        status: 'active',
       };
 
-      const { data: emp, error } = await supabase.from('employees').insert(payload).select().single();
-      if (error) throw error;
+      let empId: string;
 
-      // Upload documents
-      if (emp) {
-        const uploads = [
-          { file: files.personal, path: `${emp.id}/personal_photo`, field: 'personal_photo_url' },
-          { file: files.id, path: `${emp.id}/id_photo`, field: 'id_photo_url' },
-          { file: files.license, path: `${emp.id}/license_photo`, field: 'license_photo_url' },
-        ];
-        const updates: Record<string, string> = {};
-        for (const u of uploads) {
-          if (u.file) {
-            const ext = u.file.name.split('.').pop();
-            const { data: upData } = await supabase.storage.from('employee-documents').upload(`${u.path}.${ext}`, u.file, { upsert: true });
-            if (upData) {
-              const { data: urlData } = supabase.storage.from('employee-documents').getPublicUrl(upData.path);
-              updates[u.field] = urlData.publicUrl;
-            }
-          }
-        }
-        if (Object.keys(updates).length > 0) {
-          await supabase.from('employees').update(updates).eq('id', emp.id);
-        }
+      if (isEdit && editEmployee) {
+        const { error } = await supabase.from('employees').update(payload).eq('id', editEmployee.id);
+        if (error) throw error;
+        empId = editEmployee.id;
+      } else {
+        payload.status = 'active';
+        const { data: emp, error } = await supabase.from('employees').insert(payload).select().single();
+        if (error) throw error;
+        empId = emp.id;
       }
 
-      toast({ title: 'تم إضافة المندوب بنجاح', description: form.name });
-      onClose();
+      // Upload documents
+      const uploads = [
+        { file: files.personal, path: `${empId}/personal_photo`, field: 'personal_photo_url' },
+        { file: files.id, path: `${empId}/id_photo`, field: 'id_photo_url' },
+        { file: files.license, path: `${empId}/license_photo`, field: 'license_photo_url' },
+      ];
+      const updates: Record<string, string> = {};
+      for (const u of uploads) {
+        if (u.file) {
+          const ext = u.file.name.split('.').pop();
+          const { data: upData } = await supabase.storage.from('employee-documents').upload(`${u.path}.${ext}`, u.file, { upsert: true });
+          if (upData) {
+            const { data: urlData } = supabase.storage.from('employee-documents').getPublicUrl(upData.path);
+            updates[u.field] = urlData.publicUrl;
+          }
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('employees').update(updates).eq('id', empId);
+      }
+
+      toast({
+        title: isEdit ? 'تم تحديث بيانات المندوب' : 'تم إضافة المندوب بنجاح',
+        description: form.name,
+      });
+
+      if (onSuccess) onSuccess();
+      else onClose();
     } catch (err: any) {
       toast({ title: 'خطأ في الحفظ', description: err.message, variant: 'destructive' });
     } finally {
@@ -204,7 +270,9 @@ const AddEmployeeModal = ({ onClose }: Props) => {
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden flex flex-col border border-border/50">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-bold text-foreground">إضافة مندوب جديد</h2>
+          <h2 className="text-lg font-bold text-foreground">
+            {isEdit ? 'تعديل بيانات المندوب' : 'إضافة مندوب جديد'}
+          </h2>
           <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground">
             <X size={18} />
           </button>
@@ -227,7 +295,7 @@ const AddEmployeeModal = ({ onClose }: Props) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          {/* Step 0 — البيانات الأساسية */}
+          {/* Step 0 */}
           {step === 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="sm:col-span-2"><SectionTitle title="── البيانات الأساسية ──" /></div>
@@ -265,7 +333,7 @@ const AddEmployeeModal = ({ onClose }: Props) => {
             </div>
           )}
 
-          {/* Step 1 — الإقامة والوثائق */}
+          {/* Step 1 */}
           {step === 1 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="sm:col-span-2"><SectionTitle title="── الإقامة والوثائق ──" /></div>
@@ -307,7 +375,7 @@ const AddEmployeeModal = ({ onClose }: Props) => {
             </div>
           )}
 
-          {/* Step 2 — نوع الراتب */}
+          {/* Step 2 */}
           {step === 2 && (
             <div className="space-y-5">
               <SectionTitle title="── نوع الراتب ──" />
@@ -324,7 +392,6 @@ const AddEmployeeModal = ({ onClose }: Props) => {
                   <Input type="number" value={form.base_salary} onChange={e => setField('base_salary', e.target.value)} />
                 </F>
               )}
-
               <SectionTitle title="── المنصات المرتبطة ──" />
               <div className="flex flex-wrap gap-2">
                 {APPS.map(app => (
@@ -334,7 +401,6 @@ const AddEmployeeModal = ({ onClose }: Props) => {
                   </button>
                 ))}
               </div>
-
               {form.selected_apps.length > 0 && (
                 <div className="space-y-3 bg-muted/30 rounded-xl p-4">
                   {form.selected_apps.map(app => (
@@ -357,17 +423,29 @@ const AddEmployeeModal = ({ onClose }: Props) => {
             </div>
           )}
 
-          {/* Step 3 — رفع المستندات */}
+          {/* Step 3 */}
           {step === 3 && (
             <div className="space-y-5">
               <SectionTitle title="── رفع المستندات ──" />
               <div className="flex gap-4">
-                <UploadArea label="الصورة الشخصية" icon="📷" file={files.personal}
-                  onFile={f => setFiles(p => ({ ...p, personal: f }))} onRemove={() => setFiles(p => ({ ...p, personal: null }))} />
-                <UploadArea label="صورة الهوية" icon="🪪" file={files.id}
-                  onFile={f => setFiles(p => ({ ...p, id: f }))} onRemove={() => setFiles(p => ({ ...p, id: null }))} />
-                <UploadArea label="صورة الرخصة" icon="🚗" file={files.license}
-                  onFile={f => setFiles(p => ({ ...p, license: f }))} onRemove={() => setFiles(p => ({ ...p, license: null }))} />
+                <UploadArea
+                  label="الصورة الشخصية" icon="📷"
+                  file={files.personal} existingUrl={editEmployee?.personal_photo_url}
+                  onFile={f => setFiles(p => ({ ...p, personal: f }))}
+                  onRemove={() => setFiles(p => ({ ...p, personal: null }))}
+                />
+                <UploadArea
+                  label="صورة الهوية" icon="🪪"
+                  file={files.id} existingUrl={editEmployee?.id_photo_url}
+                  onFile={f => setFiles(p => ({ ...p, id: f }))}
+                  onRemove={() => setFiles(p => ({ ...p, id: null }))}
+                />
+                <UploadArea
+                  label="صورة الرخصة" icon="🚗"
+                  file={files.license} existingUrl={editEmployee?.license_photo_url}
+                  onFile={f => setFiles(p => ({ ...p, license: f }))}
+                  onRemove={() => setFiles(p => ({ ...p, license: null }))}
+                />
               </div>
               <p className="text-xs text-muted-foreground">الملفات المقبولة: JPG, PNG, PDF — الحجم الأقصى: 5MB لكل ملف</p>
             </div>
@@ -380,7 +458,9 @@ const AddEmployeeModal = ({ onClose }: Props) => {
             {step === 0 ? 'إلغاء' : <><ChevronLeft size={15} /> السابق</>}
           </Button>
           <Button onClick={step === STEPS.length - 1 ? save : next} disabled={saving} className="gap-2">
-            {saving ? 'جاري الحفظ...' : step === STEPS.length - 1 ? <><Check size={15} /> حفظ المندوب</> : <>التالي <ChevronRight size={15} /></>}
+            {saving ? 'جاري الحفظ...' : step === STEPS.length - 1
+              ? <><Check size={15} /> {isEdit ? 'حفظ التعديلات' : 'حفظ المندوب'}</>
+              : <>التالي <ChevronRight size={15} /></>}
           </Button>
         </div>
       </div>

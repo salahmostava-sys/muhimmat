@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp } from 'lucide-react';
+import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { salaryRecords, employees, advances, externalDeductions, salarySchemes } from '@/data/mock';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
@@ -10,6 +10,17 @@ import { format } from 'date-fns';
 
 // ─── Constants ────────────────────────────────────────────────────
 const PLATFORMS = ['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا', 'تويو', 'أمازون'];
+
+// Platform brand colors
+const PLATFORM_COLORS: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {
+  'هنقرستيشن': { header: '#FF6B35', headerText: '#fff', cellBg: 'rgba(255,107,53,0.08)', valueColor: '#FF6B35', focusBorder: '#FF6B35' },
+  'جاهز':      { header: '#1DB954', headerText: '#fff', cellBg: 'rgba(29,185,84,0.08)',  valueColor: '#1DB954', focusBorder: '#1DB954' },
+  'كيتا':      { header: '#E53935', headerText: '#fff', cellBg: 'rgba(229,57,53,0.08)',  valueColor: '#E53935', focusBorder: '#E53935' },
+  'توبو':      { header: '#7C3AED', headerText: '#fff', cellBg: 'rgba(124,58,237,0.08)', valueColor: '#7C3AED', focusBorder: '#7C3AED' },
+  'نينجا':     { header: '#111111', headerText: '#fff', cellBg: 'rgba(17,17,17,0.06)',   valueColor: '#888',    focusBorder: '#555' },
+  'تويو':      { header: '#F59E0B', headerText: '#fff', cellBg: 'rgba(245,158,11,0.08)', valueColor: '#F59E0B', focusBorder: '#F59E0B' },
+  'أمازون':    { header: '#FF9900', headerText: '#111', cellBg: 'rgba(255,153,0,0.08)',  valueColor: '#FF9900', focusBorder: '#FF9900' },
+};
 
 const statusLabels: Record<string, string> = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' };
 const statusStyles: Record<string, string> = {
@@ -25,6 +36,17 @@ const months = [
   { v: '2024-11', l: 'نوفمبر 2024' },
 ];
 
+// ─── Sort types ────────────────────────────────────────────────────
+type SortDir = 'asc' | 'desc' | null;
+type SortField = 'employeeName' | 'jobTitle' | 'nationalId' | string; // string for platform names
+
+// ─── Sort icon ─────────────────────────────────────────────────────
+const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: string | null; sortDir: SortDir }) => {
+  if (sortField !== field) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />;
+  if (sortDir === 'asc') return <ChevronUp size={10} className="inline ml-0.5" />;
+  return <ChevronDown size={10} className="inline ml-0.5" />;
+};
+
 // ─── Scheme calculator ────────────────────────────────────────────
 function calcPlatformSalary(employeeId: string, platform: string, orders: number): number {
   const emp = employees.find(e => e.id === employeeId);
@@ -32,7 +54,7 @@ function calcPlatformSalary(employeeId: string, platform: string, orders: number
   const schemeName = emp.schemeName || '';
   const scheme = salarySchemes.find(s => s.app === platform && s.name === schemeName && s.status === 'active')
     || salarySchemes.find(s => s.app === platform && s.status === 'active');
-  if (!scheme) return orders * 5; // fallback: 5 ر.س per order
+  if (!scheme) return orders * 5;
   let total = 0;
   for (const tier of scheme.tiers) {
     if (orders <= 0) break;
@@ -82,10 +104,8 @@ function buildRows(selectedMonth: string): SalaryRow[] {
         .filter(d => d.employeeId === r.employeeId && d.deductionMonth === selectedMonth && d.approvalStatus === 'approved' && d.source === 'هنقرستيشن')
         .reduce((s, d) => s + d.amount, 0);
 
-      // default platform orders from mock daily data aggregated (simplified)
       const platformOrders: Record<string, number> = {};
       (emp?.apps || []).forEach(app => {
-        // aggregate mock orders for this employee + app
         const total = [28, 12, 35, 8, 22, 18, 30, 15][parseInt(r.employeeId) % 8] || 0;
         platformOrders[app] = Math.max(5, total - PLATFORMS.indexOf(app) * 3);
       });
@@ -117,16 +137,11 @@ function buildRows(selectedMonth: string): SalaryRow[] {
 }
 
 // ─── Payslip Modal ────────────────────────────────────────────────
-interface PayslipProps {
-  row: SalaryRow;
-  onClose: () => void;
-  onApprove: () => void;
-}
+interface PayslipProps { row: SalaryRow; onClose: () => void; onApprove: () => void; }
 
 const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
-  const platformSalaries = row.registeredApps.reduce((s, app) => {
-    return s + calcPlatformSalary(row.employeeId, app, row.platformOrders[app] || 0);
-  }, 0);
+  const platformSalaries = row.registeredApps.reduce((s, app) =>
+    s + calcPlatformSalary(row.employeeId, app, row.platformOrders[app] || 0), 0);
   const totalAdditions = row.incentives + row.sickAllowance;
   const totalWithSalary = platformSalaries + totalAdditions;
   const totalDeductions = row.advanceDeduction + row.violations + row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage + row.externalHunger;
@@ -135,68 +150,34 @@ const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
 
   const printPayslip = () => {
     const monthLabel = months.find(m => m.v === row.month)?.l || row.month;
-    const html = `
-      <html dir="rtl"><head><meta charset="utf-8"><title>كشف راتب</title>
-      <style>
-        body{font-family:Arial,sans-serif;padding:30px;max-width:650px;margin:0 auto;color:#222}
-        .header{text-align:center;border-bottom:2px solid #333;padding-bottom:15px;margin-bottom:20px}
-        .logo{font-size:22px;font-weight:bold}
-        table{width:100%;border-collapse:collapse;margin-top:10px}
-        td{padding:8px 12px;border:1px solid #ddd;font-size:13px}
-        .label{background:#f5f5f5;font-weight:600;width:50%}
-        .green{color:#16a34a}.red{color:#dc2626}.blue{color:#2563eb}
-        .total-row{background:#dbeafe;font-weight:bold;font-size:15px}
-        .net-row{background:#dcfce7;font-weight:bold;font-size:16px}
-        .footer{margin-top:30px;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:20px}
-        h3{margin:20px 0 8px;font-size:14px;color:#555}
-      </style>
+    const html = `<html dir="rtl"><head><meta charset="utf-8"><title>كشف راتب</title>
+      <style>body{font-family:Arial,sans-serif;padding:30px;max-width:650px;margin:0 auto;color:#222}.header{text-align:center;border-bottom:2px solid #333;padding-bottom:15px;margin-bottom:20px}.logo{font-size:22px;font-weight:bold}table{width:100%;border-collapse:collapse;margin-top:10px}td{padding:8px 12px;border:1px solid #ddd;font-size:13px}.label{background:#f5f5f5;font-weight:600;width:50%}.green{color:#16a34a}.red{color:#dc2626}.blue{color:#2563eb}.total-row{background:#dbeafe;font-weight:bold;font-size:15px}.net-row{background:#dcfce7;font-weight:bold;font-size:16px}.footer{margin-top:30px;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:20px}h3{margin:20px 0 8px;font-size:14px;color:#555}</style>
       </head><body>
-      <div class="header"><div class="logo">🚀 نظام إدارة التوصيل</div>
-      <p style="color:#666;margin:5px 0">كشف راتب — ${monthLabel}</p></div>
-      <h3>بيانات المندوب</h3>
-      <table>
+      <div class="header"><div class="logo">🚀 نظام إدارة التوصيل</div><p style="color:#666;margin:5px 0">كشف راتب — ${monthLabel}</p></div>
+      <h3>بيانات المندوب</h3><table>
         <tr><td class="label">الاسم</td><td>${row.employeeName}</td></tr>
-        <tr><td class="label">المسمى الوظيفي</td><td>${row.jobTitle}</td></tr>
         <tr><td class="label">رقم الهوية</td><td>${row.nationalId}</td></tr>
         <tr><td class="label">المدينة</td><td>${row.city}</td></tr>
       </table>
-      <h3>الطلبات والراتب الأساسي</h3>
-      <table>
+      <h3>إجمالي الراتب الأساسي</h3><table>
         ${row.registeredApps.map(app => {
           const orders = row.platformOrders[app] || 0;
           const salary = calcPlatformSalary(row.employeeId, app, orders);
           return `<tr><td class="label">${app} (${orders} طلب)</td><td class="blue">${salary.toLocaleString()} ر.س</td></tr>`;
         }).join('')}
-        <tr class="total-row"><td class="label">إجمالي الراتب الأساسي</td><td class="blue">${platformSalaries.toLocaleString()} ر.س</td></tr>
+        <tr class="total-row"><td class="label">الإجمالي</td><td class="blue">${platformSalaries.toLocaleString()} ر.س</td></tr>
       </table>
-      <h3>الإضافات</h3>
-      <table>
-        <tr><td class="label">الحوافز</td><td class="green">+ ${row.incentives.toLocaleString()} ر.س</td></tr>
-        <tr><td class="label">بدل مرضي</td><td class="green">+ ${row.sickAllowance.toLocaleString()} ر.س</td></tr>
-        <tr class="total-row"><td class="label">المجموع مع الراتب</td><td class="blue">${totalWithSalary.toLocaleString()} ر.س</td></tr>
-      </table>
-      <h3>المستقطعات</h3>
-      <table>
+      <h3>المستقطعات</h3><table>
         ${row.advanceDeduction > 0 ? `<tr><td class="label">السلف</td><td class="red">- ${row.advanceDeduction.toLocaleString()} ر.س</td></tr>` : ''}
         ${row.violations > 0 ? `<tr><td class="label">المخالفات</td><td class="red">- ${row.violations.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.walletHunger > 0 ? `<tr><td class="label">محفظة هنقرستيشن</td><td class="red">- ${row.walletHunger.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.walletTuyo > 0 ? `<tr><td class="label">محفظة تويو</td><td class="red">- ${row.walletTuyo.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.walletJahiz > 0 ? `<tr><td class="label">محفظة جاهز</td><td class="red">- ${row.walletJahiz.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.foodDamage > 0 ? `<tr><td class="label">تلف طعام</td><td class="red">- ${row.foodDamage.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.externalHunger > 0 ? `<tr><td class="label">خصومات هنقرستيشن</td><td class="red">- ${row.externalHunger.toLocaleString()} ر.س</td></tr>` : ''}
         <tr class="total-row"><td class="label">إجمالي المستقطعات</td><td class="red">- ${totalDeductions.toLocaleString()} ر.س</td></tr>
       </table>
-      <h3>الصافي والصرف</h3>
-      <table>
-        <tr class="net-row"><td class="label">إجمالي الراتب (الصافي)</td><td class="green">${netSalary.toLocaleString()} ر.س</td></tr>
-        <tr><td class="label">التحويل البنكي</td><td>${row.transfer.toLocaleString()} ر.س</td></tr>
-        <tr><td class="label">المتبقي نقداً</td><td>${remaining.toLocaleString()} ر.س</td></tr>
-        <tr><td class="label">طريقة الصرف</td><td>${row.bankAccount ? '🏦 بنكي' : '💵 كاش'}</td></tr>
+      <h3>الصافي</h3><table>
+        <tr class="net-row"><td class="label">إجمالي الراتب الصافي</td><td class="green">${netSalary.toLocaleString()} ر.س</td></tr>
+        <tr><td class="label">التحويل</td><td>${row.transfer.toLocaleString()} ر.س</td></tr>
+        <tr><td class="label">المتبقي</td><td>${remaining.toLocaleString()} ر.س</td></tr>
       </table>
-      <div class="footer">
-        <div>توقيع المندوب: _______________</div>
-        <div>اعتماد الإدارة: _______________</div>
-      </div>
+      <div class="footer"><div>توقيع المندوب: _______________</div><div>اعتماد الإدارة: _______________</div></div>
       </body></html>`;
     const win = window.open('', '_blank');
     win?.document.write(html);
@@ -210,26 +191,23 @@ const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
         <DialogHeader>
           <DialogTitle>كشف راتب — {row.employeeName}</DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4 text-sm">
-          {/* Employee info */}
           <div className="bg-muted/40 rounded-lg p-3 grid grid-cols-2 gap-2">
             <div><span className="text-muted-foreground">الشهر: </span><span className="font-medium">{months.find(m => m.v === row.month)?.l}</span></div>
             <div><span className="text-muted-foreground">المدينة: </span><span className="font-medium">{row.city}</span></div>
             <div><span className="text-muted-foreground">رقم الهوية: </span><span className="font-medium">{row.nationalId}</span></div>
             <div><span className="text-muted-foreground">الحالة: </span><span className={statusStyles[row.status]}>{statusLabels[row.status]}</span></div>
           </div>
-
-          {/* Platform breakdown */}
           <div>
             <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">الطلبات حسب المنصة</p>
             {row.registeredApps.map(app => {
               const orders = row.platformOrders[app] || 0;
               const salary = calcPlatformSalary(row.employeeId, app, orders);
+              const color = PLATFORM_COLORS[app]?.valueColor || 'hsl(var(--primary))';
               return (
                 <div key={app} className="flex justify-between py-1.5 border-b border-border/30">
                   <span className="text-muted-foreground">{app} ({orders} طلب)</span>
-                  <span className="font-semibold text-primary">{salary.toLocaleString()} ر.س</span>
+                  <span className="font-semibold" style={{ color }}>{salary.toLocaleString()} ر.س</span>
                 </div>
               );
             })}
@@ -238,8 +216,6 @@ const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
               <span>{platformSalaries.toLocaleString()} ر.س</span>
             </div>
           </div>
-
-          {/* Additions */}
           <div>
             <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">الإضافات</p>
             <div className="flex justify-between py-1.5 border-b border-border/30">
@@ -255,8 +231,6 @@ const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
               <span>{totalWithSalary.toLocaleString()} ر.س</span>
             </div>
           </div>
-
-          {/* Deductions */}
           <div>
             <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide mb-2">المستقطعات</p>
             {[
@@ -278,13 +252,10 @@ const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
               <span>-{totalDeductions.toLocaleString()} ر.س</span>
             </div>
           </div>
-
-          {/* Net */}
           <div className="flex justify-between items-center py-3 bg-success/10 rounded-lg px-4">
             <span className="font-bold text-lg">إجمالي الراتب الصافي</span>
             <span className="text-2xl font-black text-success">{netSalary.toLocaleString()} ر.س</span>
           </div>
-
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-muted/40 rounded-lg p-3 text-center">
               <p className="text-xs text-muted-foreground">التحويل</p>
@@ -300,7 +271,6 @@ const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
             </div>
           </div>
         </div>
-
         <div className="flex gap-2 justify-between pt-2">
           <Button variant="outline" onClick={onClose}>إغلاق</Button>
           <div className="flex gap-2">
@@ -321,15 +291,10 @@ const PayslipModal = ({ row, onClose, onApprove }: PayslipProps) => {
 
 // ─── Editable number cell ─────────────────────────────────────────
 const EditableCell = ({
-  value,
-  onChange,
-  className = '',
-  min = 0,
+  value, onChange, className = '', min = 0, accentColor,
 }: {
-  value: number;
-  onChange: (v: number) => void;
-  className?: string;
-  min?: number;
+  value: number; onChange: (v: number) => void;
+  className?: string; min?: number; accentColor?: string;
 }) => {
   const [editing, setEditing] = useState(false);
   const [local, setLocal] = useState(String(value));
@@ -349,13 +314,15 @@ const EditableCell = ({
         onChange={e => setLocal(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
-        className={`w-16 text-center border border-primary rounded px-1 py-0.5 text-xs bg-background outline-none ${className}`}
+        style={{ borderColor: accentColor }}
+        className={`w-16 text-center border rounded px-1 py-0.5 text-xs bg-background outline-none ${className}`}
       />
     );
   }
   return (
     <span
       onDoubleClick={() => { setLocal(String(value)); setEditing(true); }}
+      style={accentColor && value > 0 ? { color: accentColor } : undefined}
       className={`cursor-pointer hover:bg-primary/10 rounded px-1 py-0.5 text-xs min-w-[40px] inline-block text-center ${className}`}
       title="نقر مزدوج للتعديل"
     >
@@ -424,7 +391,6 @@ const ImportModal = ({ onClose }: { onClose: () => void }) => {
             <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
               onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
-
           {preview.length > 0 && (
             <>
               <p className="text-sm text-muted-foreground">{preview.length} سطر — {Object.keys(errors).length} أخطاء</p>
@@ -472,11 +438,65 @@ const Salaries = () => {
   const [rows, setRows] = useState<SalaryRow[]>(() => buildRows('2025-02'));
   const [payslipRow, setPayslipRow] = useState<SalaryRow | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
 
-  const filtered = rows.filter(r => {
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else if (sortDir === 'desc') { setSortField(null); setSortDir(null); }
+      else setSortDir('asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const computeRow = (r: SalaryRow) => {
+    const platformSalaries = r.registeredApps.reduce((s, app) =>
+      s + calcPlatformSalary(r.employeeId, app, r.platformOrders[app] || 0), 0);
+    const totalAdditions = r.incentives + r.sickAllowance;
+    const totalWithSalary = platformSalaries + totalAdditions;
+    const totalDeductions = r.advanceDeduction + r.violations + r.walletHunger + r.walletTuyo + r.walletJahiz + r.foodDamage + r.externalHunger;
+    const netSalary = totalWithSalary - totalDeductions;
+    const remaining = netSalary - r.transfer;
+    return { platformSalaries, totalAdditions, totalWithSalary, totalDeductions, netSalary, remaining };
+  };
+
+  const filteredBase = rows.filter(r => {
     const matchSearch = r.employeeName.includes(search);
     const matchStatus = statusFilter === 'all' || r.status === statusFilter;
     return matchSearch && matchStatus;
+  });
+
+  const filtered = [...filteredBase].sort((a, b) => {
+    if (!sortField || !sortDir) return 0;
+    let va: any, vb: any;
+    const ca = computeRow(a), cb = computeRow(b);
+    switch (sortField) {
+      case 'employeeName': va = a.employeeName; vb = b.employeeName; break;
+      case 'jobTitle': va = a.jobTitle; vb = b.jobTitle; break;
+      case 'nationalId': va = a.nationalId; vb = b.nationalId; break;
+      case 'platformSalaries': va = ca.platformSalaries; vb = cb.platformSalaries; break;
+      case 'incentives': va = a.incentives; vb = b.incentives; break;
+      case 'totalAdditions': va = ca.totalAdditions; vb = cb.totalAdditions; break;
+      case 'advanceDeduction': va = a.advanceDeduction; vb = b.advanceDeduction; break;
+      case 'totalDeductions': va = ca.totalDeductions; vb = cb.totalDeductions; break;
+      case 'netSalary': va = ca.netSalary; vb = cb.netSalary; break;
+      case 'status': va = a.status; vb = b.status; break;
+      default:
+        // Platform order columns
+        if (PLATFORMS.includes(sortField)) {
+          va = a.platformOrders[sortField] || 0;
+          vb = b.platformOrders[sortField] || 0;
+        } else {
+          va = (a as any)[sortField] || 0;
+          vb = (b as any)[sortField] || 0;
+        }
+    }
+    if (va < vb) return sortDir === 'asc' ? -1 : 1;
+    if (va > vb) return sortDir === 'asc' ? 1 : -1;
+    return 0;
   });
 
   const updateRow = useCallback((id: string, patch: Partial<SalaryRow>) => {
@@ -499,25 +519,11 @@ const Salaries = () => {
     toast({ title: `✅ تم اعتماد ${pendingIds.length} راتب` });
   };
 
-  // Computed values per row
-  const computeRow = (r: SalaryRow) => {
-    const platformSalaries = r.registeredApps.reduce((s, app) =>
-      s + calcPlatformSalary(r.employeeId, app, r.platformOrders[app] || 0), 0);
-    const totalAdditions = r.incentives + r.sickAllowance;
-    const totalWithSalary = platformSalaries + totalAdditions;
-    const totalDeductions = r.advanceDeduction + r.violations + r.walletHunger + r.walletTuyo + r.walletJahiz + r.foodDamage + r.externalHunger;
-    const netSalary = totalWithSalary - totalDeductions;
-    const remaining = netSalary - r.transfer;
-    return { platformSalaries, totalAdditions, totalWithSalary, totalDeductions, netSalary, remaining };
-  };
-
-  // Summary cards
   const totalNet = filtered.reduce((s, r) => s + computeRow(r).netSalary, 0);
   const pendingCount = filtered.filter(r => r.status === 'pending').length;
   const approvedCount = filtered.filter(r => r.status === 'approved').length;
   const paidCount = filtered.filter(r => r.status === 'paid').length;
 
-  // Excel export
   const exportExcel = () => {
     const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
     const data = filtered.map(r => {
@@ -551,8 +557,6 @@ const Salaries = () => {
       row['الحالة'] = statusLabels[r.status];
       return row;
     });
-
-    // Totals row
     const totalsRow: Record<string, string | number> = { 'الاسم': 'الإجمالي' };
     PLATFORMS.forEach(p => {
       totalsRow[p] = filtered.reduce((s, r) => s + (r.registeredApps.includes(p) ? (r.platformOrders[p] || 0) : 0), 0);
@@ -560,7 +564,6 @@ const Salaries = () => {
     totalsRow['إجمالي الراتب الأساسي'] = filtered.reduce((s, r) => s + computeRow(r).platformSalaries, 0);
     totalsRow['إجمالي الراتب'] = totalNet;
     data.push(totalsRow);
-
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'الرواتب');
@@ -569,7 +572,6 @@ const Salaries = () => {
     toast({ title: '📊 تم التصدير بنجاح' });
   };
 
-  // Totals for footer
   const totals = filtered.reduce((acc, r) => {
     const c = computeRow(r);
     PLATFORMS.forEach(p => {
@@ -600,12 +602,21 @@ const Salaries = () => {
     food: 0, extHunger: 0, totalDed: 0, net: 0, transfer: 0, remaining: 0,
   });
 
-  const thClass = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center";
-  const thFrozenClass = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/60 text-right sticky z-20";
-  const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border-b border-border/20";
-  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border-b border-border/20 bg-card sticky z-10";
-  const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center bg-muted/60";
+  // Sortable header helper
+  const ThSort = ({ field, label, className = '' }: { field: string; label: string; className?: string }) => (
+    <th
+      className={`px-3 py-2 text-xs font-semibold whitespace-nowrap border-b border-border/50 text-center cursor-pointer select-none hover:brightness-90 transition-all ${className}`}
+      onClick={() => handleSort(field)}
+    >
+      {label}
+      <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
+    </th>
+  );
 
+  const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/60 text-right sticky z-20";
+  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border-b border-border/20 bg-card sticky z-10";
+  const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border-b border-border/20";
+  const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center bg-muted/60";
   const stickyLeft = (offset: number) => ({ left: offset });
 
   return (
@@ -642,20 +653,15 @@ const Salaries = () => {
       <div className="flex items-center gap-2 flex-wrap">
         <select
           value={selectedMonth}
-          onChange={e => {
-            setSelectedMonth(e.target.value);
-            setRows(buildRows(e.target.value));
-          }}
+          onChange={e => { setSelectedMonth(e.target.value); setRows(buildRows(e.target.value)); }}
           className="h-9 px-3 rounded-lg border border-border bg-background text-sm"
         >
           {months.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
         </select>
-
         <div className="relative">
           <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input placeholder="بحث بالاسم..." className="pr-9 h-9 w-48" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-
         <div className="flex gap-1">
           {[{ v: 'all', l: 'الكل' }, { v: 'pending', l: 'معلّق' }, { v: 'approved', l: 'معتمد' }, { v: 'paid', l: 'مصروف' }].map(s => (
             <button key={s.v} onClick={() => setStatusFilter(s.v)}
@@ -664,7 +670,6 @@ const Salaries = () => {
             </button>
           ))}
         </div>
-
         <div className="flex gap-2 mr-auto">
           {pendingCount > 0 && (
             <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={approveAll}>
@@ -687,52 +692,89 @@ const Salaries = () => {
             <thead className="sticky top-0 z-30">
               {/* Group headers */}
               <tr className="bg-muted/70 border-b border-border/50">
-                <th colSpan={3} className={`${thFrozenClass} border-l border-border/50`} style={stickyLeft(0)}>بيانات المندوب</th>
-                <th colSpan={7} className={`${thClass} border-l border-border/50 text-primary`}>الطلبات حسب المنصة (نقر مزدوج للتعديل)</th>
-                <th className={`${thClass} border-l border-border/50 text-primary`}>الراتب الأساسي</th>
-                <th colSpan={4} className={`${thClass} border-l border-border/50 text-success`}>الإضافات</th>
-                <th colSpan={7} className={`${thClass} border-l border-border/50 text-destructive`}>المستقطعات</th>
-                <th colSpan={3} className={`${thClass} border-l border-border/50 text-success`}>الصافي والصرف</th>
-                <th colSpan={2} className={`${thClass} border-l border-border/50`}>معلومات الصرف</th>
-                <th colSpan={3} className={thClass}>الإجراءات</th>
+                <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(0)}>بيانات المندوب</th>
+                <th colSpan={7} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
+                  الطلبات حسب المنصة (نقر مزدوج للتعديل)
+                </th>
+                <th className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الراتب الأساسي</th>
+                <th colSpan={4} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الإضافات</th>
+                <th colSpan={7} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">المستقطعات</th>
+                <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الصافي والصرف</th>
+                <th colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">معلومات الصرف</th>
+                <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center">الإجراءات</th>
               </tr>
               {/* Column headers */}
               <tr className="bg-muted/50">
-                {/* Frozen */}
-                <th className={`${thFrozenClass} w-44`} style={stickyLeft(0)}>الاسم</th>
-                <th className={`${thFrozenClass} w-28`} style={stickyLeft(176)}>المسمى الوظيفي</th>
-                <th className={`${thFrozenClass} w-28 border-l border-border/50`} style={stickyLeft(288)}>رقم الهوية</th>
-                {/* Platforms */}
-                {PLATFORMS.map(p => (
-                  <th key={p} className={thClass}>{p}</th>
-                ))}
+                {/* Frozen — sortable */}
+                <th
+                  className={`${thFrozenBase} w-44 cursor-pointer hover:text-foreground select-none`}
+                  style={stickyLeft(0)}
+                  onClick={() => handleSort('employeeName')}
+                >
+                  الاسم <SortIcon field="employeeName" sortField={sortField} sortDir={sortDir} />
+                </th>
+                <th
+                  className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`}
+                  style={stickyLeft(176)}
+                  onClick={() => handleSort('jobTitle')}
+                >
+                  المسمى الوظيفي <SortIcon field="jobTitle" sortField={sortField} sortDir={sortDir} />
+                </th>
+                <th
+                  className={`${thFrozenBase} w-28 border-l border-border/50 cursor-pointer hover:text-foreground select-none`}
+                  style={stickyLeft(288)}
+                  onClick={() => handleSort('nationalId')}
+                >
+                  رقم الهوية <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
+                </th>
+
+                {/* Platform headers with brand colors */}
+                {PLATFORMS.map(p => {
+                  const pc = PLATFORM_COLORS[p];
+                  return (
+                    <th
+                      key={p}
+                      className="px-3 py-2 text-xs font-semibold whitespace-nowrap border-b border-border/50 text-center cursor-pointer select-none hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: pc.header, color: pc.headerText }}
+                      onClick={() => handleSort(p)}
+                    >
+                      {p} <SortIcon field={p} sortField={sortField} sortDir={sortDir} />
+                    </th>
+                  );
+                })}
+
                 {/* Base salary */}
-                <th className={`${thClass} border-l border-border/50 text-primary font-bold`}>إجمالي الراتب الأساسي</th>
+                <ThSort field="platformSalaries" label="إجمالي الراتب الأساسي" className="text-primary font-bold border-l border-border/50 bg-muted/50 text-muted-foreground" />
+
                 {/* Additions */}
-                <th className={`${thClass} text-success`}>الحوافز</th>
-                <th className={`${thClass} text-success`}>بدل مرضي</th>
-                <th className={`${thClass} text-success`}>إجمالي الإضافات</th>
-                <th className={`${thClass} text-primary border-l border-border/50`}>المجموع مع الراتب</th>
+                <ThSort field="incentives" label="الحوافز" className="text-success bg-muted/50 text-muted-foreground" />
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">بدل مرضي</th>
+                <ThSort field="totalAdditions" label="إجمالي الإضافات" className="text-success bg-muted/50 text-muted-foreground" />
+                <th className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">المجموع مع الراتب</th>
+
                 {/* Deductions */}
-                <th className={`${thClass} text-destructive`}>السلف</th>
-                <th className={`${thClass} text-destructive`}>المخالفات</th>
-                <th className={`${thClass} text-destructive`}>محفظة هنقر</th>
-                <th className={`${thClass} text-destructive`}>محفظة تويو</th>
-                <th className={`${thClass} text-destructive`}>محفظة جاهز</th>
-                <th className={`${thClass} text-destructive`}>تلف طعام</th>
-                <th className={`${thClass} text-destructive border-l border-border/50`}>خصم هنقر</th>
+                <ThSort field="advanceDeduction" label="السلف" className="text-destructive bg-muted/50 text-muted-foreground" />
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">المخالفات</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">محفظة هنقر</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">محفظة تويو</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">محفظة جاهز</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">تلف طعام</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">خصم هنقر</th>
+
                 {/* Net */}
-                <th className={`${thClass} text-destructive font-bold border-l border-border/50`}>إجمالي المستقطعات</th>
-                <th className={`${thClass} text-success font-bold text-base`}>إجمالي الراتب</th>
-                <th className={thClass}>التحويل</th>
-                <th className={`${thClass} border-l border-border/50`}>المتبقي</th>
+                <ThSort field="totalDeductions" label="إجمالي المستقطعات" className="text-destructive font-bold border-l border-border/50 bg-muted/50 text-muted-foreground" />
+                <ThSort field="netSalary" label="إجمالي الراتب" className="text-success font-bold text-base bg-muted/50 text-muted-foreground" />
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">التحويل</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">المتبقي</th>
+
                 {/* Info */}
-                <th className={thClass}>طريقة الصرف</th>
-                <th className={`${thClass} border-l border-border/50`}>المدينة</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">طريقة الصرف</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center border-l border-border/50">المدينة</th>
+
                 {/* Actions */}
-                <th className={thClass}>الحالة</th>
-                <th className={thClass}>اعتماد</th>
-                <th className={thClass}>PDF</th>
+                <ThSort field="status" label="الحالة" className="bg-muted/50 text-muted-foreground" />
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">اعتماد</th>
+                <th className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center">PDF</th>
               </tr>
             </thead>
 
@@ -741,12 +783,9 @@ const Salaries = () => {
                 const c = computeRow(r);
                 return (
                   <tr key={r.id} className="hover:bg-muted/10 transition-colors group">
-                    {/* Frozen: Name */}
+                    {/* Frozen cols */}
                     <td className={`${tdFrozenClass} w-44 text-right`} style={stickyLeft(0)}>
-                      <button
-                        className="flex items-center gap-2 hover:text-primary transition-colors text-right"
-                        onClick={() => setPayslipRow(r)}
-                      >
+                      <button className="flex items-center gap-2 hover:text-primary transition-colors text-right" onClick={() => setPayslipRow(r)}>
                         <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
                           {r.employeeName.slice(0, 1)}
                         </span>
@@ -760,77 +799,58 @@ const Salaries = () => {
                       <span className="text-xs text-muted-foreground">{r.nationalId}</span>
                     </td>
 
-                    {/* Platforms */}
-                    {PLATFORMS.map(p => (
-                      <td key={p} className={tdClass}>
-                        {r.registeredApps.includes(p) ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <EditableCell
-                              value={r.platformOrders[p] || 0}
-                              onChange={v => updatePlatformOrders(r.id, p, v)}
-                            />
-                            <span className="text-muted-foreground/60 text-[10px]">
-                              = {calcPlatformSalary(r.employeeId, p, r.platformOrders[p] || 0).toLocaleString()} ر.س
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground/30">—</span>
-                        )}
-                      </td>
-                    ))}
+                    {/* Platform cells with brand tint */}
+                    {PLATFORMS.map(p => {
+                      const pc = PLATFORM_COLORS[p];
+                      return (
+                        <td key={p} className={`${tdClass}`} style={{ backgroundColor: r.registeredApps.includes(p) ? pc.cellBg : undefined }}>
+                          {r.registeredApps.includes(p) ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <EditableCell
+                                value={r.platformOrders[p] || 0}
+                                onChange={v => updatePlatformOrders(r.id, p, v)}
+                                accentColor={pc.valueColor}
+                              />
+                              <span className="text-muted-foreground/60 text-[10px]">
+                                = {calcPlatformSalary(r.employeeId, p, r.platformOrders[p] || 0).toLocaleString()} ر.س
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/30">—</span>
+                          )}
+                        </td>
+                      );
+                    })}
 
                     {/* Base salary */}
-                    <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>
-                      {c.platformSalaries.toLocaleString()}
-                    </td>
+                    <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.platformSalaries.toLocaleString()}</td>
 
                     {/* Additions */}
-                    <td className={tdClass}>
-                      <EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-success" />
-                    </td>
-                    <td className={tdClass}>
-                      <EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-success" />
-                    </td>
+                    <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-success" /></td>
+                    <td className={tdClass}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-success" /></td>
                     <td className={`${tdClass} text-success font-semibold`}>{c.totalAdditions.toLocaleString()}</td>
                     <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.totalWithSalary.toLocaleString()}</td>
 
                     {/* Deductions */}
                     <td className={`${tdClass} text-destructive`}>{r.advanceDeduction > 0 ? r.advanceDeduction.toLocaleString() : <span className="text-muted-foreground/30">—</span>}</td>
-                    <td className={tdClass}>
-                      <EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-destructive" />
-                    </td>
-                    <td className={tdClass}>
-                      <EditableCell value={r.walletHunger} onChange={v => updateRow(r.id, { walletHunger: v })} className="text-destructive" />
-                    </td>
-                    <td className={tdClass}>
-                      <EditableCell value={r.walletTuyo} onChange={v => updateRow(r.id, { walletTuyo: v })} className="text-destructive" />
-                    </td>
-                    <td className={tdClass}>
-                      <EditableCell value={r.walletJahiz} onChange={v => updateRow(r.id, { walletJahiz: v })} className="text-destructive" />
-                    </td>
-                    <td className={tdClass}>
-                      <EditableCell value={r.foodDamage} onChange={v => updateRow(r.id, { foodDamage: v })} className="text-destructive" />
-                    </td>
+                    <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-destructive" /></td>
+                    <td className={tdClass}><EditableCell value={r.walletHunger} onChange={v => updateRow(r.id, { walletHunger: v })} className="text-destructive" /></td>
+                    <td className={tdClass}><EditableCell value={r.walletTuyo} onChange={v => updateRow(r.id, { walletTuyo: v })} className="text-destructive" /></td>
+                    <td className={tdClass}><EditableCell value={r.walletJahiz} onChange={v => updateRow(r.id, { walletJahiz: v })} className="text-destructive" /></td>
+                    <td className={tdClass}><EditableCell value={r.foodDamage} onChange={v => updateRow(r.id, { foodDamage: v })} className="text-destructive" /></td>
                     <td className={`${tdClass} border-l border-border/20 text-destructive`}>
                       {r.externalHunger > 0 ? r.externalHunger.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
                     </td>
 
-                    {/* Net & Transfer */}
+                    {/* Net */}
                     <td className={`${tdClass} font-bold text-destructive border-l border-border/20`}>
                       {c.totalDeductions > 0 ? c.totalDeductions.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
                     </td>
-                    <td className={`${tdClass} font-black text-success text-base`}>
-                      {c.netSalary.toLocaleString()}
-                    </td>
+                    <td className={`${tdClass} font-black text-success text-base`}>{c.netSalary.toLocaleString()}</td>
                     <td className={tdClass}>
-                      <EditableCell
-                        value={r.transfer}
-                        onChange={v => updateRow(r.id, { transfer: Math.min(v, c.netSalary) })}
-                      />
+                      <EditableCell value={r.transfer} onChange={v => updateRow(r.id, { transfer: Math.min(v, c.netSalary) })} />
                     </td>
-                    <td className={`${tdClass} border-l border-border/20`}>
-                      {c.remaining.toLocaleString()}
-                    </td>
+                    <td className={`${tdClass} border-l border-border/20`}>{c.remaining.toLocaleString()}</td>
 
                     {/* Info */}
                     <td className={tdClass}>
@@ -845,9 +865,7 @@ const Salaries = () => {
                     </td>
 
                     {/* Actions */}
-                    <td className={tdClass}>
-                      <span className={statusStyles[r.status]}>{statusLabels[r.status]}</span>
-                    </td>
+                    <td className={tdClass}><span className={statusStyles[r.status]}>{statusLabels[r.status]}</span></td>
                     <td className={tdClass}>
                       {r.status === 'pending' && (
                         <button onClick={() => approveRow(r.id)} className="text-success hover:text-success/70 transition-colors" title="اعتماد">
@@ -864,15 +882,13 @@ const Salaries = () => {
                 );
               })}
 
-              {/* Totals footer row */}
+              {/* Totals footer */}
               <tr className="bg-muted/60 border-t-2 border-border">
-                <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>
-                  الإجمالي
-                </td>
+                <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                 <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                 <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                 {PLATFORMS.map(p => (
-                  <td key={p} className={`${tfClass} text-primary`}>{(totals.platform[p] || 0).toLocaleString()}</td>
+                  <td key={p} className={`${tfClass}`} style={{ color: PLATFORM_COLORS[p]?.valueColor }}>{(totals.platform[p] || 0).toLocaleString()}</td>
                 ))}
                 <td className={`${tfClass} text-primary border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
                 <td className={`${tfClass} text-success`}>{totals.incentives.toLocaleString()}</td>
@@ -897,7 +913,6 @@ const Salaries = () => {
         </div>
       </div>
 
-      {/* Modals */}
       {payslipRow && (
         <PayslipModal
           row={payslipRow}
