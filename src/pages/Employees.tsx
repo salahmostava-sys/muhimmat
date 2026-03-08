@@ -315,7 +315,7 @@ const Employees = () => {
   // ── Th helper ──
   const Th = ({ field, label, sortable = true }: { field?: SortField; label: string; sortable?: boolean }) => (
     <th
-      className={`px-3 py-3 text-xs font-semibold text-muted-foreground whitespace-nowrap select-none ${sortable && field ? 'cursor-pointer hover:text-foreground' : ''}`}
+      className={`ta-th select-none ${sortable && field ? 'cursor-pointer hover:text-foreground' : ''}`}
       onClick={sortable && field ? () => handleSort(field) : undefined}
     >
       {label}
