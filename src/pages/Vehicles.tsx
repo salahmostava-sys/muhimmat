@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import { format, differenceInDays, parseISO } from 'date-fns';
+import { usePermissions } from '@/hooks/usePermissions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleStatus = 'active' | 'maintenance' | 'breakdown' | 'rental' | 'ended';
