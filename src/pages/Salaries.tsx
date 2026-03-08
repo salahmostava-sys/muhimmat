@@ -1218,6 +1218,7 @@ const Salaries = () => {
                   <th className={thBase}>إجمالي الإضافات</th>
                   <th className={`${thBase} border-l border-border/50`}>الإجمالي مع الراتب</th>
                   <th className={thBase}>قسط سلفة</th>
+                  <th className={thBase}>رصيد السلف المتبقي</th>
                   <th className={thBase}>استقطاعات خارجية</th>
                   <th className={thBase}>مخالفات</th>
                   <th className={thBase}>محفظة هنقرستيشن</th>
