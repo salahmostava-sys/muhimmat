@@ -6,7 +6,13 @@ import DailyAttendance from '@/components/attendance/DailyAttendance';
 import MonthlyRecord from '@/components/attendance/MonthlyRecord';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
-import { attendance as attendanceData } from '@/data/mock';
+
+const handleExportAttendance = () => {
+  const ws = XLSX.utils.json_to_sheet([{ 'ملاحظة': 'يتم تصدير بيانات الحضور من شاشة السجل الشهري' }]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'الحضور');
+  XLSX.writeFile(wb, `الحضور_${format(new Date(), 'yyyy-MM')}.xlsx`);
+};
 
 const handleExportAttendance = () => {
   const rows = attendanceData.map((a: any) => ({
