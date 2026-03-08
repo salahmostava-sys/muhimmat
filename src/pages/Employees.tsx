@@ -238,6 +238,21 @@ const Employees = () => {
     }
   }, [data, toast, t]);
 
+  // ── Delete employee ──
+  const handleDelete = useCallback(async () => {
+    if (!deleteEmployee) return;
+    setDeleting(true);
+    const { error } = await supabase.from('employees').delete().eq('id', deleteEmployee.id);
+    if (error) {
+      toast({ title: t('errorDeleting') || 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+    } else {
+      setData(prev => prev.filter(e => e.id !== deleteEmployee.id));
+      toast({ title: t('deleted') || 'تم الحذف', description: deleteEmployee.name });
+    }
+    setDeleting(false);
+    setDeleteEmployee(null);
+  }, [deleteEmployee, toast, t]);
+
   // ── Filter + sort ──
   const filtered = data.filter(e => {
     const q = search.toLowerCase();
