@@ -416,7 +416,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                           <SelectValue placeholder="اختر السكيمة" />
                         </SelectTrigger>
                         <SelectContent>
-                          {salarySchemes.filter(s => s.status === 'active').map(s => (
+                          {schemes.map(s => (
                             <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                           ))}
                         </SelectContent>
