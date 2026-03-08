@@ -6,8 +6,9 @@
 
 @layer base {
   :root {
-    /* ─── TailAdmin-inspired light palette ──────────────────── */
-    --background: 210 20% 98%;
+    /* ─── TailAdmin v2.2 light palette ──────────────────────── */
+    --background: 220 20% 97%;
+    --foreground: 222 47% 11%;
     --foreground: 220 30% 12%;
 
     --card: 0 0% 100%;
