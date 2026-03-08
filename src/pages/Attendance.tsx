@@ -14,19 +14,6 @@ const handleExportAttendance = () => {
   XLSX.writeFile(wb, `الحضور_${format(new Date(), 'yyyy-MM')}.xlsx`);
 };
 
-const handleExportAttendance = () => {
-  const rows = attendanceData.map((a: any) => ({
-    'المندوب': a.employeeName || '',
-    'التاريخ': a.date || '',
-    'الحالة': a.status === 'present' ? 'حاضر' : a.status === 'absent' ? 'غائب' : a.status === 'leave' ? 'إجازة' : a.status,
-    'ملاحظة': a.note || '',
-  }));
-  const ws = XLSX.utils.json_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'الحضور');
-  XLSX.writeFile(wb, `الحضور_${format(new Date(), 'yyyy-MM')}.xlsx`);
-};
-
 const Attendance = () => {
   return (
     <div className="space-y-6">
