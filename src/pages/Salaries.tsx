@@ -454,18 +454,28 @@ const Salaries = () => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
 
-  // Sync PLATFORM_COLORS from DB apps
+  // Sync platforms & colors from DB apps
   useEffect(() => {
-    appColorsList.forEach(app => {
-      PLATFORM_COLORS[app.name] = {
+    if (appColorsList.length === 0) return;
+    const newColors: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {};
+    const newPlatforms: string[] = [];
+    appColorsList.filter(a => a.is_active).forEach(app => {
+      newPlatforms.push(app.name);
+      newColors[app.name] = {
         header: app.brand_color,
         headerText: app.text_color,
         cellBg: `${app.brand_color}18`,
         valueColor: app.brand_color,
         focusBorder: app.brand_color,
       };
+      // keep global in sync for legacy code paths
+      PLATFORM_COLORS[app.name] = newColors[app.name];
     });
+    setPlatforms(newPlatforms);
+    setPlatformColors(newColors);
   }, [appColorsList]);
 
   // ─── Data fetching ─────────────────────────────────────────────
