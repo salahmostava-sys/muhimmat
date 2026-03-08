@@ -52,11 +52,10 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
     const leaveDays = rows.filter(r => r.status === 'leave').length;
     const sickDays = rows.filter(r => r.status === 'sick').length;
     const lateDays = rows.filter(r => r.status === 'late').length;
-    const unpaidLeaveDays = rows.filter(r => r.status === 'unpaid_leave').length;
     const totalHours = (presentDays + lateDays) * 8;
     const workDays = daysInMonth - leaveDays - sickDays;
     const earnedSalary = workDays > 0 ? Math.round(emp.base_salary * (presentDays / workDays)) : 0;
-    return { ...emp, presentDays, absentDays, leaveDays, sickDays, lateDays, unpaidLeaveDays, totalHours, earnedSalary };
+    return { ...emp, presentDays, absentDays, leaveDays, sickDays, lateDays, totalHours, earnedSalary };
   });
 
   const totals = data.reduce(
@@ -66,11 +65,10 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
       leaveDays: acc.leaveDays + d.leaveDays,
       sickDays: acc.sickDays + d.sickDays,
       lateDays: acc.lateDays + d.lateDays,
-      unpaidLeaveDays: acc.unpaidLeaveDays + d.unpaidLeaveDays,
       totalHours: acc.totalHours + d.totalHours,
       earnedSalary: acc.earnedSalary + d.earnedSalary,
     }),
-    { presentDays: 0, absentDays: 0, leaveDays: 0, sickDays: 0, lateDays: 0, unpaidLeaveDays: 0, totalHours: 0, earnedSalary: 0 }
+    { presentDays: 0, absentDays: 0, leaveDays: 0, sickDays: 0, lateDays: 0, totalHours: 0, earnedSalary: 0 }
   );
 
   const t = {

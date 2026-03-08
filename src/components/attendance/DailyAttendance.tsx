@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { usePermissions } from '@/hooks/usePermissions';
 
-type AttendanceStatus = 'present' | 'absent' | 'leave' | 'sick' | 'late' | 'unpaid_leave';
+type AttendanceStatus = 'present' | 'absent' | 'leave' | 'sick' | 'late';
 
 interface AttendanceRecord {
   employeeId: string;
@@ -30,21 +30,19 @@ interface AttendanceRecord {
 type Employee = { id: string; name: string; salary_type: string; job_title?: string | null };
 
 const statusConfigAr = {
-  present:      { label: 'حاضر',             icon: CheckCircle2, activeClass: 'bg-green-100 text-green-700 border-green-400 dark:bg-green-900/30 dark:text-green-400',   hoverClass: 'hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-900/20' },
-  absent:       { label: 'غائب',             icon: XCircle,      activeClass: 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400',             hoverClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-900/20' },
-  leave:        { label: 'إجازة',            icon: Palmtree,     activeClass: 'bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400', hoverClass: 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300' },
-  sick:         { label: 'مريض',             icon: Stethoscope,  activeClass: 'bg-purple-100 text-purple-700 border-purple-400 dark:bg-purple-900/30 dark:text-purple-400', hoverClass: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300' },
-  late:         { label: 'متأخر',            icon: Clock,        activeClass: 'bg-orange-100 text-orange-700 border-orange-400 dark:bg-orange-900/30 dark:text-orange-400', hoverClass: 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300' },
-  unpaid_leave: { label: 'إجازة بدون راتب', icon: Palmtree,     activeClass: 'bg-muted text-muted-foreground border-border',                                              hoverClass: 'hover:bg-muted/70 hover:text-foreground' },
+  present: { label: 'حاضر',  icon: CheckCircle2, activeClass: 'bg-green-100 text-green-700 border-green-400 dark:bg-green-900/30 dark:text-green-400',   hoverClass: 'hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-900/20' },
+  absent:  { label: 'غائب',  icon: XCircle,      activeClass: 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400',             hoverClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-900/20' },
+  leave:   { label: 'إجازة', icon: Palmtree,     activeClass: 'bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400', hoverClass: 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300' },
+  sick:    { label: 'مريض',  icon: Stethoscope,  activeClass: 'bg-purple-100 text-purple-700 border-purple-400 dark:bg-purple-900/30 dark:text-purple-400', hoverClass: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300' },
+  late:    { label: 'متأخر', icon: Clock,        activeClass: 'bg-orange-100 text-orange-700 border-orange-400 dark:bg-orange-900/30 dark:text-orange-400', hoverClass: 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300' },
 };
 
 const statusConfigEn = {
-  present:      { label: 'Present',      icon: CheckCircle2, activeClass: 'bg-green-100 text-green-700 border-green-400 dark:bg-green-900/30 dark:text-green-400',   hoverClass: 'hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-900/20' },
-  absent:       { label: 'Absent',       icon: XCircle,      activeClass: 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400',             hoverClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-900/20' },
-  leave:        { label: 'Leave',        icon: Palmtree,     activeClass: 'bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400', hoverClass: 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300' },
-  sick:         { label: 'Sick',         icon: Stethoscope,  activeClass: 'bg-purple-100 text-purple-700 border-purple-400 dark:bg-purple-900/30 dark:text-purple-400', hoverClass: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300' },
-  late:         { label: 'Late',         icon: Clock,        activeClass: 'bg-orange-100 text-orange-700 border-orange-400 dark:bg-orange-900/30 dark:text-orange-400', hoverClass: 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300' },
-  unpaid_leave: { label: 'Unpaid Leave', icon: Palmtree,     activeClass: 'bg-muted text-muted-foreground border-border',                                              hoverClass: 'hover:bg-muted/70 hover:text-foreground' },
+  present: { label: 'Present', icon: CheckCircle2, activeClass: 'bg-green-100 text-green-700 border-green-400 dark:bg-green-900/30 dark:text-green-400',   hoverClass: 'hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-900/20' },
+  absent:  { label: 'Absent',  icon: XCircle,      activeClass: 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400',             hoverClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-900/20' },
+  leave:   { label: 'Leave',   icon: Palmtree,     activeClass: 'bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400', hoverClass: 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300' },
+  sick:    { label: 'Sick',    icon: Stethoscope,  activeClass: 'bg-purple-100 text-purple-700 border-purple-400 dark:bg-purple-900/30 dark:text-purple-400', hoverClass: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300' },
+  late:    { label: 'Late',    icon: Clock,        activeClass: 'bg-orange-100 text-orange-700 border-orange-400 dark:bg-orange-900/30 dark:text-orange-400', hoverClass: 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300' },
 };
 
 const STATUS_KEYS = Object.keys(statusConfigAr) as AttendanceStatus[];
