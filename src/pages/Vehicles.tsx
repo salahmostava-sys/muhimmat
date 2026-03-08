@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Search, Plus, Bike, Wrench } from 'lucide-react';
+import { Search, Plus, Bike, Wrench, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { vehicles } from '@/data/mock';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 const statusLabels: Record<string, string> = { active: 'نشطة', maintenance: 'صيانة', suspended: 'موقوفة' };
 const statusStyles: Record<string, string> = { active: 'badge-success', maintenance: 'badge-warning', suspended: 'badge-urgent' };
@@ -27,6 +30,40 @@ const Vehicles = () => {
     return matchSearch && matchStatus && matchType;
   });
 
+  const handleExport = () => {
+    const rows = filtered.map(v => ({
+      'رقم اللوحة': v.plateNumber,
+      'النوع': typeLabels[v.type] || v.type,
+      'الماركة': v.brand || '',
+      'الموديل': v.model || '',
+      'المندوب الحالي': v.currentDriver || '',
+      'انتهاء التأمين': v.insuranceExpiry,
+      'أيام التأمين المتبقية': getDaysLeft(v.insuranceExpiry),
+      'انتهاء التسجيل': v.registrationExpiry,
+      'أيام التسجيل المتبقية': getDaysLeft(v.registrationExpiry),
+      'آخر صيانة': v.lastMaintenance || '',
+      'الحالة': statusLabels[v.status] || v.status,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'المركبات');
+    XLSX.writeFile(wb, `المركبات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+  };
+
+  const handleExportAssignment = () => {
+    const rows = filtered.map(v => ({
+      'رقم اللوحة': v.plateNumber,
+      'النوع': typeLabels[v.type] || v.type,
+      'المندوب المعين': v.currentDriver || 'غير معيّن',
+      'تاريخ التعيين': '',
+      'الحالة': statusLabels[v.status] || v.status,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'سجل التسليم');
+    XLSX.writeFile(wb, `سجل_تسليم_المركبات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -34,7 +71,18 @@ const Vehicles = () => {
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><Bike size={24} /> المركبات</h1>
           <p className="text-sm text-muted-foreground mt-1">{vehicles.length} مركبة مسجلة</p>
         </div>
-        <Button className="gap-2"><Plus size={16} /> إضافة مركبة</Button>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل تقرير ▾</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel (مع حالة الانتهاء)</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportAssignment}>📋 سجل التسليم Excel</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button className="gap-2"><Plus size={16} /> إضافة مركبة</Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">

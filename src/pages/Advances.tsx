@@ -11,6 +11,18 @@ import { format } from 'date-fns';
 const statusLabels: Record<string, string> = { active: 'نشطة', completed: 'مكتملة', paused: 'متوقفة' };
 const statusStyles: Record<string, string> = { active: 'badge-info', completed: 'badge-success', paused: 'badge-warning' };
 
+const Advances = () => {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filtered = advances.filter(a => {
+    const matchSearch = a.employeeName.includes(search);
+    const matchStatus = statusFilter === 'all' || a.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const totalActive = advances.filter(a => a.status === 'active').reduce((s, a) => s + (a.amount - a.paidAmount), 0);
+
   const handleExport = () => {
     const rows = filtered.map(a => ({
       'المندوب': a.employeeName,
@@ -28,16 +40,6 @@ const statusStyles: Record<string, string> = { active: 'badge-info', completed: 
     XLSX.writeFile(wb, `السلف_${format(new Date(), 'yyyy-MM')}.xlsx`);
   };
 
-  const totalActive = advances.filter(a => a.status === 'active').reduce((s, a) => s + (a.amount - a.paidAmount), 0);
-
-  const filtered = advances.filter(a => {
-    const matchSearch = a.employeeName.includes(search);
-    const matchStatus = statusFilter === 'all' || a.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
-
-  const totalActive = advances.filter(a => a.status === 'active').reduce((s, a) => s + (a.amount - a.paidAmount), 0);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -45,7 +47,17 @@ const statusStyles: Record<string, string> = { active: 'badge-info', completed: 
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><CreditCard size={24} /> السلف والأقساط</h1>
           <p className="text-sm text-muted-foreground mt-1">{advances.length} سلفة — رصيد متبقي: {totalActive.toLocaleString()} ر.س</p>
         </div>
-        <Button className="gap-2"><Plus size={16} /> إضافة سلفة</Button>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل تقرير ▾</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button className="gap-2"><Plus size={16} /> إضافة سلفة</Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">

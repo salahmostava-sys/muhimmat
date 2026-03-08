@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Upload, FileDown, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Search, Upload, FileDown, CheckCircle, XCircle, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { externalDeductions } from '@/data/mock';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 const matchLabels: Record<string, string> = { matched: 'مطابق ✅', unmatched: 'غير مطابق ❌', duplicate: 'متكرر ⚠️' };
 const matchStyles: Record<string, string> = { matched: 'badge-success', unmatched: 'badge-urgent', duplicate: 'badge-warning' };
@@ -97,23 +100,52 @@ const UploadTab = () => (
   </div>
 );
 
-const Deductions = () => (
-  <div className="space-y-6">
-    <div>
-      <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><FileDown size={24} /> الخصومات الخارجية</h1>
-      <p className="text-sm text-muted-foreground mt-1">رفع ومراجعة واعتماد خصومات الشركات</p>
+const Deductions = () => {
+  const handleExport = () => {
+    const rows = externalDeductions.map(d => ({
+      'المندوب': d.employeeName,
+      'المصدر': d.source,
+      'نوع الخصم': d.type,
+      'المبلغ': d.amount,
+      'تاريخ الحادثة': d.incidentDate,
+      'شهر الخصم': d.deductionMonth,
+      'حالة المطابقة': matchLabels[d.matchStatus] || d.matchStatus,
+      'حالة الاعتماد': approvalLabels[d.approvalStatus] || d.approvalStatus,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'الخصومات');
+    XLSX.writeFile(wb, `الخصومات_${format(new Date(), 'yyyy-MM')}.xlsx`);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2"><FileDown size={24} /> الخصومات الخارجية</h1>
+          <p className="text-sm text-muted-foreground mt-1">رفع ومراجعة واعتماد خصومات الشركات</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل تقرير ▾</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <Tabs defaultValue="review" dir="rtl">
+        <TabsList>
+          <TabsTrigger value="upload">رفع الشيت</TabsTrigger>
+          <TabsTrigger value="review">مراجعة واعتماد</TabsTrigger>
+          <TabsTrigger value="history">السجل الشهري</TabsTrigger>
+        </TabsList>
+        <TabsContent value="upload"><UploadTab /></TabsContent>
+        <TabsContent value="review"><ReviewTab /></TabsContent>
+        <TabsContent value="history"><div className="text-center py-12 text-muted-foreground">سجل الخصومات المعتمدة للأشهر السابقة</div></TabsContent>
+      </Tabs>
     </div>
-    <Tabs defaultValue="review" dir="rtl">
-      <TabsList>
-        <TabsTrigger value="upload">رفع الشيت</TabsTrigger>
-        <TabsTrigger value="review">مراجعة واعتماد</TabsTrigger>
-        <TabsTrigger value="history">السجل الشهري</TabsTrigger>
-      </TabsList>
-      <TabsContent value="upload"><UploadTab /></TabsContent>
-      <TabsContent value="review"><ReviewTab /></TabsContent>
-      <TabsContent value="history"><div className="text-center py-12 text-muted-foreground">سجل الخصومات المعتمدة للأشهر السابقة</div></TabsContent>
-    </Tabs>
-  </div>
-);
+  );
+};
 
 export default Deductions;

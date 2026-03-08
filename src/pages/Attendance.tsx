@@ -1,15 +1,42 @@
-import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClipboardCheck, CalendarDays } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ClipboardCheck, CalendarDays, Download } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import DailyAttendance from '@/components/attendance/DailyAttendance';
 import MonthlyRecord from '@/components/attendance/MonthlyRecord';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { attendance as attendanceData } from '@/data/mock';
+
+const handleExportAttendance = () => {
+  const rows = attendanceData.map((a: any) => ({
+    'المندوب': a.employeeName || '',
+    'التاريخ': a.date || '',
+    'الحالة': a.status === 'present' ? 'حاضر' : a.status === 'absent' ? 'غائب' : a.status === 'leave' ? 'إجازة' : a.status,
+    'ملاحظة': a.note || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'الحضور');
+  XLSX.writeFile(wb, `الحضور_${format(new Date(), 'yyyy-MM')}.xlsx`);
+};
 
 const Attendance = () => {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">الحضور والانصراف</h1>
-        <p className="text-sm text-muted-foreground mt-1">تسجيل ومتابعة حضور المناديب</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">الحضور والانصراف</h1>
+          <p className="text-sm text-muted-foreground mt-1">تسجيل ومتابعة حضور المناديب</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل تقرير ▾</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExportAttendance}>📊 تصدير Excel (ملخص شهري)</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Tabs defaultValue="daily" className="space-y-5">

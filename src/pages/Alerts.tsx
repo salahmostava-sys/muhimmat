@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Bell, Search, CheckCircle, Clock, X } from 'lucide-react';
+import { Bell, Search, CheckCircle, Clock, X, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { alerts as initialAlerts, alertTypeLabels } from '@/data/mock';
 import type { Alert } from '@/data/mock';
 import { useToast } from '@/hooks/use-toast';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
 
 const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning: 'badge-warning', info: 'badge-info' };
 const severityLabels: Record<string, string> = { urgent: '🔴 عاجل', warning: '🟠 تحذير', info: '🔵 معلومات' };
@@ -61,21 +64,49 @@ const Alerts = () => {
     setDeferDays('7');
   };
 
-  const typeOptions = ['all', 'residency', 'insurance', 'registration', 'license', 'installment', 'deduction'];
+  const handleExport = () => {
+    const severityOrder: Record<string, number> = { urgent: 0, warning: 1, info: 2 };
+    const rows = [...localAlerts]
+      .filter(a => !a.resolved)
+      .sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3))
+      .map(a => ({
+        'الأولوية': severityLabels[a.severity] || a.severity,
+        'النوع': alertTypeLabels[a.type] || a.type,
+        'الجهة': a.entityName,
+        'تاريخ الاستحقاق': a.dueDate,
+        'المتبقي (يوم)': a.daysLeft,
+        'الحالة': a.resolved ? 'محسوم' : 'نشط',
+      }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'التنبيهات');
+    XLSX.writeFile(wb, `التنبيهات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+  };
 
+  const typeOptions = ['all', 'residency', 'insurance', 'registration', 'license', 'installment', 'deduction'];
   const urgentCount = filtered.filter(a => a.severity === 'urgent').length;
   const warningCount = filtered.filter(a => a.severity === 'warning').length;
   const infoCount = filtered.filter(a => a.severity === 'info').length;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Bell size={24} /> التنبيهات التلقائية
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {filtered.length} تنبيه نشط — {urgentCount} عاجل
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Bell size={24} /> التنبيهات التلقائية
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filtered.length} تنبيه نشط — {urgentCount} عاجل
+          </p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل تقرير ▾</Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel (مرتب حسب الأولوية)</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Stats */}
@@ -158,12 +189,10 @@ const Alerts = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button size="sm" variant="outline" className="gap-1 text-xs h-8"
-                onClick={() => setDeferDialog(a)}>
+              <Button size="sm" variant="outline" className="gap-1 text-xs h-8" onClick={() => setDeferDialog(a)}>
                 <Clock size={12} /> تأجيل
               </Button>
-              <Button size="sm" className="gap-1 text-xs h-8 bg-success hover:bg-success/90"
-                onClick={() => setResolveDialog(a)}>
+              <Button size="sm" className="gap-1 text-xs h-8 bg-success hover:bg-success/90" onClick={() => setResolveDialog(a)}>
                 <CheckCircle size={12} /> حسم
               </Button>
             </div>
@@ -192,9 +221,7 @@ const Alerts = () => {
       {/* Resolve Dialog */}
       <Dialog open={!!resolveDialog} onOpenChange={() => setResolveDialog(null)}>
         <DialogContent dir="rtl" className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>حسم التنبيه</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>حسم التنبيه</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-sm font-medium">{resolveDialog && alertTypeLabels[resolveDialog.type]}</p>
@@ -217,9 +244,7 @@ const Alerts = () => {
       {/* Defer Dialog */}
       <Dialog open={!!deferDialog} onOpenChange={() => setDeferDialog(null)}>
         <DialogContent dir="rtl" className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>تأجيل التنبيه</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>تأجيل التنبيه</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-sm font-medium">{deferDialog && alertTypeLabels[deferDialog.type]}</p>
@@ -240,9 +265,7 @@ const Alerts = () => {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeferDialog(null)}>إلغاء</Button>
-            <Button onClick={handleDefer}>
-              <Clock size={14} className="ml-1" /> تأجيل {deferDays} يوم
-            </Button>
+            <Button onClick={handleDefer}><Clock size={14} className="ml-1" /> تأجيل {deferDays} يوم</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
