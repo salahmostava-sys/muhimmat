@@ -1158,37 +1158,6 @@ const Salaries = () => {
                       </th>
                     );
                   })}
-                      {PLATFORMS.map(p => {
-                        const pc = PLATFORM_COLORS[p];
-                        const orders = r.platformOrders[p] || 0;
-                        const salary = r.platformSalaries[p] || 0;
-                        const rowScheme: SchemeData | null = empPlatformScheme[r.employeeId]?.[p] || null;
-                        const targetOrders = rowScheme?.target_orders;
-                        // Cell background: green if hit target, grey if zero, default otherwise
-                        const cellBg = r.registeredApps.includes(p)
-                          ? (orders === 0 ? 'rgba(150,150,150,0.06)' : (targetOrders && orders >= targetOrders ? 'rgba(18,183,106,0.08)' : pc?.cellBg))
-                          : undefined;
-                        return (
-                          <td key={p} className={tdClass} style={{ backgroundColor: cellBg }}>
-                            {r.registeredApps.includes(p) ? (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <EditableCell
-                                  value={orders}
-                                  onChange={v => updatePlatformOrders(r.id, p, v)}
-                                  accentColor={targetOrders && orders >= targetOrders ? '#12B76A' : pc?.valueColor}
-                                />
-                                <SalaryBreakdown orders={orders} scheme={rowScheme} salary={salary}>
-                                  <span className="text-muted-foreground/60 text-[10px] cursor-help underline decoration-dotted">
-                                    = {salary.toLocaleString()} ر.س
-                                  </span>
-                                </SalaryBreakdown>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground/30">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
                       <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
                       <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-success" /></td>
                       <td className={tdClass}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-success" /></td>
