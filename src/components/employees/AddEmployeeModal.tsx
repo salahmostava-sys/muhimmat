@@ -355,6 +355,9 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="رقم الهوية الوطنية" required error={errors.national_id}>
                 <Input value={form.national_id} onChange={e => setField('national_id', e.target.value)} placeholder="2xxxxxxxxx" dir="ltr" />
               </F>
+              <F label="الجنسية">
+                <Input value={form.nationality} onChange={e => setField('nationality', e.target.value)} placeholder="سعودي / يمني / باكستاني ..." />
+              </F>
               <F label="رقم الحساب البنكي">
                 <Input value={form.bank_account_number} onChange={e => setField('bank_account_number', e.target.value)} dir="ltr" />
               </F>
