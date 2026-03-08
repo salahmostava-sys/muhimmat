@@ -466,7 +466,7 @@ const Employees = () => {
                       }
                     </td>
                     <td className="px-3 py-2.5">
-                      <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start">
+                      <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start whitespace-nowrap">
                         {emp.name}
                       </button>
                     </td>

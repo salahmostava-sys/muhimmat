@@ -679,8 +679,8 @@ const Vehicles = () => {
                         : '—';
                       return (
                         <tr key={a.id} className="ta-tr">
-                          <td className="ta-td font-mono font-semibold">{a.vehicles?.plate_number || '—'}</td>
-                          <td className="ta-td">{a.employees?.name || '—'}</td>
+                          <td className="ta-td font-mono font-semibold whitespace-nowrap">{a.vehicles?.plate_number || '—'}</td>
+                          <td className="ta-td whitespace-nowrap">{a.employees?.name || '—'}</td>
                           <td className="ta-td-center text-muted-foreground">{startDisplay}</td>
                           <td className="ta-td-center text-muted-foreground">{returnDisplay}</td>
                           <td className="ta-td-center text-muted-foreground">{calcDuration(a.start_at, a.returned_at)}</td>
