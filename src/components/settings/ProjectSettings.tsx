@@ -8,8 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Globe, Palette, Building2, Upload, X } from 'lucide-react';
+import { Loader2, Save, Globe, Palette, Building2, Upload, X, Download, Database, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function ProjectSettings() {
   const { t } = useTranslation();
@@ -17,6 +20,7 @@ export default function ProjectSettings() {
   const { isDark, toggleTheme } = useTheme();
   const { settings, refresh } = useSystemSettings();
   const { toast } = useToast();
+  const { isAdmin } = usePermissions('settings');
   const isRTL = lang === 'ar';
 
   const [nameAr, setNameAr] = useState('');
@@ -27,6 +31,7 @@ export default function ProjectSettings() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -55,7 +60,6 @@ export default function ProjectSettings() {
     try {
       let logo_url = settings?.logo_url ?? null;
 
-      // Upload logo if changed
       if (logoFile) {
         const ext = logoFile.name.split('.').pop();
         const path = `logo/project-logo.${ext}`;
@@ -98,6 +102,75 @@ export default function ProjectSettings() {
     setSaving(false);
   };
 
+  // ── Backup Handler ──
+  const handleBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm');
+
+      const tables = [
+        'employees',
+        'attendance',
+        'advances',
+        'advance_installments',
+        'daily_orders',
+        'employee_apps',
+        'apps',
+        'salary_schemes',
+        'salary_records',
+        'external_deductions',
+        'vehicles',
+        'vehicle_assignments',
+        'alerts',
+      ] as const;
+
+      const results: Record<string, any[]> = {};
+
+      await Promise.all(
+        tables.map(async (table) => {
+          const { data } = await supabase.from(table).select('*');
+          results[table] = data || [];
+        })
+      );
+
+      const exportedCount = Object.keys(results).filter(k => results[k].length >= 0).length;
+
+      // ── Export JSON ──
+      const jsonBlob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const jsonLink = document.createElement('a');
+      jsonLink.href = jsonUrl;
+      jsonLink.download = `backup_${timestamp}.json`;
+      jsonLink.click();
+      URL.revokeObjectURL(jsonUrl);
+
+      // ── Export Excel ──
+      const wb = XLSX.utils.book_new();
+      for (const table of tables) {
+        const sheetData = results[table];
+        if (sheetData.length > 0) {
+          const ws = XLSX.utils.json_to_sheet(sheetData);
+          XLSX.utils.book_append_sheet(wb, ws, table.slice(0, 31)); // Excel sheet name max 31 chars
+        } else {
+          // empty sheet with header
+          const ws = XLSX.utils.json_to_sheet([{}]);
+          XLSX.utils.book_append_sheet(wb, ws, table.slice(0, 31));
+        }
+      }
+      XLSX.writeFile(wb, `backup_${timestamp}.xlsx`);
+
+      toast({
+        title: isRTL ? '✅ تم التصدير بنجاح' : '✅ Backup exported',
+        description: isRTL
+          ? `تم تصدير ${exportedCount} جدول — JSON + Excel`
+          : `Exported ${exportedCount} tables — JSON + Excel`,
+      });
+    } catch (err: any) {
+      toast({ title: isRTL ? 'خطأ' : 'Error', description: err.message, variant: 'destructive' });
+    }
+    setBackupLoading(false);
+  };
+
   const SectionHeader = ({ icon, title }: { icon: React.ReactNode; title: string }) => (
     <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
       <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">{icon}</div>
@@ -116,23 +189,13 @@ export default function ProjectSettings() {
               <Label className="text-xs font-medium text-muted-foreground">
                 {isRTL ? 'اسم المشروع (عربي)' : 'Project Name (Arabic)'}
               </Label>
-              <Input
-                value={nameAr}
-                onChange={e => setNameAr(e.target.value)}
-                placeholder="نظام التوصيل"
-                dir="rtl"
-              />
+              <Input value={nameAr} onChange={e => setNameAr(e.target.value)} placeholder="نظام التوصيل" dir="rtl" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">
                 {isRTL ? 'اسم المشروع (إنجليزي)' : 'Project Name (English)'}
               </Label>
-              <Input
-                value={nameEn}
-                onChange={e => setNameEn(e.target.value)}
-                placeholder="Delivery System"
-                dir="ltr"
-              />
+              <Input value={nameEn} onChange={e => setNameEn(e.target.value)} placeholder="Delivery System" dir="ltr" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,23 +203,13 @@ export default function ProjectSettings() {
               <Label className="text-xs font-medium text-muted-foreground">
                 {isRTL ? 'العنوان الفرعي (عربي)' : 'Subtitle (Arabic)'}
               </Label>
-              <Input
-                value={subtitleAr}
-                onChange={e => setSubtitleAr(e.target.value)}
-                placeholder="إدارة المناديب"
-                dir="rtl"
-              />
+              <Input value={subtitleAr} onChange={e => setSubtitleAr(e.target.value)} placeholder="إدارة المناديب" dir="rtl" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">
                 {isRTL ? 'العنوان الفرعي (إنجليزي)' : 'Subtitle (English)'}
               </Label>
-              <Input
-                value={subtitleEn}
-                onChange={e => setSubtitleEn(e.target.value)}
-                placeholder="Rider Management"
-                dir="ltr"
-              />
+              <Input value={subtitleEn} onChange={e => setSubtitleEn(e.target.value)} placeholder="Rider Management" dir="ltr" />
             </div>
           </div>
         </div>
@@ -252,6 +305,37 @@ export default function ProjectSettings() {
           </div>
         </div>
       </div>
+
+      {/* ── Backup Section (Admin only) ── */}
+      {isAdmin && (
+        <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+          <SectionHeader icon={<Database size={14} />} title={isRTL ? 'النسخ الاحتياطي' : 'Backup'} />
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground mb-1">
+                {isRTL
+                  ? 'تحميل نسخة احتياطية كاملة من قاعدة البيانات تشمل: الموظفين، الحضور، السلف، الطلبات، الرواتب، المركبات، والتنبيهات.'
+                  : 'Download a full database backup including: employees, attendance, advances, orders, salaries, vehicles, and alerts.'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isRTL ? 'يُصدر ملفين: JSON + Excel' : 'Exports two files: JSON + Excel'}
+              </p>
+            </div>
+            <Button
+              onClick={handleBackup}
+              disabled={backupLoading}
+              variant="outline"
+              className="gap-2 min-w-44 flex-shrink-0"
+            >
+              {backupLoading ? (
+                <><Loader2 size={14} className="animate-spin" /> {isRTL ? 'جاري التصدير...' : 'Exporting...'}</>
+              ) : (
+                <><Download size={14} /> {isRTL ? 'تحميل نسخة احتياطية' : 'Download Backup'}</>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Save */}
       <div className="flex justify-end">
