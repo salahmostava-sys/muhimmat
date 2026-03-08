@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
@@ -414,6 +414,7 @@ const Salaries = () => {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   // ─── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
@@ -424,7 +425,7 @@ const Salaries = () => {
       const startDate = `${selectedMonth}-01`;
       const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`;
 
-      const [empRes, schemesRes, advInstRes, extRes, ordersRes] = await Promise.all([
+      const [empRes, schemesRes, extRes, ordersRes] = await Promise.all([
         supabase
           .from('employees')
           .select('id, name, job_title, national_id, salary_type, base_salary, iban, city')
@@ -435,12 +436,6 @@ const Salaries = () => {
           .from('salary_schemes')
           .select('id, name, name_en, status, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order)')
           .eq('status', 'active'),
-
-        supabase
-          .from('advance_installments')
-          .select('advance_id, amount, advances(employee_id)')
-          .eq('month_year', selectedMonth)
-          .in('status', ['pending', 'deferred']),
 
         supabase
           .from('external_deductions')
@@ -455,15 +450,34 @@ const Salaries = () => {
           .lte('date', endDate),
       ]);
 
+      // ── Fetch advance installments in two steps to avoid nested join issues ──
+      // Step 1: get installments for this month
+      const { data: advInstData } = await supabase
+        .from('advance_installments')
+        .select('advance_id, amount')
+        .eq('month_year', selectedMonth)
+        .in('status', ['pending', 'deferred']);
+
+      // Step 2: get the advances to resolve employee_id
+      const advMap: Record<string, number> = {};
+      if (advInstData && advInstData.length > 0) {
+        const advanceIds = [...new Set(advInstData.map(i => i.advance_id))];
+        const { data: advancesData } = await supabase
+          .from('advances')
+          .select('id, employee_id')
+          .in('id', advanceIds);
+
+        const advIdToEmpMap: Record<string, string> = {};
+        advancesData?.forEach(adv => { advIdToEmpMap[adv.id] = adv.employee_id; });
+
+        advInstData.forEach(inst => {
+          const empId = advIdToEmpMap[inst.advance_id];
+          if (empId) advMap[empId] = (advMap[empId] || 0) + Number(inst.amount);
+        });
+      }
+
       const employees = empRes.data || [];
       const schemes = schemesRes.data || [];
-
-      // Build advance deductions map: employeeId -> total
-      const advMap: Record<string, number> = {};
-      advInstRes.data?.forEach(inst => {
-        const empId = (inst.advances as any)?.employee_id;
-        if (empId) advMap[empId] = (advMap[empId] || 0) + Number(inst.amount);
-      });
 
       // Build external deductions map: employeeId -> total
       const extMap: Record<string, number> = {};
@@ -777,7 +791,24 @@ const Salaries = () => {
             </button>
           ))}
         </div>
-        <div className="flex gap-2 mr-auto">
+        <div className="flex gap-2 mr-auto items-center">
+          {/* View mode toggle */}
+          <div className="flex rounded-lg border border-border overflow-hidden">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`px-2.5 py-1.5 flex items-center gap-1 text-xs transition-colors ${viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              title="عرض جدول"
+            >
+              <Table2 size={13} /> جدول
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`px-2.5 py-1.5 flex items-center gap-1 text-xs border-r border-l border-border transition-colors ${viewMode === 'cards' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              title="عرض بطاقات"
+            >
+              <LayoutGrid size={13} /> بطاقات
+            </button>
+          </div>
           {pendingCount > 0 && (
             <Button size="sm" className="gap-1.5 h-8 text-xs" onClick={approveAll}>
               <CheckCircle size={13} /> اعتماد الكل ({pendingCount})
@@ -792,7 +823,100 @@ const Salaries = () => {
         </div>
       </div>
 
+      {/* Cards view for large teams */}
+      {viewMode === 'cards' && (
+        <div>
+          {loadingData ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-card border border-border/50 rounded-xl p-4 space-y-2 animate-pulse">
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-1/2" />
+                  <div className="h-8 bg-muted rounded mt-3" />
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="h-48 flex items-center justify-center text-muted-foreground rounded-xl border border-border/50">
+              لا يوجد موظفون لهذا الشهر
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {filtered.map(r => {
+                const c = computeRow(r);
+                return (
+                  <div key={r.id} className="bg-card border border-border/50 rounded-xl p-4 hover:shadow-md transition-shadow flex flex-col gap-3">
+                    {/* Employee name */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
+                        {r.employeeName.slice(0, 1)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{r.employeeName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{r.jobTitle}</p>
+                      </div>
+                      <span className={statusStyles[r.status]}>{statusLabels[r.status]}</span>
+                    </div>
+
+                    {/* Platform orders summary */}
+                    {r.registeredApps.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {r.registeredApps.map(app => (
+                          <span key={app} className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
+                            style={{ backgroundColor: PLATFORM_COLORS[app]?.cellBg || 'hsl(var(--muted))', color: PLATFORM_COLORS[app]?.valueColor || 'hsl(var(--foreground))' }}>
+                            {app}: {r.platformOrders[app] || 0}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Financial summary */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-muted/40 rounded-lg p-2">
+                        <p className="text-muted-foreground">الراتب الأساسي</p>
+                        <p className="font-bold text-primary">{c.totalPlatformSalary.toLocaleString()} ر.س</p>
+                      </div>
+                      <div className="bg-muted/40 rounded-lg p-2">
+                        <p className="text-muted-foreground">المستقطعات</p>
+                        <p className="font-bold text-destructive">{c.totalDeductions > 0 ? `-${c.totalDeductions.toLocaleString()}` : '—'} {c.totalDeductions > 0 ? 'ر.س' : ''}</p>
+                      </div>
+                    </div>
+
+                    {/* Deductions breakdown (only if any) */}
+                    {(r.advanceDeduction > 0 || r.externalDeduction > 0) && (
+                      <div className="text-[10px] text-muted-foreground flex gap-3 border-t border-border/30 pt-2">
+                        {r.advanceDeduction > 0 && <span>سلفة: <span className="text-destructive font-semibold">{r.advanceDeduction.toLocaleString()}</span></span>}
+                        {r.externalDeduction > 0 && <span>خارجي: <span className="text-destructive font-semibold">{r.externalDeduction.toLocaleString()}</span></span>}
+                      </div>
+                    )}
+
+                    {/* Net salary */}
+                    <div className="flex items-center justify-between bg-success/10 rounded-lg px-3 py-2 mt-auto">
+                      <span className="text-xs text-muted-foreground">الصافي</span>
+                      <span className="text-base font-black text-success">{c.netSalary.toLocaleString()} ر.س</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      {r.status === 'pending' && (
+                        <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1 text-success border-success/30 hover:bg-success/10" onClick={() => approveRow(r.id)}>
+                          <CheckCircle size={11} /> اعتماد
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" className="flex-1 h-7 text-xs gap-1" onClick={() => setPayslipRow(r)}>
+                        <Printer size={11} /> كشف راتب
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Wide table */}
+      {viewMode === 'table' && (
       <div className="flex-1 min-h-0 rounded-xl border border-border/50 shadow-sm overflow-hidden bg-card">
         {loadingData ? (
           <div className="h-48 flex items-center justify-center text-muted-foreground">
@@ -970,13 +1094,14 @@ const Salaries = () => {
                   <td className={`${tfClass} text-success text-base`}>{totals.net.toLocaleString()}</td>
                   <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
                   <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
-                  <td className={tfClass} colSpan={5}></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                   <td className={tfClass} colSpan={5}></td>
+                 </tr>
+               </tbody>
+             </table>
+           </div>
+         )}
+       </div>
+      )}
 
       {payslipRow && (
         <PayslipModal
