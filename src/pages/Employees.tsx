@@ -486,21 +486,21 @@ const Employees = () => {
 
                 return (
                   <tr key={emp.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {emp.personal_photo_url
                         ? <img src={emp.personal_photo_url} className="w-9 h-9 rounded-full object-cover" alt="" />
                         : <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">{initial}</div>
                       }
                     </td>
-                    <td className="px-3 py-2.5">
-                      <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start">
                         {emp.name}
                       </button>
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground font-mono" dir="ltr">{emp.national_id || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground" dir="ltr">{emp.phone || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground">{emp.job_title || '—'}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.national_id || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap" dir="ltr">{emp.phone || '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.job_title || '—'}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <InlineSelect
                         value={emp.city || ''}
                         options={[{ value: 'makkah', label: t('makkah') }, { value: 'jeddah', label: t('jeddah') }]}
@@ -508,10 +508,10 @@ const Employees = () => {
                         renderDisplay={() => <CityBadge city={emp.city} />}
                       />
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground">{emp.join_date ? format(parseISO(emp.join_date), 'yyyy/MM/dd') : '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground">{emp.residency_expiry ? format(parseISO(emp.residency_expiry), 'yyyy/MM/dd') : '—'}</td>
-                    <td className={`px-3 py-2.5 text-sm font-medium ${daysColor}`}>{res.days === null ? '—' : `${res.days}`}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.join_date ? format(parseISO(emp.join_date), 'yyyy/MM/dd') : '—'}</td>
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.residency_expiry ? format(parseISO(emp.residency_expiry), 'yyyy/MM/dd') : '—'}</td>
+                    <td className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap ${daysColor}`}>{res.days === null ? '—' : `${res.days}`}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {res.status === 'valid'
                         ? <span className="badge-success">{t('residencyValid')}</span>
                         : res.status === 'expired'
@@ -519,7 +519,7 @@ const Employees = () => {
                         : <span className="text-muted-foreground/40">—</span>
                       }
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <InlineSelect
                         value={emp.license_status || 'no_license'}
                         options={[
@@ -531,7 +531,7 @@ const Employees = () => {
                         renderDisplay={() => <LicenseBadge status={emp.license_status} />}
                       />
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <InlineSelect
                         value={emp.sponsorship_status || 'not_sponsored'}
                         options={[
@@ -544,11 +544,11 @@ const Employees = () => {
                         renderDisplay={() => <SponsorBadge status={emp.sponsorship_status} />}
                       />
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground font-mono" dir="ltr">{emp.bank_account_number || '—'}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.bank_account_number || '—'}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <DocIcons idUrl={emp.id_photo_url} licUrl={emp.license_photo_url} photoUrl={emp.personal_photo_url} />
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <InlineSelect
                         value={emp.status}
                         options={[
@@ -560,13 +560,13 @@ const Employees = () => {
                         renderDisplay={() => <StatusBadge status={emp.status} />}
                       />
                     </td>
-                    <td className="px-3 py-2.5 text-sm" dir="ltr">
+                    <td className="px-3 py-2.5 text-sm whitespace-nowrap" dir="ltr">
                       {emp.email
                         ? <a href={`mailto:${emp.email}`} className="text-primary hover:underline" title={`إرسال بريد إلى ${emp.email}`}>{emp.email}</a>
                         : <span className="text-muted-foreground/40">—</span>
                       }
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex gap-1">
                         <button onClick={() => setSelectedEmployee(emp.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={t('view')}>
                           <Eye size={15} />
