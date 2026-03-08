@@ -244,7 +244,7 @@ const Alerts = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <div className="stat-card border-r-4 border-r-destructive cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSeverityFilter(severityFilter === 'urgent' ? 'all' : 'urgent')}>
           <p className="text-sm text-muted-foreground">عاجل</p>
           <p className="text-3xl font-bold text-destructive mt-1">{urgentCount}</p>
