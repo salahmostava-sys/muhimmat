@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
-  Settings, Map, ChevronDown, ChevronRight, Fuel, Settings2, X,
+  Settings, Map, ChevronDown, ChevronRight, Fuel, Settings2, X, TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -39,6 +39,7 @@ const AppSidebar = () => {
         { label: t('attendance'), icon: Clock, path: '/attendance' },
         { label: t('apps'), icon: Smartphone, path: '/apps' },
         { label: t('alerts'), icon: Bell, path: '/alerts' },
+        { label: 'التحليلات', icon: TrendingUp, path: '/analytics' },
       ],
     },
     {

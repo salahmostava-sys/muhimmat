@@ -60,13 +60,12 @@ const Alerts = () => {
       const in60Days = format(addDays(today, 60), 'yyyy-MM-dd');
 
       const [employeesRes, vehiclesRes, installmentsRes] = await Promise.all([
-        // Employees with expiring residency
+        // Employees with expiring residency OR license
         supabase
           .from('employees')
-          .select('id, name, residency_expiry')
+          .select('id, name, residency_expiry, license_expiry, license_has')
           .eq('status', 'active')
-          .not('residency_expiry', 'is', null)
-          .lte('residency_expiry', in60Days),
+          .or(`residency_expiry.lte.${in60Days},license_expiry.lte.${in60Days}`),
 
         // Vehicles with expiring docs
         supabase
@@ -85,18 +84,32 @@ const Alerts = () => {
 
       const generatedAlerts: Alert[] = [];
 
-      // Employee residency alerts
+      // Employee residency AND license alerts
       employeesRes.data?.forEach(emp => {
-        const daysLeft = differenceInDays(parseISO(emp.residency_expiry!), today);
-        generatedAlerts.push({
-          id: `res-${emp.id}`,
-          type: 'residency',
-          entityName: emp.name,
-          dueDate: emp.residency_expiry!,
-          daysLeft,
-          severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
-          resolved: false,
-        });
+        if (emp.residency_expiry && emp.residency_expiry <= in60Days) {
+          const daysLeft = differenceInDays(parseISO(emp.residency_expiry), today);
+          generatedAlerts.push({
+            id: `res-${emp.id}`,
+            type: 'residency',
+            entityName: emp.name,
+            dueDate: emp.residency_expiry,
+            daysLeft,
+            severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
+            resolved: false,
+          });
+        }
+        if (emp.license_has && emp.license_expiry && emp.license_expiry <= in60Days) {
+          const daysLeft = differenceInDays(parseISO(emp.license_expiry), today);
+          generatedAlerts.push({
+            id: `lic-${emp.id}`,
+            type: 'license',
+            entityName: emp.name,
+            dueDate: emp.license_expiry,
+            daysLeft,
+            severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
+            resolved: false,
+          });
+        }
       });
 
       // Vehicle alerts
