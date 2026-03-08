@@ -5,7 +5,7 @@ import {
   Bike, FileDown, Bell, Smartphone,
   Settings, ChevronDown, Fuel, Settings2, X, TrendingUp, FileWarning,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
