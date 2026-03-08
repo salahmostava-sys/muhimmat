@@ -7,19 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { useAppColors, AppColorData } from '@/hooks/useAppColors';
 
-// ─── Constants ────────────────────────────────────────────────────
-const PLATFORMS = ['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا', 'تويو', 'أمازون'];
-
-const PLATFORM_COLORS: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {
-  'هنقرستيشن': { header: '#FF6B35', headerText: '#fff', cellBg: 'rgba(255,107,53,0.08)', valueColor: '#FF6B35', focusBorder: '#FF6B35' },
-  'جاهز':      { header: '#1DB954', headerText: '#fff', cellBg: 'rgba(29,185,84,0.08)',  valueColor: '#1DB954', focusBorder: '#1DB954' },
-  'كيتا':      { header: '#E53935', headerText: '#fff', cellBg: 'rgba(229,57,53,0.08)',  valueColor: '#E53935', focusBorder: '#E53935' },
-  'توبو':      { header: '#7C3AED', headerText: '#fff', cellBg: 'rgba(124,58,237,0.08)', valueColor: '#7C3AED', focusBorder: '#7C3AED' },
-  'نينجا':     { header: '#111111', headerText: '#fff', cellBg: 'rgba(17,17,17,0.06)',   valueColor: '#888',    focusBorder: '#555' },
-  'تويو':      { header: '#F59E0B', headerText: '#fff', cellBg: 'rgba(245,158,11,0.08)', valueColor: '#F59E0B', focusBorder: '#F59E0B' },
-  'أمازون':    { header: '#FF9900', headerText: '#111', cellBg: 'rgba(255,153,0,0.08)',  valueColor: '#FF9900', focusBorder: '#FF9900' },
-};
 
 const statusLabels: Record<string, string> = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' };
 const statusStyles: Record<string, string> = { pending: 'badge-warning', approved: 'badge-info', paid: 'badge-success' };
