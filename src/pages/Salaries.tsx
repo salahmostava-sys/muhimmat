@@ -1334,15 +1334,19 @@ const Salaries = () => {
                    <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   {platforms.map(p => {
-                     const pc = platformColors[p];
-                     const totalOrders = totals.platform[p] || 0;
-                     const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
-                     return [
-                       <td key={`${p}-orders`} className={tfClass} style={{ color: pc?.valueColor }}>{totalOrders.toLocaleString()}</td>,
-                       <td key={`${p}-salary`} className={`${tfClass} border-l border-border/20`} style={{ color: pc?.valueColor }}>{totalSal.toLocaleString()}</td>,
-                     ];
-                   })}
+                    {platforms.map(p => {
+                      const pc = platformColors[p];
+                      const totalOrders = totals.platform[p] || 0;
+                      const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
+                      return (
+                        <td key={`${p}-col`} className={`${tfClass} border-l border-border/20`} style={{ color: pc?.valueColor }}>
+                          <div className="flex flex-col items-center leading-tight">
+                            <span>{totalOrders.toLocaleString()}</span>
+                            <span className="text-[10px] opacity-75 font-normal">{totalSal.toLocaleString()} ر.س</span>
+                          </div>
+                        </td>
+                      );
+                    })}
                    <td className={`${tfClass} text-primary border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
                    <td className={`${tfClass} text-success`}>{totals.incentives.toLocaleString()}</td>
                    <td className={`${tfClass} text-success`}>{totals.sickAllowance.toLocaleString()}</td>
