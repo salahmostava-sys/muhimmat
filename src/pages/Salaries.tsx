@@ -445,6 +445,7 @@ const SalaryBreakdown = ({ orders, scheme, salary, children }: SalaryBreakdownPr
 const Salaries = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { apps: appColorsList } = useAppColors();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
