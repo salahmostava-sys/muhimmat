@@ -208,9 +208,11 @@ const SpreadsheetGrid = () => {
 
         <div className="mr-auto flex gap-2">
           <Button variant="outline" size="sm" className="gap-1.5" onClick={exportExcel}><Download size={14} /> Excel</Button>
+          {permissions.can_edit && (
           <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
             {saving ? <><Loader2 size={14} className="animate-spin" /> جاري الحفظ...</> : <><Save size={14} /> حفظ</>}
           </Button>
+          )}
         </div>
       </div>
 
