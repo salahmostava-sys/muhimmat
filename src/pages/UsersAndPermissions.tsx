@@ -68,6 +68,8 @@ const UsersTab = () => {
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<AppRoleType>('viewer');
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
