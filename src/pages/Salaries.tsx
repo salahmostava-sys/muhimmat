@@ -1297,9 +1297,14 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>{c.remaining.toLocaleString()}</td>
                       <td className={tdClass}>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${r.bankAccount ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                          {r.bankAccount ? '🏦 بنكي' : '💵 كاش'}
-                        </span>
+                        <select
+                          value={r.paymentMethod}
+                          onChange={e => updateRow(r.id, { paymentMethod: e.target.value as 'bank' | 'cash' })}
+                          className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.paymentMethod === 'bank' ? 'text-primary' : 'text-muted-foreground'}`}
+                        >
+                          <option value="bank">🏦 بنك</option>
+                          <option value="cash">💵 ماش</option>
+                        </select>
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${r.city === 'مكة' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
