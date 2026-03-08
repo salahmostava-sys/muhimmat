@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
+import { useAppColors } from '@/hooks/useAppColors';
 
 // ─── Types ──────────────────────────────────────────────────────────
 type Employee = { id: string; name: string; salary_type: string; status: string; sponsorship_status: string | null };
@@ -20,17 +21,8 @@ const monthLabel = (y: number, m: number) =>
 const dateStr = (y: number, m: number, d: number) =>
   `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-// ─── Platform brand colors ───────────────────────────────────────────
-const APP_COLORS: Record<string, { bg: string; text: string; cellBg: string; val: string }> = {
-  'هنقرستيشن': { bg: '#FF6B35', text: '#fff',  cellBg: 'rgba(255,107,53,0.07)',  val: '#FF6B35' },
-  'جاهز':      { bg: '#1DB954', text: '#fff',  cellBg: 'rgba(29,185,84,0.07)',   val: '#1DB954' },
-  'كيتا':      { bg: '#E53935', text: '#fff',  cellBg: 'rgba(229,57,53,0.07)',   val: '#E53935' },
-  'توبو':      { bg: '#7C3AED', text: '#fff',  cellBg: 'rgba(124,58,237,0.07)',  val: '#7C3AED' },
-  'نينجا':     { bg: '#111111', text: '#fff',  cellBg: 'rgba(17,17,17,0.05)',    val: '#888'    },
-  'تويو':      { bg: '#F59E0B', text: '#fff',  cellBg: 'rgba(245,158,11,0.07)', val: '#F59E0B' },
-  'أمازون':    { bg: '#FF9900', text: '#111',  cellBg: 'rgba(255,153,0,0.07)',   val: '#FF9900' },
-};
-const appColor = (name: string) => APP_COLORS[name] ?? { bg: 'hsl(var(--primary))', text: '#fff', cellBg: 'rgba(0,0,0,0.03)', val: 'hsl(var(--primary))' };
+// Module-level fallback — each component uses useAppColors() for DB-driven colors
+const appColor = (_name: string) => ({ bg: 'hsl(var(--primary))', text: '#fff', cellBg: 'rgba(0,0,0,0.03)', val: 'hsl(var(--primary))' });
 
 // ─── SpreadsheetGrid ─────────────────────────────────────────────────
 const SpreadsheetGrid = () => {
