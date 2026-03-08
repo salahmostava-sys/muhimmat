@@ -954,6 +954,47 @@ export type Database = {
           },
         ]
       }
+      vehicle_mileage: {
+        Row: {
+          cost_per_km: number | null
+          created_at: string
+          employee_id: string
+          fuel_cost: number
+          id: string
+          km_total: number
+          month_year: string
+          notes: string | null
+        }
+        Insert: {
+          cost_per_km?: number | null
+          created_at?: string
+          employee_id: string
+          fuel_cost?: number
+          id?: string
+          km_total?: number
+          month_year: string
+          notes?: string | null
+        }
+        Update: {
+          cost_per_km?: number | null
+          created_at?: string
+          employee_id?: string
+          fuel_cost?: number
+          id?: string
+          km_total?: number
+          month_year?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_mileage_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           authorization_expiry: string | null
