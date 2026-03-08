@@ -320,6 +320,7 @@ const Apps = () => {
                   ${isSelected ? 'ring-2 ring-primary border-primary shadow-md' : 'border-border hover:shadow-md'}`}
               >
                 {/* Action buttons */}
+                {permissions.can_edit && (
                 <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={e => { e.stopPropagation(); setModalApp(app); }}
@@ -336,6 +337,7 @@ const Apps = () => {
                     {app.is_active ? <Power size={11} /> : <PowerOff size={11} />}
                   </button>
                 </div>
+                )}
 
                 {/* Color indicator dot */}
                 <div
