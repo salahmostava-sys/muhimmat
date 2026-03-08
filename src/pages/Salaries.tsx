@@ -440,6 +440,7 @@ const SalaryBreakdown = ({ orders, scheme, salary, children }: SalaryBreakdownPr
 const Salaries = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { apps: appColorsList } = useAppColors();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(months[0].v);
@@ -454,6 +455,19 @@ const Salaries = () => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
+
+  // Sync PLATFORM_COLORS from DB apps
+  useEffect(() => {
+    appColorsList.forEach(app => {
+      PLATFORM_COLORS[app.name] = {
+        header: app.brand_color,
+        headerText: app.text_color,
+        cellBg: `${app.brand_color}18`,
+        valueColor: app.brand_color,
+        focusBorder: app.brand_color,
+      };
+    });
+  }, [appColorsList]);
 
   // ─── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
