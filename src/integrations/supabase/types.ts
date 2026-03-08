@@ -409,6 +409,7 @@ export type Database = {
           name: string
           name_en: string | null
           national_id: string | null
+          nationality: string | null
           personal_photo_url: string | null
           phone: string | null
           preferred_language: string
@@ -444,6 +445,7 @@ export type Database = {
           name: string
           name_en?: string | null
           national_id?: string | null
+          nationality?: string | null
           personal_photo_url?: string | null
           phone?: string | null
           preferred_language?: string
@@ -479,6 +481,7 @@ export type Database = {
           name?: string
           name_en?: string | null
           national_id?: string | null
+          nationality?: string | null
           personal_photo_url?: string | null
           phone?: string | null
           preferred_language?: string
