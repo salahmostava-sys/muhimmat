@@ -68,6 +68,7 @@ const App = () => (
                             <Route path="/settings/users" element={<UsersAndPermissions />} />
                             <Route path="/settings/permissions" element={<UsersAndPermissions />} />
                             <Route path="/settings/general" element={<GeneralSettings />} />
+                            <Route path="/analytics" element={<Analytics />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </AppLayout>
