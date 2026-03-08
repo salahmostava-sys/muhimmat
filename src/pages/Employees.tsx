@@ -181,6 +181,7 @@ const SkeletonRow = () => (
 const Employees = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { permissions } = usePermissions('employees');
   const [data, setData] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
