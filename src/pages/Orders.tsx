@@ -243,7 +243,7 @@ const SpreadsheetGrid = () => {
                   // Multi-app: columns per app
                   <>
                     {visibleApps.map(app => {
-                      const c = appColor(app.name);
+                      const c = getAppColor(appColorsList, app.name);
                       return (
                         <th key={app.id} className="text-center px-2 py-2.5 font-semibold min-w-[80px] border-l border-border"
                           style={{ backgroundColor: c.bg, color: c.text }}>
