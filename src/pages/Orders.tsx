@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
+import { usePermissions } from '@/hooks/usePermissions';
 
 // ─── Types ──────────────────────────────────────────────────────────
 type Employee = { id: string; name: string; salary_type: string; status: string; sponsorship_status: string | null };
@@ -26,6 +27,7 @@ const dateStr = (y: number, m: number, d: number) =>
 const SpreadsheetGrid = () => {
   const { apps: appColorsList } = useAppColors();
   const { toast } = useToast();
+  const { permissions } = usePermissions('orders');
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -206,9 +208,11 @@ const SpreadsheetGrid = () => {
 
         <div className="mr-auto flex gap-2">
           <Button variant="outline" size="sm" className="gap-1.5" onClick={exportExcel}><Download size={14} /> Excel</Button>
+          {permissions.can_edit && (
           <Button size="sm" className="gap-1.5" onClick={handleSave} disabled={saving}>
             {saving ? <><Loader2 size={14} className="animate-spin" /> جاري الحفظ...</> : <><Save size={14} /> حفظ</>}
           </Button>
+          )}
         </div>
       </div>
 
@@ -329,14 +333,14 @@ const SpreadsheetGrid = () => {
                               <td key={d}
                                 className={`text-center p-0 border-l border-border/20
                                   ${isToday ? 'bg-primary/5' : isWeekend ? 'opacity-70' : ''}`}
-                                onDoubleClick={() => startEdit(key, val)}>
-                                {isEditing ? (
+                                onDoubleClick={() => permissions.can_edit && startEdit(key, val)}>
+                                {isEditing && permissions.can_edit ? (
                                   <input ref={inputRef} type="number" min={0} value={editVal}
                                     onChange={e => setEditVal(e.target.value)}
                                     onBlur={commitEdit} onKeyDown={handleKeyDown}
                                     className="w-full h-8 text-center bg-primary/10 border-2 border-primary outline-none text-xs font-medium" />
                                 ) : (
-                                  <div className="h-8 flex items-center justify-center cursor-pointer hover:bg-white/20 font-medium transition-colors text-xs"
+                                  <div className={`h-8 flex items-center justify-center font-medium transition-colors text-xs ${permissions.can_edit ? 'cursor-pointer hover:bg-white/20' : ''}`}
                                     style={{ color: val > 0 ? c.val : undefined }}>
                                     {val > 0 ? val : <span className="text-muted-foreground/20">·</span>}
                                   </div>

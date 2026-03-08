@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { invalidateAppColorsCache } from '@/hooks/useAppColors';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface AppData {
   id: string;
@@ -182,6 +183,7 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
 // ─── Main Apps Page ───────────────────────────────────────────────────────────
 const Apps = () => {
   const { toast } = useToast();
+  const { permissions } = usePermissions('apps');
   const [apps, setApps] = useState<AppData[]>([]);
   const [selectedApp, setSelectedApp] = useState<AppData | null>(null);
   const [appEmployees, setAppEmployees] = useState<EmployeeInApp[]>([]);
@@ -294,9 +296,11 @@ const Apps = () => {
             <h1 className="page-title flex items-center gap-2"><Smartphone size={20} /> التطبيقات</h1>
             <p className="page-subtitle">إدارة التطبيقات ومناديب كل تطبيق</p>
           </div>
+          {permissions.can_edit && (
           <Button onClick={() => setModalApp(null)} className="gap-2">
             <Plus size={16} /> إضافة تطبيق
           </Button>
+          )}
         </div>
       </div>
 
@@ -316,6 +320,7 @@ const Apps = () => {
                   ${isSelected ? 'ring-2 ring-primary border-primary shadow-md' : 'border-border hover:shadow-md'}`}
               >
                 {/* Action buttons */}
+                {permissions.can_edit && (
                 <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={e => { e.stopPropagation(); setModalApp(app); }}
@@ -332,6 +337,7 @@ const Apps = () => {
                     {app.is_active ? <Power size={11} /> : <PowerOff size={11} />}
                   </button>
                 </div>
+                )}
 
                 {/* Color indicator dot */}
                 <div

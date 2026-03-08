@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 type AttendanceStatus = 'present' | 'absent' | 'leave' | 'sick' | 'late' | 'unpaid_leave';
 
@@ -55,6 +56,7 @@ interface Props {
 
 const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { lang, isRTL } = useLanguage();
+  const { permissions } = usePermissions('attendance');
   const statusConfig = lang === 'ar' ? statusConfigAr : statusConfigEn;
   const dateLocale = lang === 'ar' ? ar : enUS;
 
@@ -209,16 +211,20 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           </span>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={markAllPresent} className="gap-2">
-            <UserCheck size={16} />
-            {lang === 'ar' ? 'تسجيل الكل حاضرين' : 'Mark All Present'}
-          </Button>
-          <Button onClick={handleSave} disabled={saving || savedCount === 0} className="gap-2">
-            <Save size={16} />
-            {saving
-              ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
-              : `${lang === 'ar' ? 'حفظ الحضور' : 'Save Attendance'} (${savedCount})`}
-          </Button>
+          {permissions.can_edit && (
+            <Button variant="outline" onClick={markAllPresent} className="gap-2">
+              <UserCheck size={16} />
+              {lang === 'ar' ? 'تسجيل الكل حاضرين' : 'Mark All Present'}
+            </Button>
+          )}
+          {permissions.can_edit && (
+            <Button onClick={handleSave} disabled={saving || savedCount === 0} className="gap-2">
+              <Save size={16} />
+              {saving
+                ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                : `${lang === 'ar' ? 'حفظ الحضور' : 'Save Attendance'} (${savedCount})`}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -290,9 +296,10 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                             return (
                               <button
                                 key={key}
-                                onClick={() => updateRecord(emp.id, 'status', isActive ? null : key)}
+                                disabled={!permissions.can_edit}
+                                onClick={() => permissions.can_edit && updateRecord(emp.id, 'status', isActive ? null : key)}
                                 className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all ${
-                                  isActive ? cfg.activeClass : `border-border/50 text-muted-foreground ${cfg.hoverClass}`
+                                  isActive ? cfg.activeClass : `border-border/50 text-muted-foreground ${permissions.can_edit ? cfg.hoverClass : 'cursor-default opacity-70'}`
                                 }`}
                               >
                                 <Icon size={12} />
@@ -303,7 +310,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                         </div>
 
                         {/* Custom status */}
-                        {record.showCustomInput ? (
+                        {permissions.can_edit && (record.showCustomInput ? (
                           <div className="flex items-center gap-2">
                             <Input
                               value={record.customStatus}
@@ -320,7 +327,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                             <Plus size={11} />
                             {lang === 'ar' ? 'إضافة حالة مخصصة' : 'Add custom status'}
                           </button>
-                        )}
+                        ))}
                       </div>
                     </td>
 
@@ -328,6 +335,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                     <td className="ta-td-center">
                       <Input
                         type="time"
+                        disabled={!permissions.can_edit}
                         value={record.checkIn}
                         onChange={e => updateRecord(emp.id, 'checkIn', e.target.value)}
                         className="w-28 text-sm"
@@ -339,6 +347,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                     <td className="ta-td-center">
                       <Input
                         type="time"
+                        disabled={!permissions.can_edit}
                         value={record.checkOut}
                         onChange={e => updateRecord(emp.id, 'checkOut', e.target.value)}
                         className="w-28 text-sm"
@@ -349,6 +358,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                     {/* Note */}
                     <td className="ta-td">
                       <Input
+                        disabled={!permissions.can_edit}
                         placeholder={lang === 'ar' ? 'ملاحظة اختيارية...' : 'Optional note...'}
                         value={record.note}
                         onChange={e => updateRecord(emp.id, 'note', e.target.value)}

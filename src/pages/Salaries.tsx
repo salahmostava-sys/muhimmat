@@ -438,15 +438,26 @@ const Salaries = () => {
           .lte('date', endDate),
       ]);
 
+      // ── Fetch saved salary records for this month (to restore status) ──
+      const { data: savedRecords } = await supabase
+        .from('salary_records')
+        .select('employee_id, is_approved, advance_deduction, net_salary, manual_deduction, attendance_deduction, external_deduction')
+        .eq('month_year', selectedMonth);
+
+      const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
+      savedRecords?.forEach(r => {
+        savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
+      });
+
       // ── Fetch advance installments with their IDs ──
       const { data: advInstData } = await supabase
         .from('advance_installments')
-        .select('id, advance_id, amount')
-        .eq('month_year', selectedMonth)
-        .in('status', ['pending', 'deferred']);
+        .select('id, advance_id, amount, status')
+        .eq('month_year', selectedMonth);
 
       const advMap: Record<string, number> = {};
       const advInstIds: Record<string, string[]> = {};
+      const deductedInstIds: Record<string, string[]> = {};
       if (advInstData && advInstData.length > 0) {
         const advanceIds = [...new Set(advInstData.map(i => i.advance_id))];
         const { data: advancesData } = await supabase
@@ -460,9 +471,14 @@ const Salaries = () => {
         advInstData.forEach(inst => {
           const empId = advIdToEmpMap[inst.advance_id];
           if (empId) {
-            advMap[empId] = (advMap[empId] || 0) + Number(inst.amount);
-            if (!advInstIds[empId]) advInstIds[empId] = [];
-            advInstIds[empId].push(inst.id);
+            if (inst.status === 'pending' || inst.status === 'deferred') {
+              advMap[empId] = (advMap[empId] || 0) + Number(inst.amount);
+              if (!advInstIds[empId]) advInstIds[empId] = [];
+              advInstIds[empId].push(inst.id);
+            } else if (inst.status === 'deducted') {
+              if (!deductedInstIds[empId]) deductedInstIds[empId] = [];
+              deductedInstIds[empId].push(inst.id);
+            }
           }
         });
       }
@@ -510,6 +526,23 @@ const Salaries = () => {
           }
         });
 
+        const saved = savedMap[emp.id];
+        // If already paid (all deducted installments exist), mark as paid
+        let status: 'pending' | 'approved' | 'paid' = 'pending';
+        if (saved) {
+          if (deductedInstIds[emp.id]?.length > 0 || advInstIds[emp.id]?.length === 0) {
+            // check if it was saved as paid
+            const hasPendingInst = (advInstIds[emp.id] || []).length > 0;
+            if (!hasPendingInst && saved.is_approved) {
+              status = 'paid';
+            } else if (saved.is_approved) {
+              status = 'approved';
+            }
+          } else if (saved.is_approved) {
+            status = 'approved';
+          }
+        }
+
         const advDeduction = advMap[emp.id] || 0;
         const extDeduction = extMap[emp.id] || 0;
         const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
@@ -537,7 +570,7 @@ const Salaries = () => {
           advanceDeduction: advDeduction,
           advanceInstallmentIds: advInstIds[emp.id] || [],
           externalDeduction: extDeduction,
-          status: 'pending' as const,
+          status,
         };
       });
 
@@ -618,62 +651,122 @@ const Salaries = () => {
     }));
   };
 
-  const approveRow = (id: string) => {
+  const approveRow = async (id: string) => {
+    const row = rows.find(r => r.id === id);
+    if (!row) return;
+    const c = computeRow(row);
+    // Save to salary_records
+    await supabase.from('salary_records').upsert({
+      employee_id: row.employeeId,
+      month_year: selectedMonth,
+      base_salary: c.totalPlatformSalary,
+      allowances: c.totalAdditions,
+      attendance_deduction: row.violations,
+      advance_deduction: row.advanceDeduction,
+      external_deduction: row.externalDeduction,
+      manual_deduction: row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage,
+      net_salary: c.netSalary,
+      is_approved: true,
+      approved_by: user?.id ?? null,
+      approved_at: new Date().toISOString(),
+    }, { onConflict: 'employee_id,month_year' });
     updateRow(id, { status: 'approved' });
     toast({ title: '✅ تم اعتماد الراتب' });
   };
 
-  // ── Mark as PAID: update installments + complete advance if fully paid ──
+  // ── Mark as PAID: save to salary_records + update installments + complete advance ──
   const markAsPaid = async (row: SalaryRow) => {
-    if (row.advanceInstallmentIds.length === 0) {
-      updateRow(row.id, { status: 'paid' });
-      toast({ title: '✅ تم تسجيل الصرف' });
-      return;
-    }
-
     setMarkingPaid(row.id);
     try {
-      const now = new Date().toISOString();
+      const c = computeRow(row);
+      const nowStr = new Date().toISOString();
 
-      // Mark installments as deducted
-      await supabase
-        .from('advance_installments')
-        .update({ status: 'deducted', deducted_at: now })
-        .in('id', row.advanceInstallmentIds);
+      // 1. Upsert into salary_records
+      const { error: srError } = await supabase.from('salary_records').upsert({
+        employee_id: row.employeeId,
+        month_year: selectedMonth,
+        base_salary: c.totalPlatformSalary,
+        allowances: c.totalAdditions,
+        attendance_deduction: row.violations,
+        advance_deduction: row.advanceDeduction,
+        external_deduction: row.externalDeduction,
+        manual_deduction: row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage,
+        net_salary: c.netSalary,
+        is_approved: true,
+        approved_by: user?.id ?? null,
+        approved_at: nowStr,
+      }, { onConflict: 'employee_id,month_year' });
 
-      // For each advance linked to these installments, check if fully paid
-      const { data: instData } = await supabase
-        .from('advance_installments')
-        .select('advance_id, status')
-        .in('id', row.advanceInstallmentIds);
+      if (srError) throw srError;
 
-      if (instData) {
-        const advanceIds = [...new Set(instData.map(i => i.advance_id))];
-        for (const advId of advanceIds) {
-          const { data: allInsts } = await supabase
-            .from('advance_installments')
-            .select('status')
-            .eq('advance_id', advId);
+      // 2. Mark installments as deducted (if any)
+      if (row.advanceInstallmentIds.length > 0) {
+        await supabase
+          .from('advance_installments')
+          .update({ status: 'deducted', deducted_at: nowStr })
+          .in('id', row.advanceInstallmentIds);
 
-          const allDone = allInsts?.every(i => i.status === 'deducted');
-          if (allDone) {
-            await supabase.from('advances').update({ status: 'completed' }).eq('id', advId);
+        // 3. Check if advance is fully paid
+        const { data: instData } = await supabase
+          .from('advance_installments')
+          .select('advance_id, status')
+          .in('id', row.advanceInstallmentIds);
+
+        if (instData) {
+          const advanceIds = [...new Set(instData.map(i => i.advance_id))];
+          for (const advId of advanceIds) {
+            const { data: allInsts } = await supabase
+              .from('advance_installments')
+              .select('status')
+              .eq('advance_id', advId);
+            if (allInsts?.every(i => i.status === 'deducted')) {
+              await supabase.from('advances').update({ status: 'completed' }).eq('id', advId);
+            }
           }
         }
       }
 
       updateRow(row.id, { status: 'paid' });
-      toast({ title: '✅ تم الصرف وتحديث أقساط السلفة' });
+      toast({ title: '✅ تم الصرف وحفظ سجل الراتب' });
     } catch (err: any) {
-      toast({ title: 'خطأ أثناء تحديث السلفة', description: err.message, variant: 'destructive' });
+      toast({ title: 'خطأ أثناء الصرف', description: err.message, variant: 'destructive' });
     }
     setMarkingPaid(null);
   };
 
-  const approveAll = () => {
-    const pendingIds = filtered.filter(r => r.status === 'pending').map(r => r.id);
+  const approveAll = async () => {
+    const pendingRows = filtered.filter(r => r.status === 'pending');
+    if (pendingRows.length === 0) return;
+
+    // Upsert all to salary_records
+    const nowStr = new Date().toISOString();
+    const records = pendingRows.map(row => {
+      const c = computeRow(row);
+      return {
+        employee_id: row.employeeId,
+        month_year: selectedMonth,
+        base_salary: c.totalPlatformSalary,
+        allowances: c.totalAdditions,
+        attendance_deduction: row.violations,
+        advance_deduction: row.advanceDeduction,
+        external_deduction: row.externalDeduction,
+        manual_deduction: row.walletHunger + row.walletTuyo + row.walletJahiz + row.foodDamage,
+        net_salary: c.netSalary,
+        is_approved: true,
+        approved_by: user?.id ?? null,
+        approved_at: nowStr,
+      };
+    });
+
+    const { error } = await supabase.from('salary_records').upsert(records, { onConflict: 'employee_id,month_year' });
+    if (error) {
+      toast({ title: 'خطأ أثناء الاعتماد', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    const pendingIds = pendingRows.map(r => r.id);
     setRows(prev => prev.map(r => pendingIds.includes(r.id) ? { ...r, status: 'approved' as const } : r));
-    toast({ title: `✅ تم اعتماد ${pendingIds.length} راتب` });
+    toast({ title: `✅ تم اعتماد ${pendingRows.length} راتب وحفظها` });
   };
 
   const totalNet = filtered.reduce((s, r) => s + computeRow(r).netSalary, 0);
