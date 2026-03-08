@@ -592,26 +592,31 @@ const Advances = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <CreditCard size={24} /> السلف والأقساط
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">{advances.length} سلفة مسجلة</p>
-        </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل تقرير ▾</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button className="gap-2" onClick={() => { setAddDefaultEmployee(undefined); setAddOpen(true); }}>
-            <Plus size={16} /> إضافة سلفة
-          </Button>
+      {/* Page header breadcrumb */}
+      <div className="page-header">
+        <nav className="page-breadcrumb">
+          <span>الرئيسية</span>
+          <span className="page-breadcrumb-sep">/</span>
+          <span>السلف والأقساط</span>
+        </nav>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="page-title flex items-center gap-2"><CreditCard size={20} /> السلف والأقساط</h1>
+            <p className="page-subtitle">{advances.length} سلفة مسجلة</p>
+          </div>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل تقرير ▾</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button className="gap-2" onClick={() => { setAddDefaultEmployee(undefined); setAddOpen(true); }}>
+              <Plus size={16} /> إضافة سلفة
+            </Button>
+          </div>
         </div>
       </div>
 

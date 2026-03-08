@@ -39,13 +39,20 @@ const Attendance = () => {
 
   return (
     <div className="space-y-6" dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Page header breadcrumb */}
+      <div className="page-header">
+        <nav className="page-breadcrumb">
+          <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
+          <span className="page-breadcrumb-sep">/</span>
+          <span>{t('attendance')}</span>
+        </nav>
+        <h1 className="page-title">{t('attendance')}</h1>
+        <p className="page-subtitle">
+          {lang === 'ar' ? 'تسجيل ومتابعة حضور المناديب' : 'Track and manage employee attendance'}
+        </p>
+      </div>
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('attendance')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {lang === 'ar' ? 'تسجيل ومتابعة حضور المناديب' : 'Track and manage employee attendance'}
-          </p>
-        </div>
+        <div />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="gap-2">

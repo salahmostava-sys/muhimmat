@@ -480,27 +480,32 @@ const Vehicles = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Bike size={24} /> المركبات
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">{vehicles.length} مركبة مسجلة</p>
-        </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2"><Download size={15} /> تحميل تقرير ▾</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportVehicles}>📊 تصدير Excel (مع حالة الانتهاء)</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportAssignments}>📋 سجل التسليم Excel</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button className="gap-2" onClick={() => { setEditVehicle(null); setVehicleFormOpen(true); }}>
-            <Plus size={16} /> إضافة مركبة
-          </Button>
+      {/* Page header breadcrumb */}
+      <div className="page-header">
+        <nav className="page-breadcrumb">
+          <span>الرئيسية</span>
+          <span className="page-breadcrumb-sep">/</span>
+          <span>المركبات</span>
+        </nav>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="page-title flex items-center gap-2"><Bike size={20} /> المركبات</h1>
+            <p className="page-subtitle">{vehicles.length} مركبة مسجلة</p>
+          </div>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2"><Download size={15} /> تحميل تقرير ▾</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportVehicles}>📊 تصدير Excel (مع حالة الانتهاء)</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportAssignments}>📋 سجل التسليم Excel</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button className="gap-2" onClick={() => { setEditVehicle(null); setVehicleFormOpen(true); }}>
+              <Plus size={16} /> إضافة مركبة
+            </Button>
+          </div>
         </div>
       </div>
 
