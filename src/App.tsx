@@ -24,8 +24,7 @@ import Deductions from "./pages/Deductions";
 import Apps from "./pages/Apps";
 import Alerts from "./pages/Alerts";
 import SalarySchemes from "./pages/SalarySchemes";
-import Users from "./pages/Users";
-import Permissions from "./pages/Permissions";
+import UsersAndPermissions from "./pages/UsersAndPermissions";
 import GeneralSettings from "./pages/GeneralSettings";
 import NotFound from "./pages/NotFound";
 import "@/i18n";
@@ -66,8 +65,8 @@ const App = () => (
                             <Route path="/alerts" element={<Alerts />} />
                             <Route path="/settings" element={<SalarySchemes />} />
                             <Route path="/settings/schemes" element={<SalarySchemes />} />
-                            <Route path="/settings/users" element={<Users />} />
-                            <Route path="/settings/permissions" element={<Permissions />} />
+                            <Route path="/settings/users" element={<UsersAndPermissions />} />
+                            <Route path="/settings/permissions" element={<UsersAndPermissions />} />
                             <Route path="/settings/general" element={<GeneralSettings />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
