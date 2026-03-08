@@ -63,6 +63,11 @@ const resources = {
       saveEmployee: 'حفظ المندوب',
       saving: 'جاري الحفظ...',
       saved: 'تم',
+      deleted: 'تم الحذف',
+      errorDeleting: 'خطأ في الحذف',
+      confirmDelete: 'تأكيد الحذف',
+      deleteEmployeeConfirm: 'هل أنت متأكد من حذف الموظف',
+      actionIrreversible: 'لا يمكن التراجع عن هذا الإجراء.',
 
       // ─── Status ──────────────────────────────────────────────
       active: 'نشط',
