@@ -1763,11 +1763,10 @@ const Salaries = () => {
                         className="px-2 py-2 text-xs font-semibold whitespace-nowrap border-b border-l border-border/30 text-center cursor-pointer select-none hover:opacity-90 transition-opacity"
                         style={{ backgroundColor: pc?.header, color: pc?.headerText }}
                         onClick={() => handleSort(p)}>
-                        <div className="flex flex-col items-center gap-0">
-                          <span>{p}</span>
-                          <span className="text-[9px] opacity-80 font-normal">طلبات / راتب <SortIcon field={p} sortField={sortField} sortDir={sortDir} /></span>
-                          {schemeName && <span className="text-[8px] opacity-60 font-normal">{schemeName}</span>}
-                        </div>
+                         <div className="flex flex-col items-center gap-0">
+                           <span>{p}</span>
+                           <span className="text-[9px] opacity-80 font-normal">طلبات / راتب <SortIcon field={p} sortField={sortField} sortDir={sortDir} /></span>
+                         </div>
                       </th>
                     );
                   })}
