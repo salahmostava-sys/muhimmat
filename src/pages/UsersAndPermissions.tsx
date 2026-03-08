@@ -110,6 +110,26 @@ const UsersTab = () => {
     setSaving(false);
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      // Delete role and permissions first, then mark profile inactive
+      await Promise.all([
+        supabase.from('user_roles').delete().eq('user_id', deleteTarget.id),
+        supabase.from('user_permissions').delete().eq('user_id', deleteTarget.id),
+      ]);
+      // Mark profile as inactive (soft delete — we can't call auth admin from client)
+      await supabase.from('profiles').update({ is_active: false }).eq('id', deleteTarget.id);
+      toast({ title: '🗑️ تم حذف المستخدم', description: `تم إلغاء صلاحيات ${deleteTarget.name || deleteTarget.email} وتعطيل حسابه` });
+      setDeleteTarget(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setDeleting(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
