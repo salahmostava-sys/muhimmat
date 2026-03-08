@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Plus, CreditCard, Download, Upload, ChevronDown, ChevronUp, Pause, Play, Edit2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -232,9 +232,8 @@ const EmployeeDetailModal = ({ employeeId, employeeName, advances, onClose, onAd
                   const rem = adv.amount - paid;
                   const isExpanded = expandedId === adv.id;
                   return (
-                    <>
+                    <React.Fragment key={adv.id}>
                       <tr
-                        key={adv.id}
                         className="border-b border-border/30 hover:bg-muted/20 cursor-pointer"
                         onClick={() => setExpandedId(isExpanded ? null : adv.id)}
                       >
@@ -243,14 +242,14 @@ const EmployeeDetailModal = ({ employeeId, employeeName, advances, onClose, onAd
                           {adv.disbursement_date}
                         </td>
                         <td className="p-3 text-center">{adv.amount.toLocaleString()}</td>
-                        <td className="p-3 text-center text-green-600 dark:text-green-400">{paid.toLocaleString()}</td>
+                        <td className="p-3 text-center text-success">{paid.toLocaleString()}</td>
                         <td className="p-3 text-center text-destructive font-semibold">{rem.toLocaleString()}</td>
                         <td className="p-3 text-center">{adv.monthly_amount.toLocaleString()}</td>
                         <td className="p-3 text-center"><span className={statusStyles[adv.status]}>{statusLabels[adv.status]}</span></td>
                         <td className="p-3 text-muted-foreground text-xs">{adv.note || '—'}</td>
                       </tr>
                       {isExpanded && (adv.advance_installments || []).length > 0 && (
-                        <tr key={`${adv.id}-expand`} className="bg-muted/10">
+                        <tr className="bg-muted/10">
                           <td colSpan={7} className="p-0">
                             <div className="px-4 pb-3">
                               <table className="w-full text-xs mt-1">
@@ -281,7 +280,7 @@ const EmployeeDetailModal = ({ employeeId, employeeName, advances, onClose, onAd
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -333,19 +332,19 @@ const AdvanceCard = ({ advance: a, onEdit, onTogglePause, onEmployeeClick, onAdd
 
       {/* Amounts */}
       <div className="flex gap-4">
-        <div className="flex-1 text-center bg-blue-50 dark:bg-blue-950/20 rounded-lg py-2 px-3">
+        <div className="flex-1 text-center bg-info/10 rounded-lg py-2 px-3">
           <p className="text-xs text-muted-foreground">إجمالي</p>
-          <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{a.amount.toLocaleString()} ر.س</p>
+          <p className="text-sm font-bold text-info">{a.amount.toLocaleString()} ر.س</p>
         </div>
-        <div className="flex-1 text-center bg-orange-50 dark:bg-orange-950/20 rounded-lg py-2 px-3">
+        <div className="flex-1 text-center bg-warning/10 rounded-lg py-2 px-3">
           <p className="text-xs text-muted-foreground">متبقي</p>
-          <p className="text-sm font-bold text-orange-600 dark:text-orange-400">{remaining.toLocaleString()} ر.س</p>
+          <p className="text-sm font-bold text-warning">{remaining.toLocaleString()} ر.س</p>
         </div>
       </div>
 
       {/* Progress */}
       <div>
-        <Progress value={progress} className="h-2 bg-muted [&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-600" />
+        <Progress value={progress} className="h-2 bg-muted [&>div]:bg-success" />
         <p className="text-xs text-muted-foreground mt-1">
           سُدّد {paid.toLocaleString()} ر.س &nbsp;·&nbsp; {remInst} قسط متبقي
         </p>
@@ -465,7 +464,7 @@ const AddAdvanceModalInline = ({ open, onClose, onSaved, defaultEmployeeId, allA
         <DialogHeader><DialogTitle>إضافة سلفة جديدة</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           {hasActiveAdvance && (
-            <div className="col-span-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-300 dark:border-yellow-700 rounded-lg p-3 text-sm text-yellow-700 dark:text-yellow-300">
+            <div className="col-span-2 bg-warning/10 border border-warning/30 rounded-lg p-3 text-sm text-warning">
               ⚠️ هذا المندوب لديه سلفة نشطة — هل تريد المتابعة؟
             </div>
           )}
@@ -680,8 +679,8 @@ const Advances = () => {
         {[
           { label: 'عدد السلف النشطة', value: stats.activeCount, color: 'text-primary' },
           { label: 'إجمالي المبالغ المتبقية', value: `${stats.totalRemaining.toLocaleString()} ر.س`, color: 'text-destructive' },
-          { label: 'خصم هذا الشهر', value: `${stats.thisMonthDeduction.toLocaleString()} ر.س`, color: 'text-green-600 dark:text-green-400' },
-          { label: 'السلف الموقوفة', value: stats.pausedCount, color: 'text-yellow-600 dark:text-yellow-400' },
+          { label: 'خصم هذا الشهر', value: `${stats.thisMonthDeduction.toLocaleString()} ر.س`, color: 'text-success' },
+          { label: 'السلف الموقوفة', value: stats.pausedCount, color: 'text-warning' },
         ].map(s => (
           <div key={s.label} className="bg-card rounded-xl border border-border/50 p-4">
             <p className="text-xs text-muted-foreground">{s.label}</p>

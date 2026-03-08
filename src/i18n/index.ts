@@ -63,6 +63,11 @@ const resources = {
       saveEmployee: 'حفظ المندوب',
       saving: 'جاري الحفظ...',
       saved: 'تم',
+      deleted: 'تم الحذف',
+      errorDeleting: 'خطأ في الحذف',
+      confirmDelete: 'تأكيد الحذف',
+      deleteEmployeeConfirm: 'هل أنت متأكد من حذف الموظف',
+      actionIrreversible: 'لا يمكن التراجع عن هذا الإجراء.',
 
       // ─── Status ──────────────────────────────────────────────
       active: 'نشط',
@@ -241,6 +246,11 @@ const resources = {
       saveEmployee: 'Save Rider',
       saving: 'Saving...',
       saved: 'Saved',
+      deleted: 'Deleted',
+      errorDeleting: 'Error deleting',
+      confirmDelete: 'Confirm Delete',
+      deleteEmployeeConfirm: 'Are you sure you want to delete the employee',
+      actionIrreversible: 'This action cannot be undone.',
 
       // ─── Status ──────────────────────────────────────────────
       active: 'Active',

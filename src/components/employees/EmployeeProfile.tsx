@@ -217,7 +217,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                   </a>
                 </div>
               )}
-              {employee.dob && <InfoField label="تاريخ الميلاد" value={employee.dob} />}
+              {((employee as any).birth_date || employee.dob) && <InfoField label="تاريخ الميلاد" value={(employee as any).birth_date || employee.dob} />}
               {employee.city && <InfoField label="المدينة" value={employee.city === 'makkah' ? 'مكة المكرمة' : 'جدة'} />}
               {employee.join_date && <InfoField label="تاريخ الانضمام" value={employee.join_date} />}
               {employee.sponsorship_status && (

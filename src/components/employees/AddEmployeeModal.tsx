@@ -134,7 +134,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
           }
         });
     }
-  }, []);
+  }, [editEmployee?.id]);
 
   const [form, setForm] = useState({
     name: '',
