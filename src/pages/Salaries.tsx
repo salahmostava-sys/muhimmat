@@ -90,22 +90,19 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
   const t = getSlipTranslations(row.preferredLanguage);
   const meta = LANGUAGE_META[row.preferredLanguage];
   const dir = meta.dir;
+  const slipRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
 
-  // ── All platform earnings rows (show all platforms with orders > 0) ──
+  // ── All platform earnings rows ──
   const platformRows = row.registeredApps.map(app => ({
     app,
     orders: row.platformOrders[app] || 0,
     salary: row.platformSalaries[app] || 0,
   }));
 
-  // ── Earnings section ──
   const totalPlatformSalary = platformRows.reduce((s, r) => s + r.salary, 0);
-
-  // Build base salary / shift row if applicable
-  const baseSalaryRow = row.incentives; // incentives doubles as base or additional
   const totalEarnings = totalPlatformSalary + row.incentives + row.sickAllowance;
 
-  // ── Deductions: every non-zero deduction field ──
   const allDeductions = [
     { key: 'advance',   label: t.advanceInstallment,  val: row.advanceDeduction },
     { key: 'external',  label: t.externalDeductions,  val: row.externalDeduction },
@@ -116,7 +113,6 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
     { key: 'food',      label: t.foodDamage,           val: row.foodDamage },
   ];
 
-  // Show non-zero only; show zeros only when at least one deduction exists
   const hasAnyDeduction = allDeductions.some(d => d.val > 0);
   const deductionItems = hasAnyDeduction ? allDeductions.filter(d => d.val > 0) : [];
   const totalDeductions = allDeductions.reduce((s, d) => s + d.val, 0);
@@ -127,98 +123,27 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
 
   const fmt = (n: number) => `${n.toLocaleString()} ${t.currency}`;
 
-  const printPayslip = () => {
-    const earningRows = [
-      ...platformRows.map(r => ({
-        l: `${r.app} (${r.orders} ${t.orders})`,
-        v: r.salary,
-        cls: 'blue',
-        sign: '',
-      })),
-      ...(row.incentives > 0 ? [{ l: t.incentives, v: row.incentives, cls: 'green', sign: '+' }] : []),
-      ...(row.sickAllowance > 0 ? [{ l: t.sickAllowance, v: row.sickAllowance, cls: 'green', sign: '+' }] : []),
-    ];
-
-    const html = `<html dir="${dir}"><head><meta charset="utf-8"><title>${t.title}</title>
-      <style>
-        *{box-sizing:border-box}
-        body{font-family:${meta.fontFamily};padding:24px;max-width:720px;margin:0 auto;color:#111;direction:${dir};font-size:13px}
-        .slip-header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #465FFF;padding-bottom:14px;margin-bottom:18px}
-        .slip-title{font-size:20px;font-weight:800;color:#465FFF}
-        .slip-sub{font-size:12px;color:#666;margin-top:3px}
-        .lang-badge{padding:3px 10px;background:#eef2ff;color:#465FFF;border-radius:20px;font-size:11px;font-weight:600}
-        .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#888;margin:16px 0 6px;padding-bottom:4px;border-bottom:1px solid #eee}
-        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;background:#f8f9ff;border-radius:8px;padding:10px 14px;margin-bottom:10px}
-        .info-item{display:flex;gap:6px;font-size:12px}.info-label{color:#888;min-width:90px}.info-value{font-weight:600}
-        table{width:100%;border-collapse:collapse}
-        tr:not(:last-child) td{border-bottom:1px solid #f0f0f0}
-        td{padding:7px 10px}
-        .row-label{color:#444;width:55%}
-        .row-value{text-align:${dir==='rtl'?'left':'right'};font-weight:600}
-        .blue{color:#2563eb}.green{color:#16a34a}.red{color:#dc2626}
-        .subtotal{background:#f0f4ff;font-weight:700;border-radius:4px}
-        .subtotal td{padding:9px 10px}
-        .grand-total{background:#dcfce7;font-size:15px;font-weight:800;border-radius:6px}
-        .grand-total td{padding:11px 12px}
-        .deduct-label{color:#dc2626}
-        .summary-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-        .summary-item{background:#f8f9ff;border-radius:8px;padding:10px;text-align:center}
-        .summary-item .s-label{font-size:11px;color:#888;margin-bottom:3px}
-        .summary-item .s-val{font-size:14px;font-weight:700}
-        .footer{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:1px solid #ddd;padding-top:18px}
-        .footer-box{text-align:center;font-size:12px;color:#555}
-        .sig-line{border-top:1px solid #999;margin-top:30px;padding-top:5px}
-        .badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
-      </style>
-      </head><body>
-      <div class="slip-header">
-        <div>
-          <div class="slip-title">🚀 ${t.subtitle}</div>
-          <div class="slip-sub">${t.title} &mdash; ${monthLabel}</div>
-        </div>
-        <span class="lang-badge">${meta.flag} ${meta.label}</span>
-      </div>
-
-      <div class="info-grid">
-        <div class="info-item"><span class="info-label">${t.name}:</span><span class="info-value">${row.employeeName}</span></div>
-        <div class="info-item"><span class="info-label">${t.nationalId}:</span><span class="info-value" dir="ltr">${row.nationalId || '—'}</span></div>
-        <div class="info-item"><span class="info-label">${t.city}:</span><span class="info-value">${row.city || '—'}</span></div>
-        <div class="info-item"><span class="info-label">${t.paymentMethod}:</span><span class="info-value">${row.paymentMethod === 'bank' ? t.payBank : t.payCash}</span></div>
-      </div>
-
-      <div class="section-title">✅ ${t.sectionEarnings || t.sectionPlatforms}</div>
-      <table>
-        ${earningRows.map(r => `<tr><td class="row-label">${r.l}</td><td class="row-value ${r.cls}">${r.sign}${r.v.toLocaleString()} ${t.currency}</td></tr>`).join('')}
-        <tr class="subtotal"><td class="row-label">${t.platformTotal}</td><td class="row-value blue">${totalEarnings.toLocaleString()} ${t.currency}</td></tr>
-      </table>
-
-      ${deductionItems.length > 0 ? `
-      <div class="section-title">❌ ${t.sectionDeductions}</div>
-      <table>
-        ${deductionItems.map(d => `<tr><td class="row-label deduct-label">${d.label}</td><td class="row-value red">- ${d.val.toLocaleString()} ${t.currency}</td></tr>`).join('')}
-        <tr class="subtotal"><td class="row-label deduct-label">${t.totalDeductions}</td><td class="row-value red">- ${totalDeductions.toLocaleString()} ${t.currency}</td></tr>
-      </table>` : ''}
-
-      <br/>
-      <table>
-        <tr class="grand-total"><td class="row-label">${t.netSalary}</td><td class="row-value green">${netSalary.toLocaleString()} ${t.currency}</td></tr>
-      </table>
-
-      <div class="summary-bar">
-        <div class="summary-item"><div class="s-label">${t.transfer}</div><div class="s-val">${row.transfer.toLocaleString()} ${t.currency}</div></div>
-        <div class="summary-item"><div class="s-label">${t.remaining}</div><div class="s-val">${remaining.toLocaleString()} ${t.currency}</div></div>
-        ${row.advanceRemaining > 0 ? `<div class="summary-item"><div class="s-label">${t.advanceBalance}</div><div class="s-val" style="color:#dc2626">${row.advanceRemaining.toLocaleString()} ${t.currency}</div></div>` : '<div></div>'}
-      </div>
-
-      <div class="footer">
-        <div class="footer-box"><div class="sig-line">${t.signatureDriver}</div></div>
-        <div class="footer-box"><div class="sig-line">${t.signatureAdmin}</div></div>
-      </div>
-      </body></html>`;
-    const win = window.open('', '_blank');
-    win?.document.write(html);
-    win?.document.close();
-    win?.print();
+  const exportPDF = async () => {
+    if (!slipRef.current) return;
+    setExporting(true);
+    try {
+      const canvas = await html2canvas(slipRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const finalHeight = Math.min(imgHeight, pageHeight);
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight);
+      pdf.save(`salary-slip-${row.employeeName}-${selectedMonth}.pdf`);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -232,7 +157,7 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth }: PayslipProps) 
             </span>
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 text-sm">
+        <div ref={slipRef} className="space-y-4 text-sm bg-background p-1">
           {/* Employee Info */}
           <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
             <div><span className="text-muted-foreground text-xs">{t.month}: </span><span className="font-semibold text-xs">{monthLabel}</span></div>
