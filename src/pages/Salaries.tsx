@@ -1206,6 +1206,9 @@ const Salaries = () => {
           <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={exportExcel}>
             <Download size={13} /> تصدير Excel
           </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs text-primary border-primary/40 hover:bg-primary/10" onClick={exportAllPDFs}>
+            <FileText size={13} /> PDF لكل مندوب
+          </Button>
           <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs" onClick={() => setShowImport(true)}>
             <FileUp size={13} /> استيراد Excel
           </Button>
