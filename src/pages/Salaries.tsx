@@ -11,7 +11,6 @@ import { useAppColors, AppColorData } from '@/hooks/useAppColors';
 import { useAuth } from '@/context/AuthContext';
 
 // Kept for legacy references — populated dynamically from DB at runtime
-let PLATFORMS: string[] = [];
 const PLATFORM_COLORS: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {};
 
 const statusLabels: Record<string, string> = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' };
@@ -455,18 +454,28 @@ const Salaries = () => {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
 
-  // Sync PLATFORM_COLORS from DB apps
+  // Sync platforms & colors from DB apps
   useEffect(() => {
-    appColorsList.forEach(app => {
-      PLATFORM_COLORS[app.name] = {
+    if (appColorsList.length === 0) return;
+    const newColors: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {};
+    const newPlatforms: string[] = [];
+    appColorsList.filter(a => a.is_active).forEach(app => {
+      newPlatforms.push(app.name);
+      newColors[app.name] = {
         header: app.brand_color,
         headerText: app.text_color,
         cellBg: `${app.brand_color}18`,
         valueColor: app.brand_color,
         focusBorder: app.brand_color,
       };
+      // keep global in sync for legacy code paths
+      PLATFORM_COLORS[app.name] = newColors[app.name];
     });
+    setPlatforms(newPlatforms);
+    setPlatformColors(newColors);
   }, [appColorsList]);
 
   // ─── Data fetching ─────────────────────────────────────────────
@@ -594,7 +603,7 @@ const Salaries = () => {
         const platformOrders: Record<string, number> = {};
         const platformSalaries: Record<string, number> = {};
 
-        PLATFORMS.forEach(p => {
+        platforms.forEach(p => {
           const orders = empOrders[p] || 0;
           platformOrders[p] = orders;
           if (orders === 0) { platformSalaries[p] = 0; return; }
@@ -666,7 +675,7 @@ const Salaries = () => {
     };
 
     fetchAllData();
-  }, [selectedMonth]);
+  }, [selectedMonth, platforms]);
 
   const computeRow = useCallback((r: SalaryRow) => {
     const totalPlatformSalary = Object.values(r.platformSalaries).reduce((s, v) => s + v, 0);
@@ -711,7 +720,7 @@ const Salaries = () => {
       case 'netSalary': va = ca.netSalary; vb = cb.netSalary; break;
       case 'status': va = a.status; vb = b.status; break;
       default:
-        if (PLATFORMS.includes(sortField)) {
+        if (platforms.includes(sortField)) {
           va = a.platformOrders[sortField] || 0;
           vb = b.platformOrders[sortField] || 0;
         } else {
@@ -870,7 +879,7 @@ const Salaries = () => {
         'المسمى الوظيفي': r.jobTitle,
         'رقم الهوية': r.nationalId,
       };
-      PLATFORMS.forEach(p => {
+      platforms.forEach(p => {
         row[p] = r.registeredApps.includes(p) ? (r.platformOrders[p] || 0) : '—';
       });
       row['إجمالي الراتب الأساسي'] = c.totalPlatformSalary;
@@ -904,7 +913,7 @@ const Salaries = () => {
 
   const totals = filtered.reduce((acc, r) => {
     const c = computeRow(r);
-    PLATFORMS.forEach(p => {
+    platforms.forEach(p => {
       acc.platform[p] = (acc.platform[p] || 0) + (r.platformOrders[p] || 0);
     });
     acc.platformSalaries += c.totalPlatformSalary;
@@ -1137,7 +1146,7 @@ const Salaries = () => {
               <thead className="sticky top-0 z-30">
                 <tr className="bg-muted/70 border-b border-border/50">
                   <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(0)}>بيانات المندوب</th>
-                  <th colSpan={PLATFORMS.length * 2} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
+                  <th colSpan={platforms.length * 2} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
                     المنصات — الطلبات والراتب (نقر مزدوج للتعديل)
                   </th>
                   <th className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الراتب الأساسي</th>
@@ -1157,8 +1166,8 @@ const Salaries = () => {
                   <th className={`${thFrozenBase} w-28 border-l border-border/50 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(288)} onClick={() => handleSort('nationalId')}>
                     رقم الهوية <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
                   </th>
-                  {PLATFORMS.map(p => {
-                    const pc = PLATFORM_COLORS[p];
+                  {platforms.map(p => {
+                    const pc = platformColors[p];
                     const headerScheme = empPlatformScheme
                       ? Object.values(empPlatformScheme).find(m => m[p])?.[p]
                       : null;
@@ -1217,8 +1226,8 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 176, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
                       <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 288, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
-                      {PLATFORMS.map(p => {
-                        const pc = PLATFORM_COLORS[p];
+                      {platforms.map(p => {
+                        const pc = platformColors[p];
                         const orders = r.platformOrders[p] || 0;
                         const salary = r.platformSalaries[p] || 0;
                         const scheme = empPlatformScheme?.[r.employeeId]?.[p];
@@ -1332,8 +1341,8 @@ const Salaries = () => {
                    <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   {PLATFORMS.map(p => {
-                     const pc = PLATFORM_COLORS[p];
+                   {platforms.map(p => {
+                     const pc = platformColors[p];
                      const totalOrders = totals.platform[p] || 0;
                      const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
                      return [
