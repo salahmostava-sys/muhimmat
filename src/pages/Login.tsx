@@ -300,7 +300,7 @@ const Login = () => {
         {/* Logo */}
         <div className="flex flex-col items-center mb-6">
           <div className="w-14 h-14 rounded-2xl mb-3 flex items-center justify-center text-3xl shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}>🚀</div>
+            style={{ background: brandGrad }}>🚀</div>
           <h1 className="text-[22px] font-extrabold text-white text-center">
             {isAr ? 'نظام إدارة التوصيل' : 'Delivery Management System'}
           </h1>
