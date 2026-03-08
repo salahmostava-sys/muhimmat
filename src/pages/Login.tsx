@@ -158,9 +158,9 @@ const Login = () => {
       </div>
 
       <div className="flex items-center justify-between text-sm">
-        <button type="button" className="text-gray-500 hover:text-gray-300 text-xs transition-colors">
-          {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
-        </button>
+          <Link to="/forgot-password" className="text-gray-500 hover:text-gray-300 text-xs transition-colors">
+            {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+          </Link>
         <label className="flex items-center gap-2 text-gray-400 text-xs cursor-pointer">
           <input type="checkbox" className="rounded border-gray-600 bg-[#1a1f2e]" />
           {isAr ? 'تذكرني' : 'Remember me'}
