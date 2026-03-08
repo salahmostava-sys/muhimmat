@@ -54,9 +54,10 @@ interface SalaryRow {
   transfer: number;
   advanceDeduction: number;
   advanceInstallmentIds: string[];
-  advanceRemaining: number; // Total remaining balance of all active advances
+  advanceRemaining: number;
   externalDeduction: number;
   status: 'pending' | 'approved' | 'paid';
+  isDirty?: boolean; // true if edited after approval/save
 }
 
 interface SchemeData {
