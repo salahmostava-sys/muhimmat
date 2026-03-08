@@ -2,9 +2,12 @@ import { ReactNode } from 'react';
 import AppSidebar from './AppSidebar';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { LogOut, Languages } from 'lucide-react';
+import { LogOut, Languages, Sun, Moon } from 'lucide-react';
+import NotificationCenter from '@/components/NotificationCenter';
+import GlobalSearch from '@/components/GlobalSearch';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -13,6 +16,7 @@ interface AppLayoutProps {
 const AppLayout = ({ children }: AppLayoutProps) => {
   const { lang, toggleLang } = useLanguage();
   const { signOut, role } = useAuth();
+  const { toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
 
   const roleLabels: Record<string, string> = {
@@ -34,12 +38,27 @@ const AppLayout = ({ children }: AppLayoutProps) => {
       >
         {/* Header */}
         <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-40">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {role && (
               <span className="badge-info text-xs">{roleLabels[role] || role}</span>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Global search */}
+            <GlobalSearch />
+
+            {/* Notifications */}
+            <NotificationCenter />
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title={isDark ? (isRtl ? 'الوضع الفاتح' : 'Light mode') : (isRtl ? 'الوضع الداكن' : 'Dark mode')}
+            >
+              {isDark ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+
             {/* Language toggle */}
             <Button
               variant="outline"
@@ -50,6 +69,7 @@ const AppLayout = ({ children }: AppLayoutProps) => {
               <Languages size={13} />
               {lang === 'ar' ? 'English' : 'عربي'}
             </Button>
+
             {/* Logout */}
             <Button
               variant="ghost"
