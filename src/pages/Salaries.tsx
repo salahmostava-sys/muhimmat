@@ -531,26 +531,28 @@ const Salaries = () => {
         savedMap[r.employee_id] = { is_approved: r.is_approved, net_salary: r.net_salary };
       });
 
-      // ── Fetch advance installments with their IDs ──
-      const { data: advInstData } = await supabase
-        .from('advance_installments')
-        .select('id, advance_id, amount, status')
-        .eq('month_year', selectedMonth);
+      // ── Fetch advance installments via advances → employee_id ──
+      // Step 1: get all active/paused advances
+      const { data: allAdvances } = await supabase
+        .from('advances')
+        .select('id, employee_id, status')
+        .in('status', ['active', 'paused']);
 
       const advMap: Record<string, number> = {};
       const advInstIds: Record<string, string[]> = {};
       const deductedInstIds: Record<string, string[]> = {};
-      if (advInstData && advInstData.length > 0) {
-        const advanceIds = [...new Set(advInstData.map(i => i.advance_id))];
-        const { data: advancesData } = await supabase
-          .from('advances')
-          .select('id, employee_id')
-          .in('id', advanceIds);
 
+      if (allAdvances && allAdvances.length > 0) {
         const advIdToEmpMap: Record<string, string> = {};
-        advancesData?.forEach(adv => { advIdToEmpMap[adv.id] = adv.employee_id; });
+        allAdvances.forEach(adv => { advIdToEmpMap[adv.id] = adv.employee_id; });
 
-        advInstData.forEach(inst => {
+        const { data: advInstData } = await supabase
+          .from('advance_installments')
+          .select('id, advance_id, amount, status')
+          .eq('month_year', selectedMonth)
+          .in('advance_id', allAdvances.map(a => a.id));
+
+        advInstData?.forEach(inst => {
           const empId = advIdToEmpMap[inst.advance_id];
           if (empId) {
             if (inst.status === 'pending' || inst.status === 'deferred') {
