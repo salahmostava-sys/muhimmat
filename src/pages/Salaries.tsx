@@ -39,6 +39,8 @@ interface SalaryRow {
   nationalId: string;
   city: string;
   bankAccount: string;
+  hasIban: boolean;
+  paymentMethod: 'bank' | 'cash';
   registeredApps: string[];
   platformOrders: Record<string, number>;
   platformSalaries: Record<string, number>;
