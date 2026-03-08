@@ -113,6 +113,12 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [schemes, setSchemes] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from('salary_schemes').select('id, name').eq('status', 'active').order('name')
+      .then(({ data }) => { if (data) setSchemes(data); });
+  }, []);
 
   const [form, setForm] = useState({
     name: '',
