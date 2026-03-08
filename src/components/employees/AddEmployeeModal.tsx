@@ -165,6 +165,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         phone: editEmployee.phone || '',
         email: editEmployee.email || '',
         national_id: editEmployee.national_id || '',
+        nationality: editEmployee.nationality || '',
         bank_account_number: editEmployee.bank_account_number || '',
         city: (editEmployee.city as 'makkah' | 'jeddah' | '') || '',
         join_date: editEmployee.join_date || '',
