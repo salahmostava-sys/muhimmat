@@ -47,7 +47,6 @@ const AppSidebar = () => {
       items: [
         { label: t('payroll'), icon: Wallet, path: '/salaries' },
         { label: t('advances'), icon: CreditCard, path: '/advances' },
-        { label: t('deductions'), icon: FileDown, path: '/deductions' },
       ],
     },
     {

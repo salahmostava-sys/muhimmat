@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2 } from 'lucide-react';
+import { Search, Wallet, Download, CheckCircle, Printer, Upload, FileUp, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from 'xlsx';
 import { useToast } from '@/hooks/use-toast';
@@ -54,9 +54,10 @@ interface SalaryRow {
   transfer: number;
   advanceDeduction: number;
   advanceInstallmentIds: string[];
-  advanceRemaining: number; // Total remaining balance of all active advances
+  advanceRemaining: number;
   externalDeduction: number;
   status: 'pending' | 'approved' | 'paid';
+  isDirty?: boolean; // true if edited after approval/save
 }
 
 interface SchemeData {
@@ -760,7 +761,15 @@ const Salaries = () => {
   });
 
   const updateRow = useCallback((id: string, patch: Partial<SalaryRow>) => {
-    setRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+    setRows(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, ...patch };
+      // Mark as dirty if editing after approved/paid
+      if (r.status !== 'pending' && !('status' in patch) && !('isDirty' in patch)) {
+        updated.isDirty = true;
+      }
+      return updated;
+    }));
     if (payslipRow?.id === id) setPayslipRow(prev => prev ? { ...prev, ...patch } : prev);
   }, [payslipRow]);
 
@@ -768,8 +777,17 @@ const Salaries = () => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
       const newOrders = { ...r.platformOrders, [platform]: value };
-      const newSalaries = { ...r.platformSalaries, [platform]: value * 5 };
-      return { ...r, platformOrders: newOrders, platformSalaries: newSalaries };
+      // Recalculate salary using proper scheme
+      const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
+      let salary = 0;
+      if (scheme && scheme.salary_scheme_tiers) {
+        salary = calcSalaryFromTiers(value, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
+      } else {
+        salary = value * 5;
+      }
+      const newSalaries = { ...r.platformSalaries, [platform]: salary };
+      const isDirty = r.status !== 'pending' ? true : r.isDirty;
+      return { ...r, platformOrders: newOrders, platformSalaries: newSalaries, isDirty };
     }));
   };
 
@@ -792,7 +810,7 @@ const Salaries = () => {
       approved_by: user?.id ?? null,
       approved_at: new Date().toISOString(),
     }, { onConflict: 'employee_id,month_year' });
-    updateRow(id, { status: 'approved' });
+    updateRow(id, { status: 'approved', isDirty: false });
     toast({ title: '✅ تم اعتماد الراتب' });
   };
 
@@ -849,7 +867,7 @@ const Salaries = () => {
         }
       }
 
-      updateRow(row.id, { status: 'paid' });
+      updateRow(row.id, { status: 'paid', isDirty: false });
       toast({ title: '✅ تم الصرف وحفظ سجل الراتب' });
     } catch (err: any) {
       toast({ title: 'خطأ أثناء الصرف', description: err.message, variant: 'destructive' });
@@ -1243,7 +1261,14 @@ const Salaries = () => {
                   return (
                     <tr key={r.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                       <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>
-                        <span className="whitespace-nowrap">{r.employeeName}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="whitespace-nowrap">{r.employeeName}</span>
+                          {r.isDirty && (
+                            <span title="تم تعديل البيانات بعد الاعتماد — يرجى إعادة الاعتماد" className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/40 whitespace-nowrap cursor-help">
+                              <AlertTriangle size={9} /> يحتاج إعادة اعتماد
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 176, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
                       <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 288, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>

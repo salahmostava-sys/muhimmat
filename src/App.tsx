@@ -20,7 +20,6 @@ import Salaries from "./pages/Salaries";
 import Advances from "./pages/Advances";
 import Vehicles from "./pages/Vehicles";
 import FuelPage from "./pages/Fuel";
-import Deductions from "./pages/Deductions";
 import Apps from "./pages/Apps";
 import Alerts from "./pages/Alerts";
 import SalarySchemes from "./pages/SalarySchemes";
@@ -60,7 +59,7 @@ const App = () => (
                             <Route path="/vehicles" element={<Vehicles />} />
                             <Route path="/vehicle-tracking" element={<Vehicles />} />
                             <Route path="/fuel" element={<FuelPage />} />
-                            <Route path="/deductions" element={<Deductions />} />
+                            <Route path="/deductions" element={<Advances />} />
                             <Route path="/apps" element={<Apps />} />
                             <Route path="/alerts" element={<Alerts />} />
                             <Route path="/settings" element={<SalarySchemes />} />
