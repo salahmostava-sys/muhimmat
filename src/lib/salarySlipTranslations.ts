@@ -38,6 +38,8 @@ export interface SlipTranslations {
   incentives: string;
   sickAllowance: string;
   totalWithSalary: string;
+  // Earnings section label
+  sectionEarnings: string;
   // Deductions
   sectionDeductions: string;
   advanceInstallment: string;
