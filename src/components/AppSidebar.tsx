@@ -195,7 +195,7 @@ const AppSidebar = () => {
                             'relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150',
                             active
                               ? 'sidebar-item-active bg-[hsl(var(--sidebar-accent))] text-primary font-semibold'
-                              : 'text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))]'
+                              : 'font-normal text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))]'
                           )}
                           onClick={close}
                         >
