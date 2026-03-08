@@ -25,6 +25,11 @@ const strengthTextColors = ['', 'text-red-400', 'text-yellow-400', 'text-green-4
 const gradientBtn =
   'w-full h-11 rounded-xl font-bold text-[15px] text-white transition-all duration-150 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2';
 
+// TailAdmin v2.2 Blue
+const brandGrad = 'linear-gradient(135deg, #465FFF, #3347D9)';
+const brandShadow = '0 4px 20px rgba(70,95,255,0.35)';
+const brandShadowHover = '0 4px 28px rgba(70,95,255,0.55)';
+
 const Login = () => {
   const { signIn } = useAuth();
   const { lang, toggleLang, isRTL } = useLanguage();
