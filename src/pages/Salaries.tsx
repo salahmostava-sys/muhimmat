@@ -1111,7 +1111,7 @@ const Salaries = () => {
                           <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
                             {r.employeeName.slice(0, 1)}
                           </span>
-                          <span className="font-medium text-xs">{r.employeeName}</span>
+                          <span className="font-medium text-xs whitespace-nowrap">{r.employeeName}</span>
                         </button>
                       </td>
                       <td className={`${tdFrozenClass} w-28 text-right text-muted-foreground`} style={stickyLeft(176)}>
