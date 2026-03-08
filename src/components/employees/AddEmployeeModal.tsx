@@ -367,6 +367,20 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="تاريخ الانضمام">
                 <Input type="date" value={form.join_date} onChange={e => setField('join_date', e.target.value)} />
               </F>
+              <F label="لغة كشف الراتب">
+                <div className="flex gap-2 mt-1">
+                  {([
+                    { v: 'ar', flag: '🇸🇦', l: 'العربية' },
+                    { v: 'en', flag: '🇬🇧', l: 'English' },
+                    { v: 'ur', flag: '🇵🇰', l: 'اردو' },
+                  ] as { v: 'ar' | 'en' | 'ur'; flag: string; l: string }[]).map(({ v, flag, l }) => (
+                    <button key={v} type="button" onClick={() => setField('preferred_language', v)}
+                      className={`flex-1 py-2 px-2 rounded-lg border text-xs font-medium transition-colors flex items-center justify-center gap-1 ${form.preferred_language === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}>
+                      {flag} {l}
+                    </button>
+                  ))}
+                </div>
+              </F>
             </div>
           )}
 
