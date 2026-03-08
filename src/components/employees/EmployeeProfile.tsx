@@ -209,7 +209,14 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
               {employee.national_id && <InfoField label="رقم الهوية" value={employee.national_id} dir="ltr" />}
               {employee.iban && <InfoField label="رقم IBAN" value={`SA••••••••${employee.iban.slice(-4)}`} />}
               {employee.bank_account_number && <InfoField label="رقم الحساب البنكي" value={employee.bank_account_number} dir="ltr" />}
-              {employee.email && <InfoField label="البريد الإلكتروني" value={employee.email} />}
+              {employee.email && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">البريد الإلكتروني</p>
+                  <a href={`mailto:${employee.email}`} className="text-sm font-medium text-primary hover:underline break-all">
+                    {employee.email}
+                  </a>
+                </div>
+              )}
               {employee.dob && <InfoField label="تاريخ الميلاد" value={employee.dob} />}
               {employee.city && <InfoField label="المدينة" value={employee.city === 'makkah' ? 'مكة المكرمة' : 'جدة'} />}
               {employee.join_date && <InfoField label="تاريخ الانضمام" value={employee.join_date} />}
