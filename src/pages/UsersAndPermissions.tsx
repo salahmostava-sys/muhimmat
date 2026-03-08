@@ -117,20 +117,48 @@ const UsersTab = () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      // Delete role and permissions first, then mark profile inactive
       await Promise.all([
         supabase.from('user_roles').delete().eq('user_id', deleteTarget.id),
         supabase.from('user_permissions').delete().eq('user_id', deleteTarget.id),
       ]);
-      // Mark profile as inactive (soft delete — we can't call auth admin from client)
       await supabase.from('profiles').update({ is_active: false }).eq('id', deleteTarget.id);
-      toast({ title: '🗑️ تم حذف المستخدم', description: `تم إلغاء صلاحيات ${deleteTarget.name || deleteTarget.email} وتعطيل حسابه` });
+      toast({ title: '🗑️ تم تعطيل المستخدم', description: `تم إلغاء صلاحيات ${deleteTarget.name || deleteTarget.email} وتعطيل حسابه` });
       setDeleteTarget(null);
       fetchUsers();
     } catch (err: any) {
       toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
     }
     setDeleting(false);
+  };
+
+  const handleReactivate = async (u: Profile) => {
+    setReactivating(u.id);
+    try {
+      await supabase.from('profiles').update({ is_active: true }).eq('id', u.id);
+      toast({ title: '✅ تم إعادة تفعيل الحساب', description: `${u.name || u.email} أصبح نشطاً مجدداً` });
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setReactivating(null);
+  };
+
+  const handleRoleChange = async (userId: string, newRoleVal: AppRoleType) => {
+    setSavingRole(userId);
+    try {
+      const existing = userRoles.find(r => r.user_id === userId);
+      if (existing) {
+        await supabase.from('user_roles').update({ role: newRoleVal }).eq('user_id', userId);
+      } else {
+        await supabase.from('user_roles').insert({ user_id: userId, role: newRoleVal });
+      }
+      setUserRoles(prev => [...prev.filter(r => r.user_id !== userId), { user_id: userId, role: newRoleVal }]);
+      toast({ title: '✅ تم تحديث الدور', description: `تم تغيير الدور إلى ${roleLabels[newRoleVal]}` });
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setSavingRole(null);
+    setEditingRoleFor(null);
   };
 
   return (
@@ -143,7 +171,7 @@ const UsersTab = () => {
         </div>
       </div>
 
-        <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 size={24} className="animate-spin text-muted-foreground" /></div>
         ) : profiles.length === 0 ? (
@@ -159,42 +187,99 @@ const UsersTab = () => {
                 <th className="text-right p-3 text-xs font-semibold text-muted-foreground">البريد</th>
                 <th className="text-center p-3 text-xs font-semibold text-muted-foreground">الدور</th>
                 <th className="text-center p-3 text-xs font-semibold text-muted-foreground">الحالة</th>
-                <th className="text-center p-3 text-xs font-semibold text-muted-foreground">إجراء</th>
+                <th className="text-center p-3 text-xs font-semibold text-muted-foreground">إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {profiles.map(u => {
                 const role = getRole(u.id);
+                const isEditingRole = editingRoleFor === u.id;
+                const isSavingRole = savingRole === u.id;
+                const isReactivating = reactivating === u.id;
                 return (
-                  <tr key={u.id} className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${!u.is_active ? 'opacity-50' : ''}`}>
+                  <tr key={u.id} className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${!u.is_active ? 'opacity-60' : ''}`}>
                     <td className="p-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${u.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                           {u.name?.[0]?.toUpperCase() || u.email?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div>
                           <p className="text-sm font-medium text-foreground">{u.name || '—'}</p>
-                          {!u.is_active && <p className="text-[10px] text-destructive">محذوف</p>}
+                          {!u.is_active && <p className="text-[10px] text-destructive font-medium">معطّل</p>}
                         </div>
                       </div>
                     </td>
                     <td className="p-3 text-sm text-muted-foreground" dir="ltr">{u.email || '—'}</td>
+
+                    {/* ── Inline role editor ── */}
                     <td className="p-3 text-center">
-                      {role ? <span className={roleColors[role]}>{roleLabels[role]}</span> : <span className="text-xs text-muted-foreground">بدون دور</span>}
+                      {isEditingRole ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <Select
+                            value={role || 'viewer'}
+                            onValueChange={(v: AppRoleType) => handleRoleChange(u.id, v)}
+                            disabled={isSavingRole}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">🔴 مدير</SelectItem>
+                              <SelectItem value="hr">🔵 موارد بشرية</SelectItem>
+                              <SelectItem value="finance">🟢 مالية</SelectItem>
+                              <SelectItem value="operations">🟠 عمليات</SelectItem>
+                              <SelectItem value="viewer">⚪ عارض</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {isSavingRole
+                            ? <Loader2 size={13} className="animate-spin text-muted-foreground" />
+                            : <button onClick={() => setEditingRoleFor(null)} className="text-xs text-muted-foreground hover:text-foreground px-1">✕</button>
+                          }
+                        </div>
+                      ) : (
+                        <button
+                          className="flex items-center gap-1.5 mx-auto group"
+                          onClick={() => u.is_active && setEditingRoleFor(u.id)}
+                          title={u.is_active ? 'انقر لتعديل الدور' : ''}
+                        >
+                          {role
+                            ? <span className={roleColors[role]}>{roleLabels[role]}</span>
+                            : <span className="text-xs text-muted-foreground">بدون دور</span>
+                          }
+                          {u.is_active && <Pencil size={10} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+                        </button>
+                      )}
                     </td>
+
                     <td className="p-3 text-center">
                       <span className={u.is_active ? 'badge-success' : 'badge-urgent'}>{u.is_active ? 'نشط' : 'معطّل'}</span>
                     </td>
+
                     <td className="p-3 text-center">
-                      {u.is_active && (
-                        <button
-                          onClick={() => setDeleteTarget(u)}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          title="حذف المستخدم"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
+                      <div className="flex items-center justify-center gap-1.5">
+                        {u.is_active ? (
+                          <button
+                            onClick={() => setDeleteTarget(u)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            title="تعطيل المستخدم"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleReactivate(u)}
+                            disabled={isReactivating}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-success bg-success/10 hover:bg-success/20 transition-colors border border-success/30 disabled:opacity-50"
+                            title="إعادة تفعيل الحساب"
+                          >
+                            {isReactivating
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : <UserCheck size={13} />
+                            }
+                            تفعيل
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -204,17 +289,17 @@ const UsersTab = () => {
         )}
       </div>
 
-      {/* Delete confirmation dialog */}
+      {/* Disable confirmation dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle size={18} /> تأكيد حذف المستخدم
+              <AlertTriangle size={18} /> تأكيد تعطيل المستخدم
             </AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف حساب <strong>{deleteTarget?.name || deleteTarget?.email}</strong>؟
+              هل أنت متأكد من تعطيل حساب <strong>{deleteTarget?.name || deleteTarget?.email}</strong>؟
               <br />
-              سيتم تعطيل الحساب وإلغاء جميع الصلاحيات. لا يمكن التراجع عن هذا الإجراء.
+              سيتم إلغاء جميع الصلاحيات وتعطيل الحساب. يمكنك إعادة تفعيله لاحقاً.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
@@ -225,7 +310,7 @@ const UsersTab = () => {
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
             >
               {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-              تأكيد الحذف
+              تأكيد التعطيل
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -273,6 +358,7 @@ const UsersTab = () => {
     </div>
   );
 };
+
 
 // ─── Permissions Tab ──────────────────────────────────────────────────────────
 const PermissionsTab = () => {
