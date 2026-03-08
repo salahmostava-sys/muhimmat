@@ -26,6 +26,7 @@ import SalarySchemes from "./pages/SalarySchemes";
 import UsersAndPermissions from "./pages/UsersAndPermissions";
 import GeneralSettings from "./pages/GeneralSettings";
 import Analytics from "./pages/Analytics";
+import ViolationResolver from "./pages/ViolationResolver";
 import NotFound from "./pages/NotFound";
 import "@/i18n";
 
