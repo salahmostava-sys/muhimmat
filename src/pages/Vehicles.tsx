@@ -541,28 +541,28 @@ const Vehicles = () => {
             </div>
           </div>
 
-          <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+          <div className="ta-table-wrap shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border/50 bg-muted/30">
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">رقم اللوحة</th>
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">النوع</th>
-                    <th className="text-right p-4 text-sm font-semibold text-muted-foreground">الماركة / الموديل</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">التأمين</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">التسجيل</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">التفويض</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">حالة التفويض</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">الحالة</th>
-                    <th className="text-center p-4 text-sm font-semibold text-muted-foreground">إجراءات</th>
+                <thead className="ta-thead">
+                  <tr>
+                    <th className="ta-th">رقم اللوحة</th>
+                    <th className="ta-th">النوع</th>
+                    <th className="ta-th">الماركة / الموديل</th>
+                    <th className="ta-th-center">التأمين</th>
+                    <th className="ta-th-center">التسجيل</th>
+                    <th className="ta-th-center">التفويض</th>
+                    <th className="ta-th-center">حالة التفويض</th>
+                    <th className="ta-th-center">الحالة</th>
+                    <th className="ta-th-center">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="border-b border-border/30">
+                      <tr key={i} className="ta-tr">
                         {Array.from({ length: 9 }).map((_, j) => (
-                          <td key={j} className="p-4"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                          <td key={j} className="ta-td"><div className="h-4 bg-muted rounded animate-pulse" /></td>
                         ))}
                       </tr>
                     ))
@@ -575,18 +575,18 @@ const Vehicles = () => {
                       const insDays = getDaysLeft(v.insurance_expiry);
                       const regDays = getDaysLeft(v.registration_expiry);
                       return (
-                        <tr key={v.id} className="border-b border-border/30 hover:bg-muted/20">
-                          <td className="p-4 text-sm font-mono font-semibold text-foreground">{v.plate_number}</td>
-                          <td className="p-4 text-sm text-muted-foreground">{typeLabels[v.type]}</td>
-                          <td className="p-4 text-sm text-muted-foreground">{[v.brand, v.model, v.year].filter(Boolean).join(' ')}</td>
-                          <td className={`p-4 text-center text-sm ${daysStyle(insDays)}`}>{daysLabel(insDays)}</td>
-                          <td className={`p-4 text-center text-sm ${daysStyle(regDays)}`}>{daysLabel(regDays)}</td>
-                          <td className="p-4 text-center text-sm text-muted-foreground">
+                        <tr key={v.id} className="ta-tr">
+                          <td className="ta-td font-mono font-semibold">{v.plate_number}</td>
+                          <td className="ta-td text-muted-foreground">{typeLabels[v.type]}</td>
+                          <td className="ta-td text-muted-foreground">{[v.brand, v.model, v.year].filter(Boolean).join(' ')}</td>
+                          <td className={`ta-td-center ${daysStyle(insDays)}`}>{daysLabel(insDays)}</td>
+                          <td className={`ta-td-center ${daysStyle(regDays)}`}>{daysLabel(regDays)}</td>
+                          <td className="ta-td-center text-muted-foreground">
                             {v.authorization_expiry ? format(parseISO(v.authorization_expiry), 'yyyy-MM-dd') : '—'}
                           </td>
-                          <td className="p-4 text-center">{authBadge(v.authorization_expiry) ?? <span className="text-muted-foreground text-xs">—</span>}</td>
-                          <td className="p-4 text-center"><span className={statusStyles[v.status]}>{statusLabels[v.status]}</span></td>
-                          <td className="p-4 text-center">
+                          <td className="ta-td-center">{authBadge(v.authorization_expiry) ?? <span className="text-muted-foreground text-xs">—</span>}</td>
+                          <td className="ta-td-center"><span className={statusStyles[v.status]}>{statusLabels[v.status]}</span></td>
+                          <td className="ta-td-center">
                             <div className="flex gap-1 justify-center">
                               <Button size="sm" variant="ghost" className="text-xs gap-1"
                                 onClick={() => { setEditVehicle(v); setVehicleFormOpen(true); }}>
