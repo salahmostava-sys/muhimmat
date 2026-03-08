@@ -17,19 +17,24 @@ export const fetchAppColors = async (): Promise<AppColorData[]> => {
   if (cachedApps) return cachedApps;
   if (fetchPromise) return fetchPromise;
   
-  fetchPromise = supabase
-    .from('apps')
-    .select('id, name, name_en, brand_color, text_color, is_active')
-    .order('name')
-    .then(({ data }) => {
-      cachedApps = (data || []).map(a => ({
-        ...a,
-        brand_color: (a as any).brand_color || '#6366f1',
-        text_color: (a as any).text_color || '#ffffff',
-      }));
-      fetchPromise = null;
-      return cachedApps!;
-    });
+  fetchPromise = new Promise<AppColorData[]>((resolve) => {
+    supabase
+      .from('apps')
+      .select('id, name, name_en, brand_color, text_color, is_active')
+      .order('name')
+      .then(({ data }) => {
+        cachedApps = (data || []).map((a: any) => ({
+          id: a.id,
+          name: a.name,
+          name_en: a.name_en,
+          brand_color: a.brand_color || '#6366f1',
+          text_color: a.text_color || '#ffffff',
+          is_active: a.is_active,
+        }));
+        fetchPromise = null;
+        resolve(cachedApps!);
+      });
+  });
   
   return fetchPromise;
 };
