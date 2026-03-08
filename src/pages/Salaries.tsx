@@ -2001,7 +2001,9 @@ const Salaries = () => {
         const row = batchQueue[batchIndex];
         const t = getSlipTranslations(row.preferredLanguage);
         const meta = LANGUAGE_META[row.preferredLanguage];
-        const platformRows = row.registeredApps.map(app => ({ app, orders: row.platformOrders[app] || 0, salary: row.platformSalaries[app] || 0 }));
+        const platformRows = row.registeredApps
+          .filter(app => (row.platformOrders[app] || 0) > 0)
+          .map(app => ({ app, orders: row.platformOrders[app] || 0, salary: row.platformSalaries[app] || 0 }));
         const totalPlatformSalary = platformRows.reduce((s, r) => s + r.salary, 0);
         const totalEarnings = totalPlatformSalary + row.incentives + row.sickAllowance;
         const allDeductions = [
