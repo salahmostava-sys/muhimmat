@@ -186,6 +186,7 @@ const resources = {
       orders: 'Daily Orders',
       vehicles: 'Vehicle Data',
       vehicleTracking: 'Vehicle Tracking',
+      fuel: 'Fuel & Mileage',
       schemes: 'Salary Schemes',
       users: 'Users',
       permissions: 'Permissions',
