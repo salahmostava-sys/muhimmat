@@ -308,7 +308,7 @@ const SpreadsheetGrid = () => {
                           const isEditing = editing?.key === key;
                           const dow = new Date(year, month - 1, d).getDay();
                           const isWeekend = dow === 5 || dow === 6;
-                          const c = appId ? appColor(visibleApps[0]?.name ?? '') : { cellBg: '', val: 'inherit' };
+                          const c = appId ? getAppColor(appColorsList, visibleApps[0]?.name ?? '') : { cellBg: '', val: 'inherit' };
                           return (
                             <td key={d}
                               className={`text-center p-0 border-l border-border/30 ${isWeekend ? 'bg-destructive/5' : ''}`}
