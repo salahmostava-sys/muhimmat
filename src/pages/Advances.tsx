@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, CreditCard, Download, ChevronDown, ChevronUp, Pause, Play, Edit2 } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Plus, CreditCard, Download, Upload, ChevronDown, ChevronUp, Pause, Play, Edit2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';

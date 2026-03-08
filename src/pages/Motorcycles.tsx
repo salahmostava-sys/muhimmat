@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Wrench, Download, Edit, Trash2, Bike } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, Plus, Wrench, Download, Upload, Edit, Trash2, Bike } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
