@@ -1182,7 +1182,7 @@ const Salaries = () => {
         <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${row.employeeName}</span></div>
         <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${row.nationalId}</span></div>
         <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${row.city}</span></div>
-        <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 ماش'}</span></div>
+        <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش'}</span></div>
       </div>
 
       <h3>الطلبات والراتب حسب المنصة</h3>
