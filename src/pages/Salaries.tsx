@@ -388,6 +388,54 @@ function calcSalaryFromTiers(
   return Math.round(total);
 }
 
+// ─── Salary breakdown tooltip ─────────────────────────────────────
+interface SalaryBreakdownProps {
+  orders: number;
+  scheme: SchemeData | null;
+  salary: number;
+  children: React.ReactNode;
+}
+const SalaryBreakdown = ({ orders, scheme, salary, children }: SalaryBreakdownProps) => {
+  const [show, setShow] = useState(false);
+  if (!scheme || orders === 0) return <>{children}</>;
+  const tiers = scheme.salary_scheme_tiers || [];
+  const sorted = [...tiers].sort((a, b) => a.tier_order - b.tier_order);
+  const tierLines: { label: string; amount: number }[] = [];
+  for (const tier of sorted) {
+    const from = tier.from_orders;
+    const to = tier.to_orders ?? Infinity;
+    if (orders < from) break;
+    const inTier = Math.min(orders, to) - from + 1;
+    if (inTier <= 0) continue;
+    const amt = inTier * tier.price_per_order;
+    tierLines.push({ label: `${from}–${tier.to_orders ?? '∞'} × ${tier.price_per_order} ر.س = ${Math.round(amt).toLocaleString()}`, amount: amt });
+  }
+  const hasBonus = !!(scheme.target_orders && scheme.target_bonus && orders >= scheme.target_orders);
+  return (
+    <div className="relative inline-block" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      {children}
+      {show && (
+        <div className="absolute bottom-full mb-1 right-0 z-50 bg-popover border border-border rounded-xl shadow-xl p-3 text-xs w-64 text-right" dir="rtl">
+          <p className="font-bold text-foreground mb-2 border-b border-border/50 pb-1">{scheme.name}</p>
+          <p className="text-muted-foreground mb-1">الطلبات: <span className="font-semibold text-foreground">{orders}</span></p>
+          <div className="space-y-0.5 mb-2">
+            {tierLines.map((t, i) => (
+              <p key={i} className="text-muted-foreground">{t.label}</p>
+            ))}
+          </div>
+          {hasBonus && (
+            <p className="text-success font-semibold">🎯 بونص الهدف: +{scheme.target_bonus?.toLocaleString()} ر.س</p>
+          )}
+          <div className="border-t border-border/50 mt-2 pt-1 flex justify-between font-bold text-primary">
+            <span>الإجمالي</span>
+            <span>{salary.toLocaleString()} ر.س</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Salaries Page ───────────────────────────────────────────
 const Salaries = () => {
   const { toast } = useToast();
@@ -396,6 +444,8 @@ const Salaries = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedMonth, setSelectedMonth] = useState(months[0].v);
   const [rows, setRows] = useState<SalaryRow[]>([]);
+  // empPlatformScheme[employeeId][platformName] = scheme
+  const [empPlatformScheme, setEmpPlatformScheme] = useState<Record<string, Record<string, SchemeData>>>({});
   const [payslipRow, setPayslipRow] = useState<SalaryRow | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [sortField, setSortField] = useState<string | null>(null);
@@ -413,7 +463,7 @@ const Salaries = () => {
       const startDate = `${selectedMonth}-01`;
       const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`;
 
-      const [empRes, schemesRes, extRes, ordersRes] = await Promise.all([
+      const [empRes, schemesRes, extRes, ordersRes, empSchemeRes] = await Promise.all([
         supabase
           .from('employees')
           .select('id, name, job_title, national_id, salary_type, base_salary, iban, city')
@@ -433,9 +483,15 @@ const Salaries = () => {
 
         supabase
           .from('daily_orders')
-          .select('employee_id, app_id, orders_count, apps(name)')
+          .select('employee_id, app_id, orders_count, apps(name, id)')
           .gte('date', startDate)
           .lte('date', endDate),
+
+        // Fetch employee->scheme assignments with app info via employee_apps
+        supabase
+          .from('employee_apps')
+          .select('employee_id, app_id, apps(name), employee_scheme(scheme_id, salary_schemes(id, name, name_en, status, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order)))')
+          .eq('status', 'active'),
       ]);
 
       // ── Fetch saved salary records for this month (to restore status) ──

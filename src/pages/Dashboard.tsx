@@ -27,9 +27,7 @@ const MetricCard = ({ title, value, icon: Icon, iconBg, iconColor, subtitle, tre
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-muted-foreground mb-1">{title}</p>
         <p className="text-2xl font-bold text-foreground leading-tight tracking-tight">{value}</p>
-        {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-        )}
+        {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         {trend !== undefined && (
           <div className={cn(
             'inline-flex items-center gap-1 mt-2 text-xs font-medium px-2 py-0.5 rounded-full',
@@ -52,15 +50,7 @@ function cn(...classes: (string | undefined | false)[]) {
 }
 
 // ─── Chart container ──────────────────────────────────────────────
-const ChartCard = ({
-  title,
-  children,
-  action,
-}: {
-  title: string;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) => (
+const ChartCard = ({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) => (
   <div className="chart-card animate-fade-in">
     <div className="chart-card-header">
       <h3 className="chart-card-title">{title}</h3>
@@ -77,9 +67,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     <div className="bg-card border border-border rounded-xl shadow-card-hover px-3 py-2 text-xs">
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((p: any) => (
-        <p key={p.name} style={{ color: p.color }}>
-          {p.name}: {p.value}
-        </p>
+        <p key={p.name} style={{ color: p.color }}>{p.name}: {p.value}</p>
       ))}
     </div>
   );
@@ -99,34 +87,69 @@ const PlatformCard = ({ name, orders, totalOrders, employeeCount, brandColor, te
   const pct = totalOrders > 0 ? Math.round((orders / totalOrders) * 100) : 0;
   return (
     <div className="bg-card border border-border/50 rounded-xl p-4 flex flex-col gap-3 hover:shadow-md transition-shadow">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <span
-          className="text-xs font-bold px-2.5 py-1 rounded-lg"
-          style={{ backgroundColor: brandColor, color: textColor }}
-        >
-          {name}
-        </span>
+        <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ backgroundColor: brandColor, color: textColor }}>{name}</span>
         <span className="text-xs text-muted-foreground">{employeeCount} مندوب</span>
       </div>
-      {/* Orders count */}
       <div>
         <p className="text-3xl font-extrabold text-foreground leading-none">{orders.toLocaleString()}</p>
         <p className="text-xs text-muted-foreground mt-0.5">طلب هذا الشهر</p>
       </div>
-      {/* Progress bar */}
       <div className="space-y-1">
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>النسبة من الإجمالي</span>
           <span className="font-semibold" style={{ color: brandColor }}>{pct}%</span>
         </div>
         <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${pct}%`, backgroundColor: brandColor }}
-          />
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: brandColor }} />
         </div>
       </div>
+    </div>
+  );
+};
+
+// ─── Leaderboard ──────────────────────────────────────────────────
+interface LeaderEntry { employeeId: string; name: string; orders: number; }
+const RANK_ICONS = ['🥇', '🥈', '🥉'];
+
+const Leaderboard = ({ leaders, loading }: { leaders: LeaderEntry[]; loading: boolean }) => {
+  const maxOrders = leaders[0]?.orders || 1;
+  return (
+    <div className="space-y-2">
+      {loading
+        ? Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-10 bg-muted/40 rounded-xl animate-pulse" />
+        ))
+        : leaders.length === 0
+          ? <p className="text-sm text-muted-foreground text-center py-8">لا توجد بيانات طلبات هذا الشهر</p>
+          : leaders.map((l, i) => {
+            const pct = Math.round((l.orders / maxOrders) * 100);
+            return (
+              <div key={l.employeeId} className="flex items-center gap-3 group">
+                <span className="text-base w-7 text-center flex-shrink-0">
+                  {i < 3 ? RANK_ICONS[i] : <span className="text-xs font-bold text-muted-foreground">{i + 1}</span>}
+                </span>
+                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  {l.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-xs font-medium text-foreground truncate">{l.name}</span>
+                    <span className="text-xs font-bold text-foreground ml-2 flex-shrink-0">{l.orders.toLocaleString()}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${pct}%`,
+                        background: i === 0 ? '#F59E0B' : i === 1 ? '#94A3B8' : i === 2 ? '#CD7F32' : 'hsl(var(--primary))',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
     </div>
   );
 };
@@ -137,16 +160,12 @@ const Dashboard = () => {
   const { apps: appColors } = useAppColors();
 
   const [kpis, setKpis] = useState({
-    activeEmployees: 0,
-    presentToday: 0,
-    absentToday: 0,
-    activeAdvances: 0,
-    totalAdvancesAmount: 0,
-    totalSalaries: 0,
-    totalOrders: 0,
+    activeEmployees: 0, presentToday: 0, absentToday: 0,
+    activeAdvances: 0, totalAdvancesAmount: 0, totalSalaries: 0, totalOrders: 0,
   });
   const [ordersByApp, setOrdersByApp] = useState<{ app: string; orders: number; appId: string }[]>([]);
   const [employeeCountByApp, setEmployeeCountByApp] = useState<Record<string, number>>({});
+  const [leaderboard, setLeaderboard] = useState<LeaderEntry[]>([]);
   const [attendanceWeek, setAttendanceWeek] = useState<{ day: string; present: number; absent: number; leave: number }[]>([]);
   const [recentActivity, setRecentActivity] = useState<{ text: string; time: string; icon: typeof Users }[]>([
     { text: 'لا توجد نشاطات حديثة', time: '', icon: TrendingUp },
@@ -164,7 +183,8 @@ const Dashboard = () => {
         supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('attendance').select('status').eq('date', today),
         supabase.from('advances').select('amount').eq('status', 'active'),
-        supabase.from('daily_orders').select('app_id, orders_count, apps(id, name)').gte('date', currentMonth + '-01').lte('date', today),
+        supabase.from('daily_orders').select('employee_id, app_id, orders_count, apps(id, name), employees(name)')
+          .gte('date', currentMonth + '-01').lte('date', today),
         supabase.from('attendance').select('date, status').gte('date', sixDaysAgo).lte('date', today),
         supabase.from('salary_records').select('net_salary').eq('month_year', currentMonth),
         supabase.from('audit_log').select('action, table_name, created_at').order('created_at', { ascending: false }).limit(6),
@@ -179,18 +199,34 @@ const Dashboard = () => {
       const totalAdvancesAmount = advRes.data?.reduce((s, a) => s + (Number(a.amount) || 0), 0) || 0;
       const totalSalaries = salaryRes.data?.reduce((s, r) => s + (Number(r.net_salary) || 0), 0) || 0;
 
-      // Build app orders map
+      // Build app orders map + leaderboard
       const appTotals: Record<string, { orders: number; appId: string }> = {};
+      const empOrderMap: Record<string, { name: string; orders: number }> = {};
+
       ordersRes.data?.forEach(r => {
-        const name = (r.apps as any)?.name || 'غير معروف';
+        const appName = (r.apps as any)?.name || 'غير معروف';
         const appId = (r.apps as any)?.id || r.app_id;
-        if (!appTotals[name]) appTotals[name] = { orders: 0, appId };
-        appTotals[name].orders += r.orders_count;
+        if (!appTotals[appName]) appTotals[appName] = { orders: 0, appId };
+        appTotals[appName].orders += r.orders_count;
+
+        const empName = (r.employees as any)?.name || '';
+        if (empName) {
+          if (!empOrderMap[r.employee_id]) empOrderMap[r.employee_id] = { name: empName, orders: 0 };
+          empOrderMap[r.employee_id].orders += r.orders_count;
+        }
       });
+
       const ordersArr = Object.entries(appTotals).map(([app, d]) => ({ app, orders: d.orders, appId: d.appId }));
       const totalOrders = ordersArr.reduce((s, r) => s + r.orders, 0);
       setOrdersByApp(ordersArr);
       setKpis({ activeEmployees, presentToday, absentToday, activeAdvances, totalAdvancesAmount, totalSalaries, totalOrders });
+
+      // Top 5 leaderboard
+      const leaders = Object.entries(empOrderMap)
+        .map(([id, d]) => ({ employeeId: id, name: d.name, orders: d.orders }))
+        .sort((a, b) => b.orders - a.orders)
+        .slice(0, 5);
+      setLeaderboard(leaders);
 
       // Employee count per app
       const empByApp: Record<string, number> = {};
@@ -200,6 +236,7 @@ const Dashboard = () => {
       });
       setEmployeeCountByApp(empByApp);
 
+      // Weekly attendance
       const weekMap: Record<string, { present: number; absent: number; leave: number }> = {};
       weekAttRes.data?.forEach(r => {
         if (!weekMap[r.date]) weekMap[r.date] = { present: 0, absent: 0, leave: 0 };
@@ -210,83 +247,37 @@ const Dashboard = () => {
       const dayNames = lang === 'ar'
         ? ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
         : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const weekData = Object.entries(weekMap)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, counts]) => ({
-          day: dayNames[new Date(date + 'T12:00:00').getDay()],
-          ...counts,
-        }));
-      setAttendanceWeek(weekData);
+      setAttendanceWeek(
+        Object.entries(weekMap).sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, counts]) => ({ day: dayNames[new Date(date + 'T12:00:00').getDay()], ...counts }))
+      );
 
-      if (auditRes.data && auditRes.data.length > 0) {
+      if (auditRes.data?.length) {
         const iconMap: Record<string, typeof Users> = {
           employees: Users, attendance: UserCheck, advances: CreditCard,
           salary_records: Wallet, daily_orders: TrendingUp, vehicles: DollarSign,
         };
-        setRecentActivity(
-          auditRes.data.map(a => ({
-            text: `${a.action} — ${a.table_name}`,
-            time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }),
-            icon: iconMap[a.table_name] || TrendingUp,
-          }))
-        );
+        setRecentActivity(auditRes.data.map(a => ({
+          text: `${a.action} — ${a.table_name}`,
+          time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }),
+          icon: iconMap[a.table_name] || TrendingUp,
+        })));
       }
 
       setLoading(false);
     };
-
     fetchDashboard();
   }, [lang]);
 
   const kpiCards: MetricCardProps[] = [
-    {
-      title: lang === 'ar' ? 'المناديب النشطين' : 'Active Employees',
-      value: loading ? '—' : kpis.activeEmployees,
-      icon: Users,
-      iconBg: 'bg-brand-50 dark:bg-brand-500/15',
-      iconColor: 'text-brand-500',
-    },
-    {
-      title: lang === 'ar' ? 'رواتب الشهر' : 'Monthly Salaries',
-      value: loading ? '—' : `${kpis.totalSalaries.toLocaleString()} ر.س`,
-      icon: Wallet,
-      iconBg: 'bg-success/10',
-      iconColor: 'text-success',
-    },
-    {
-      title: lang === 'ar' ? 'الحاضرين اليوم' : 'Present Today',
-      value: loading ? '—' : kpis.presentToday,
-      icon: UserCheck,
-      iconBg: 'bg-info/10',
-      iconColor: 'text-info',
-      subtitle: lang === 'ar' ? `غائب: ${kpis.absentToday}` : `Absent: ${kpis.absentToday}`,
-    },
-    {
-      title: lang === 'ar' ? 'إجمالي السلف' : 'Total Advances',
-      value: loading ? '—' : `${kpis.totalAdvancesAmount.toLocaleString()} ر.س`,
-      icon: CreditCard,
-      iconBg: 'bg-warning/10',
-      iconColor: 'text-warning',
-      subtitle: lang === 'ar' ? `${kpis.activeAdvances} سلف نشطة` : `${kpis.activeAdvances} active`,
-    },
-    {
-      title: lang === 'ar' ? 'إجمالي الطلبات' : 'Total Orders',
-      value: loading ? '—' : kpis.totalOrders.toLocaleString(),
-      icon: Package,
-      iconBg: 'bg-orange-100 dark:bg-orange-500/15',
-      iconColor: 'text-orange-500',
-      subtitle: lang === 'ar' ? 'هذا الشهر' : 'This month',
-    },
-    {
-      title: lang === 'ar' ? 'التنبيهات' : 'Alerts',
-      value: loading ? '—' : kpis.absentToday,
-      icon: Bell,
-      iconBg: 'bg-destructive/10',
-      iconColor: 'text-destructive',
-    },
+    { title: lang === 'ar' ? 'المناديب النشطين' : 'Active Employees', value: loading ? '—' : kpis.activeEmployees, icon: Users, iconBg: 'bg-brand-50 dark:bg-brand-500/15', iconColor: 'text-brand-500' },
+    { title: lang === 'ar' ? 'رواتب الشهر' : 'Monthly Salaries', value: loading ? '—' : `${kpis.totalSalaries.toLocaleString()} ر.س`, icon: Wallet, iconBg: 'bg-success/10', iconColor: 'text-success' },
+    { title: lang === 'ar' ? 'الحاضرين اليوم' : 'Present Today', value: loading ? '—' : kpis.presentToday, icon: UserCheck, iconBg: 'bg-info/10', iconColor: 'text-info', subtitle: lang === 'ar' ? `غائب: ${kpis.absentToday}` : `Absent: ${kpis.absentToday}` },
+    { title: lang === 'ar' ? 'إجمالي السلف' : 'Total Advances', value: loading ? '—' : `${kpis.totalAdvancesAmount.toLocaleString()} ر.س`, icon: CreditCard, iconBg: 'bg-warning/10', iconColor: 'text-warning', subtitle: lang === 'ar' ? `${kpis.activeAdvances} سلف نشطة` : `${kpis.activeAdvances} active` },
+    { title: lang === 'ar' ? 'إجمالي الطلبات' : 'Total Orders', value: loading ? '—' : kpis.totalOrders.toLocaleString(), icon: Package, iconBg: 'bg-orange-100 dark:bg-orange-500/15', iconColor: 'text-orange-500', subtitle: lang === 'ar' ? 'هذا الشهر' : 'This month' },
+    { title: lang === 'ar' ? 'التنبيهات' : 'Alerts', value: loading ? '—' : kpis.absentToday, icon: Bell, iconBg: 'bg-destructive/10', iconColor: 'text-destructive' },
   ];
 
-  // Grid cols for platform cards
   const platformGridCols =
     ordersByApp.length <= 2 ? 'grid-cols-1 sm:grid-cols-2' :
     ordersByApp.length === 3 ? 'grid-cols-1 sm:grid-cols-3' :
@@ -294,7 +285,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* ── Page header ────────────────────────────────────── */}
+      {/* ── Row 0: Page header ──────────────────────────────── */}
       <div className="page-header">
         <div className="page-breadcrumb">
           <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
@@ -305,16 +296,13 @@ const Dashboard = () => {
         <p className="page-subtitle">{lang === 'ar' ? 'نظرة عامة على النظام' : 'System overview'}</p>
       </div>
 
-      {/* ── KPI cards ──────────────────────────────────────── */}
+      {/* ── Row 1: KPI cards ────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-        {kpiCards.map((card, i) => (
-          <MetricCard key={i} {...card} />
-        ))}
+        {kpiCards.map((card, i) => <MetricCard key={i} {...card} />)}
       </div>
 
-      {/* ── Charts row ─────────────────────────────────────── */}
+      {/* ── Row 2: Attendance chart + Alerts ────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Weekly attendance bar chart */}
         <div className="lg:col-span-2">
           <ChartCard title={lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Weekly Attendance'}>
             {attendanceWeek.length === 0 ? (
@@ -336,40 +324,34 @@ const Dashboard = () => {
             )}
           </ChartCard>
         </div>
-
-        {/* Alerts */}
         <AlertsList />
       </div>
 
-      {/* ── Platform orders cards ──────────────────────────── */}
-      <div className="chart-card animate-fade-in">
-        <div className="chart-card-header">
-          <h3 className="chart-card-title">{lang === 'ar' ? 'الطلبات حسب المنصة' : 'Orders by Platform'}</h3>
-          {!loading && kpis.totalOrders > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {lang === 'ar' ? `الإجمالي: ${kpis.totalOrders.toLocaleString()} طلب` : `Total: ${kpis.totalOrders.toLocaleString()} orders`}
-            </span>
-          )}
-        </div>
-        <div className="p-5">
-          {loading ? (
-            <div className={`grid ${platformGridCols} gap-3`}>
-              {[1, 2, 3].map(i => (
-                <div key={i} className="bg-muted/40 rounded-xl h-32 animate-pulse" />
-              ))}
-            </div>
-          ) : ordersByApp.length === 0 ? (
-            <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
-              {lang === 'ar' ? 'لا توجد بيانات طلبات لهذا الشهر' : 'No orders data this month'}
-            </div>
-          ) : (
-            <div className={`grid ${platformGridCols} gap-3`}>
-              {ordersByApp
-                .sort((a, b) => b.orders - a.orders)
-                .map(({ app, orders }) => {
+      {/* ── Row 3: Platform cards + Leaderboard ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Platform cards — takes 2 cols */}
+        <div className="lg:col-span-2 chart-card animate-fade-in">
+          <div className="chart-card-header">
+            <h3 className="chart-card-title">{lang === 'ar' ? 'الطلبات حسب المنصة' : 'Orders by Platform'}</h3>
+            {!loading && kpis.totalOrders > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {lang === 'ar' ? `الإجمالي: ${kpis.totalOrders.toLocaleString()} طلب` : `Total: ${kpis.totalOrders.toLocaleString()} orders`}
+              </span>
+            )}
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map(i => <div key={i} className="bg-muted/40 rounded-xl h-32 animate-pulse" />)}
+              </div>
+            ) : ordersByApp.length === 0 ? (
+              <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
+                {lang === 'ar' ? 'لا توجد بيانات طلبات لهذا الشهر' : 'No orders data this month'}
+              </div>
+            ) : (
+              <div className={`grid ${platformGridCols} gap-3`}>
+                {ordersByApp.sort((a, b) => b.orders - a.orders).map(({ app, orders }) => {
                   const colorData = appColors.find(a => a.name === app);
-                  const brandColor = colorData?.brand_color || '#6366f1';
-                  const textColor = colorData?.text_color || '#ffffff';
                   return (
                     <PlatformCard
                       key={app}
@@ -377,32 +359,40 @@ const Dashboard = () => {
                       orders={orders}
                       totalOrders={kpis.totalOrders}
                       employeeCount={employeeCountByApp[app] || 0}
-                      brandColor={brandColor}
-                      textColor={textColor}
+                      brandColor={colorData?.brand_color || '#6366f1'}
+                      textColor={colorData?.text_color || '#ffffff'}
                     />
                   );
                 })}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Top 5 leaderboard */}
+        <ChartCard
+          title={lang === 'ar' ? 'أفضل 5 مناديب' : 'Top 5 Riders'}
+          action={
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+              {lang === 'ar' ? 'هذا الشهر' : 'This month'}
+            </span>
+          }
+        >
+          <Leaderboard leaders={leaderboard} loading={loading} />
+        </ChartCard>
       </div>
 
-      {/* ── Recent activity ────────────────────────────────── */}
+      {/* ── Row 4: Recent activity ───────────────────────────── */}
       <ChartCard title={lang === 'ar' ? 'آخر النشاطات' : 'Recent Activity'}>
-        <div className="space-y-1 -mx-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 -mx-1">
           {recentActivity.map((item, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors"
-            >
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors">
               <div className="icon-box-sm bg-brand-50 dark:bg-brand-500/15 flex-shrink-0">
                 <item.icon size={14} className="text-brand-500" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground truncate">{item.text}</p>
-                {item.time && (
-                  <p className="text-xs text-muted-foreground">{item.time}</p>
-                )}
+                {item.time && <p className="text-xs text-muted-foreground">{item.time}</p>}
               </div>
             </div>
           ))}
