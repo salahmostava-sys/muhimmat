@@ -862,7 +862,7 @@ const Salaries = () => {
   const stickyLeft = (offset: number) => ({ left: offset });
 
   return (
-    <div className="space-y-5 h-full flex flex-col" dir="rtl">
+    <div className="space-y-4 h-full flex flex-col" dir="rtl">
       {/* Page header breadcrumb */}
       <div className="page-header">
         <nav className="page-breadcrumb">
