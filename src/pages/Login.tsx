@@ -180,9 +180,9 @@ const Login = () => {
       )}
 
       <button type="submit" disabled={loading} className={gradientBtn}
-        style={{ background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', boxShadow: '0 4px 20px rgba(59,130,246,0.3)' }}
-        onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 25px rgba(59,130,246,0.5)')}
-        onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 4px 20px rgba(59,130,246,0.3)')}>
+        style={{ background: brandGrad, boxShadow: brandShadow }}
+        onMouseEnter={e => (e.currentTarget.style.boxShadow = brandShadowHover)}
+        onMouseLeave={e => (e.currentTarget.style.boxShadow = brandShadow)}>
         {loading ? <><Loader2 size={16} className="animate-spin" /> {isAr ? 'جاري التحقق...' : 'Signing in...'}</> : (isAr ? 'تسجيل الدخول' : 'Sign In')}
       </button>
     </form>
