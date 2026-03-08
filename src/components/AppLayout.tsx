@@ -164,7 +164,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                   <ChevronDown size={12} className="text-muted-foreground hidden md:block" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align={isRTL ? 'start' : 'end'} className="w-56" dir={isRTL ? 'rtl' : 'ltr'}>
+              <DropdownMenuContent align={isRTL ? 'start' : 'end'} className="w-56">
                 {/* Profile header */}
                 <div className="px-3 py-2.5 border-b border-border/50">
                   <div className="flex items-center gap-2.5">
