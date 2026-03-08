@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
+import UserProfileModal from '@/components/UserProfileModal';
 
 const AppSidebar = () => {
   const { t } = useTranslation();
