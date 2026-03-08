@@ -237,6 +237,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         sponsorship_status: form.sponsorship_status,
         salary_type: form.salary_type,
         base_salary: form.salary_type === 'shift' ? parseFloat(form.base_salary) : 0,
+        preferred_language: form.preferred_language,
       };
 
       let empId: string;
