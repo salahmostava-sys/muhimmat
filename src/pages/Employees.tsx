@@ -1,12 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  Search, Plus, Upload, Download, Eye, Edit,
+  Search, Plus, Upload, Download, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import EmployeeProfile from '@/components/employees/EmployeeProfile';
 import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
@@ -193,6 +197,8 @@ const Employees = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   // ── Fetch from Supabase ──
@@ -231,6 +237,21 @@ const Employees = () => {
       toast({ title: t('errorSaving'), description: error.message, variant: 'destructive' });
     }
   }, [data, toast, t]);
+
+  // ── Delete employee ──
+  const handleDelete = useCallback(async () => {
+    if (!deleteEmployee) return;
+    setDeleting(true);
+    const { error } = await supabase.from('employees').delete().eq('id', deleteEmployee.id);
+    if (error) {
+      toast({ title: t('errorDeleting') || 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+    } else {
+      setData(prev => prev.filter(e => e.id !== deleteEmployee.id));
+      toast({ title: t('deleted') || 'تم الحذف', description: deleteEmployee.name });
+    }
+    setDeleting(false);
+    setDeleteEmployee(null);
+  }, [deleteEmployee, toast, t]);
 
   // ── Filter + sort ──
   const filtered = data.filter(e => {
@@ -537,13 +558,24 @@ const Employees = () => {
                         <button onClick={() => setSelectedEmployee(emp.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={t('view')}>
                           <Eye size={15} />
                         </button>
-                        <button
-                          onClick={() => { setEditEmployee(emp); setShowAddModal(true); }}
-                          className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                          title={t('edit')}
-                        >
-                          <Edit size={15} />
-                        </button>
+                        {permissions.can_edit && (
+                          <button
+                            onClick={() => { setEditEmployee(emp); setShowAddModal(true); }}
+                            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            title={t('edit')}
+                          >
+                            <Edit size={15} />
+                          </button>
+                        )}
+                        {permissions.can_delete && (
+                          <button
+                            onClick={() => setDeleteEmployee(emp)}
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
+                            title={t('delete') || 'حذف'}
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-2.5 text-sm" dir="ltr">
@@ -571,6 +603,29 @@ const Employees = () => {
           }}
         />
       )}
+
+      <AlertDialog open={!!deleteEmployee} onOpenChange={open => !open && setDeleteEmployee(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('confirmDelete') || 'تأكيد الحذف'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('deleteEmployeeConfirm') || 'هل أنت متأكد من حذف الموظف'} <span className="font-semibold text-foreground">{deleteEmployee?.name}</span>؟
+              {' '}{t('actionIrreversible') || 'لا يمكن التراجع عن هذا الإجراء.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>{t('cancel') || 'إلغاء'}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              {t('delete') || 'حذف'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
