@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Search, CheckCircle, Clock, X, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -6,22 +6,43 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { alerts as initialAlerts, alertTypeLabels } from '@/data/mock';
-import type { Alert } from '@/data/mock';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
+import { format, differenceInDays, parseISO, addDays } from 'date-fns';
+
+// Static label map — not data
+export const alertTypeLabels: Record<string, string> = {
+  residency: 'إقامة',
+  insurance: 'تأمين',
+  registration: 'تسجيل',
+  license: 'رخصة',
+  installment: 'قسط سلفة',
+  deduction: 'خصم شركة',
+  authorization: 'تفويض',
+};
+
+export interface Alert {
+  id: string;
+  type: string;
+  entityName: string;
+  dueDate: string;
+  daysLeft: number;
+  severity: 'urgent' | 'warning' | 'info';
+  resolved: boolean;
+}
 
 const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning: 'badge-warning', info: 'badge-info' };
 const severityLabels: Record<string, string> = { urgent: '🔴 عاجل', warning: '🟠 تحذير', info: '🔵 معلومات' };
 
 const typeIcons: Record<string, string> = {
   residency: '🪪', insurance: '🛡️', registration: '📋',
-  license: '🪪', installment: '💳', deduction: '📄',
+  license: '🪪', installment: '💳', deduction: '📄', authorization: '📜',
 };
 
 const Alerts = () => {
-  const [localAlerts, setLocalAlerts] = useState<Alert[]>(initialAlerts);
+  const [localAlerts, setLocalAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -31,12 +52,119 @@ const Alerts = () => {
   const [resolveNote, setResolveNote] = useState('');
   const { toast } = useToast();
 
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      setLoading(true);
+      const today = new Date();
+      const todayStr = format(today, 'yyyy-MM-dd');
+      const in60Days = format(addDays(today, 60), 'yyyy-MM-dd');
+
+      const [employeesRes, vehiclesRes, installmentsRes] = await Promise.all([
+        // Employees with expiring residency
+        supabase
+          .from('employees')
+          .select('id, name, residency_expiry')
+          .eq('status', 'active')
+          .not('residency_expiry', 'is', null)
+          .lte('residency_expiry', in60Days),
+
+        // Vehicles with expiring docs
+        supabase
+          .from('vehicles')
+          .select('id, plate_number, insurance_expiry, registration_expiry, authorization_expiry')
+          .in('status', ['active', 'maintenance', 'rental'])
+          .or(`insurance_expiry.lte.${in60Days},registration_expiry.lte.${in60Days},authorization_expiry.lte.${in60Days}`),
+
+        // Pending advance installments overdue
+        supabase
+          .from('advance_installments')
+          .select('id, amount, month_year, advance_id')
+          .eq('status', 'pending')
+          .lte('month_year', format(today, 'yyyy-MM')),
+      ]);
+
+      const generatedAlerts: Alert[] = [];
+
+      // Employee residency alerts
+      employeesRes.data?.forEach(emp => {
+        const daysLeft = differenceInDays(parseISO(emp.residency_expiry!), today);
+        generatedAlerts.push({
+          id: `res-${emp.id}`,
+          type: 'residency',
+          entityName: emp.name,
+          dueDate: emp.residency_expiry!,
+          daysLeft,
+          severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
+          resolved: false,
+        });
+      });
+
+      // Vehicle alerts
+      vehiclesRes.data?.forEach(v => {
+        if (v.insurance_expiry && v.insurance_expiry <= in60Days) {
+          const days = differenceInDays(parseISO(v.insurance_expiry), today);
+          generatedAlerts.push({
+            id: `ins-${v.id}`,
+            type: 'insurance',
+            entityName: `مركبة ${v.plate_number}`,
+            dueDate: v.insurance_expiry,
+            daysLeft: days,
+            severity: days < 0 ? 'urgent' : days <= 14 ? 'urgent' : 'warning',
+            resolved: false,
+          });
+        }
+        if (v.registration_expiry && v.registration_expiry <= in60Days) {
+          const days = differenceInDays(parseISO(v.registration_expiry), today);
+          generatedAlerts.push({
+            id: `reg-${v.id}`,
+            type: 'registration',
+            entityName: `مركبة ${v.plate_number}`,
+            dueDate: v.registration_expiry,
+            daysLeft: days,
+            severity: days < 0 ? 'urgent' : days <= 14 ? 'urgent' : 'warning',
+            resolved: false,
+          });
+        }
+        if (v.authorization_expiry && v.authorization_expiry <= in60Days) {
+          const days = differenceInDays(parseISO(v.authorization_expiry), today);
+          generatedAlerts.push({
+            id: `auth-${v.id}`,
+            type: 'authorization',
+            entityName: `مركبة ${v.plate_number}`,
+            dueDate: v.authorization_expiry,
+            daysLeft: days,
+            severity: days < 0 ? 'urgent' : days <= 14 ? 'urgent' : 'warning',
+            resolved: false,
+          });
+        }
+      });
+
+      // Pending installments
+      installmentsRes.data?.forEach(inst => {
+        generatedAlerts.push({
+          id: `adv-${inst.id}`,
+          type: 'installment',
+          entityName: `قسط سلفة — ${inst.month_year}`,
+          dueDate: todayStr,
+          daysLeft: 0,
+          severity: 'info',
+          resolved: false,
+        });
+      });
+
+      generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
+      setLocalAlerts(generatedAlerts);
+      setLoading(false);
+    };
+
+    fetchAlerts();
+  }, []);
+
   const filtered = localAlerts.filter(a => {
     const matchType = typeFilter === 'all' || a.type === typeFilter;
     const matchSeverity = severityFilter === 'all' || a.severity === severityFilter;
     const matchSearch = a.entityName.includes(search);
-    const matchResolved = !a.resolved;
-    return matchType && matchSeverity && matchSearch && matchResolved;
+    return matchType && matchSeverity && matchSearch && !a.resolved;
   });
 
   const resolved = localAlerts.filter(a => a.resolved);
@@ -83,7 +211,7 @@ const Alerts = () => {
     XLSX.writeFile(wb, `التنبيهات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
-  const typeOptions = ['all', 'residency', 'insurance', 'registration', 'license', 'installment', 'deduction'];
+  const typeOptions = ['all', 'residency', 'insurance', 'registration', 'license', 'installment', 'deduction', 'authorization'];
   const urgentCount = filtered.filter(a => a.severity === 'urgent').length;
   const warningCount = filtered.filter(a => a.severity === 'warning').length;
   const infoCount = filtered.filter(a => a.severity === 'info').length;
@@ -96,7 +224,7 @@ const Alerts = () => {
             <Bell size={24} /> التنبيهات التلقائية
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {filtered.length} تنبيه نشط — {urgentCount} عاجل
+            {loading ? 'جارٍ التحميل...' : `${filtered.length} تنبيه نشط — ${urgentCount} عاجل`}
           </p>
         </div>
         <DropdownMenu>
@@ -153,7 +281,7 @@ const Alerts = () => {
           {typeOptions.map(t => (
             <button key={t} onClick={() => setTypeFilter(t)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === t ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
-              {t === 'all' ? 'كل الأنواع' : `${typeIcons[t]} ${alertTypeLabels[t]}`}
+              {t === 'all' ? 'كل الأنواع' : `${typeIcons[t] || '📌'} ${alertTypeLabels[t] || t}`}
             </button>
           ))}
         </div>
@@ -161,10 +289,15 @@ const Alerts = () => {
 
       {/* Alert list */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="bg-card rounded-xl border border-border/50 p-12 text-center">
+            <p className="text-muted-foreground">جارٍ تحميل التنبيهات...</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="bg-card rounded-xl border border-border/50 p-12 text-center">
             <CheckCircle size={40} className="mx-auto text-success mb-3" />
             <p className="text-muted-foreground">لا توجد تنبيهات مطابقة</p>
+            <p className="text-xs text-muted-foreground mt-1">جميع المستندات سارية المفعول ✅</p>
           </div>
         ) : filtered.sort((a, b) => {
           const order = { urgent: 0, warning: 1, info: 2 };
@@ -172,11 +305,11 @@ const Alerts = () => {
         }).map(a => (
           <div key={a.id} className={`bg-card rounded-xl border shadow-sm p-4 flex items-center gap-4 hover:shadow-md transition-shadow ${a.severity === 'urgent' ? 'border-destructive/30' : a.severity === 'warning' ? 'border-warning/30' : 'border-border/50'}`}>
             <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${a.severity === 'urgent' ? 'bg-destructive/10' : a.severity === 'warning' ? 'bg-warning/10' : 'bg-info/10'}`}>
-              {typeIcons[a.type]}
+              {typeIcons[a.type] || '📌'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-sm font-semibold text-foreground">{alertTypeLabels[a.type]}</p>
+                <p className="text-sm font-semibold text-foreground">{alertTypeLabels[a.type] || a.type}</p>
                 <span className="text-muted-foreground text-xs">—</span>
                 <p className="text-sm text-foreground">{a.entityName}</p>
                 <span className={severityStyles[a.severity]}>{severityLabels[a.severity]}</span>
@@ -207,9 +340,9 @@ const Alerts = () => {
           <div className="space-y-2">
             {resolved.map(a => (
               <div key={a.id} className="bg-muted/30 rounded-xl border border-border/30 p-3 flex items-center gap-3 opacity-60">
-                <span className="text-lg">{typeIcons[a.type]}</span>
+                <span className="text-lg">{typeIcons[a.type] || '📌'}</span>
                 <div className="flex-1">
-                  <p className="text-sm text-muted-foreground">{alertTypeLabels[a.type]} — {a.entityName}</p>
+                  <p className="text-sm text-muted-foreground">{alertTypeLabels[a.type] || a.type} — {a.entityName}</p>
                 </div>
                 <CheckCircle size={16} className="text-success" />
               </div>
@@ -224,7 +357,7 @@ const Alerts = () => {
           <DialogHeader><DialogTitle>حسم التنبيه</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-3">
-              <p className="text-sm font-medium">{resolveDialog && alertTypeLabels[resolveDialog.type]}</p>
+              <p className="text-sm font-medium">{resolveDialog && (alertTypeLabels[resolveDialog.type] || resolveDialog.type)}</p>
               <p className="text-sm text-muted-foreground mt-1">{resolveDialog?.entityName}</p>
             </div>
             <div className="space-y-2">
@@ -247,7 +380,7 @@ const Alerts = () => {
           <DialogHeader><DialogTitle>تأجيل التنبيه</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="bg-muted/50 rounded-lg p-3">
-              <p className="text-sm font-medium">{deferDialog && alertTypeLabels[deferDialog.type]}</p>
+              <p className="text-sm font-medium">{deferDialog && (alertTypeLabels[deferDialog.type] || deferDialog.type)}</p>
               <p className="text-sm text-muted-foreground mt-1">{deferDialog?.entityName}</p>
             </div>
             <div className="space-y-2">
