@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check } from 'lucide-react';
+import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -67,6 +68,8 @@ const UsersTab = () => {
   const [newName, setNewName] = useState('');
   const [newRole, setNewRole] = useState<AppRoleType>('viewer');
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -107,6 +110,26 @@ const UsersTab = () => {
     setSaving(false);
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      // Delete role and permissions first, then mark profile inactive
+      await Promise.all([
+        supabase.from('user_roles').delete().eq('user_id', deleteTarget.id),
+        supabase.from('user_permissions').delete().eq('user_id', deleteTarget.id),
+      ]);
+      // Mark profile as inactive (soft delete — we can't call auth admin from client)
+      await supabase.from('profiles').update({ is_active: false }).eq('id', deleteTarget.id);
+      toast({ title: '🗑️ تم حذف المستخدم', description: `تم إلغاء صلاحيات ${deleteTarget.name || deleteTarget.email} وتعطيل حسابه` });
+      setDeleteTarget(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setDeleting(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -117,7 +140,7 @@ const UsersTab = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+        <div className="bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 flex justify-center"><Loader2 size={24} className="animate-spin text-muted-foreground" /></div>
         ) : profiles.length === 0 ? (
@@ -129,31 +152,46 @@ const UsersTab = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">
-                <th className="text-right p-4 text-sm font-semibold text-muted-foreground">الاسم</th>
-                <th className="text-right p-4 text-sm font-semibold text-muted-foreground">البريد</th>
-                <th className="text-center p-4 text-sm font-semibold text-muted-foreground">الدور</th>
-                <th className="text-center p-4 text-sm font-semibold text-muted-foreground">الحالة</th>
+                <th className="text-right p-3 text-xs font-semibold text-muted-foreground">الاسم</th>
+                <th className="text-right p-3 text-xs font-semibold text-muted-foreground">البريد</th>
+                <th className="text-center p-3 text-xs font-semibold text-muted-foreground">الدور</th>
+                <th className="text-center p-3 text-xs font-semibold text-muted-foreground">الحالة</th>
+                <th className="text-center p-3 text-xs font-semibold text-muted-foreground">إجراء</th>
               </tr>
             </thead>
             <tbody>
               {profiles.map(u => {
                 const role = getRole(u.id);
                 return (
-                  <tr key={u.id} className="border-b border-border/30 hover:bg-muted/20">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                  <tr key={u.id} className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${!u.is_active ? 'opacity-50' : ''}`}>
+                    <td className="p-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
                           {u.name?.[0]?.toUpperCase() || u.email?.[0]?.toUpperCase() || '?'}
                         </div>
-                        <span className="text-sm font-medium text-foreground">{u.name || '—'}</span>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{u.name || '—'}</p>
+                          {!u.is_active && <p className="text-[10px] text-destructive">محذوف</p>}
+                        </div>
                       </div>
                     </td>
-                    <td className="p-4 text-sm text-muted-foreground" dir="ltr">{u.email || '—'}</td>
-                    <td className="p-4 text-center">
+                    <td className="p-3 text-sm text-muted-foreground" dir="ltr">{u.email || '—'}</td>
+                    <td className="p-3 text-center">
                       {role ? <span className={roleColors[role]}>{roleLabels[role]}</span> : <span className="text-xs text-muted-foreground">بدون دور</span>}
                     </td>
-                    <td className="p-4 text-center">
-                      <span className={u.is_active ? 'badge-success' : 'badge-warning'}>{u.is_active ? 'نشط' : 'موقوف'}</span>
+                    <td className="p-3 text-center">
+                      <span className={u.is_active ? 'badge-success' : 'badge-urgent'}>{u.is_active ? 'نشط' : 'معطّل'}</span>
+                    </td>
+                    <td className="p-3 text-center">
+                      {u.is_active && (
+                        <button
+                          onClick={() => setDeleteTarget(u)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="حذف المستخدم"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
@@ -162,6 +200,33 @@ const UsersTab = () => {
           </table>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle size={18} /> تأكيد حذف المستخدم
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف حساب <strong>{deleteTarget?.name || deleteTarget?.email}</strong>؟
+              <br />
+              سيتم تعطيل الحساب وإلغاء جميع الصلاحيات. لا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
+            >
+              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              تأكيد الحذف
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent dir="rtl" className="max-w-md">
