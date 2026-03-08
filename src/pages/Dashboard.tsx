@@ -1,15 +1,97 @@
 import { useState, useEffect } from 'react';
-import { Users, Wallet, CreditCard, UserCheck, TrendingUp, DollarSign } from 'lucide-react';
-import StatCard from '@/components/StatCard';
+import { Users, Wallet, CreditCard, UserCheck, TrendingUp, DollarSign, Bell, ArrowUpRight } from 'lucide-react';
 import AlertsList from '@/components/AlertsList';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays, formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts';
+import { useLanguage } from '@/context/LanguageContext';
 
-const COLORS = ['hsl(217,72%,45%)', 'hsl(152,60%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(280,60%,50%)'];
+// TailAdmin brand colors
+const CHART_COLORS = ['#6172F3', '#12B76A', '#F79009', '#F04438', '#7C3AED', '#0EA5E9'];
 
+// ─── KPI Metric Card ──────────────────────────────────────────────
+interface MetricCardProps {
+  title: string;
+  value: string | number;
+  icon: typeof Users;
+  iconBg: string;
+  iconColor: string;
+  subtitle?: string;
+  trend?: number;
+}
+
+const MetricCard = ({ title, value, icon: Icon, iconBg, iconColor, subtitle, trend }: MetricCardProps) => (
+  <div className="metric-card animate-fade-in">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground mb-1">{title}</p>
+        <p className="text-2xl font-bold text-foreground leading-tight tracking-tight">{value}</p>
+        {subtitle && (
+          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+        )}
+        {trend !== undefined && (
+          <div className={cn(
+            'inline-flex items-center gap-1 mt-2 text-xs font-medium px-2 py-0.5 rounded-full',
+            trend >= 0 ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+          )}>
+            <ArrowUpRight size={11} className={trend < 0 ? 'rotate-90' : ''} />
+            {Math.abs(trend)}%
+          </div>
+        )}
+      </div>
+      <div className={`icon-box ${iconBg}`}>
+        <Icon size={20} className={iconColor} />
+      </div>
+    </div>
+  </div>
+);
+
+function cn(...classes: (string | undefined | false)[]) {
+  return classes.filter(Boolean).join(' ');
+}
+
+// ─── Chart container ──────────────────────────────────────────────
+const ChartCard = ({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) => (
+  <div className="chart-card animate-fade-in">
+    <div className="chart-card-header">
+      <h3 className="chart-card-title">{title}</h3>
+      {action}
+    </div>
+    <div className="p-5">{children}</div>
+  </div>
+);
+
+// ─── Custom Tooltip ───────────────────────────────────────────────
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-xl shadow-card-hover px-3 py-2 text-xs">
+      <p className="font-semibold text-foreground mb-1">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.name} style={{ color: p.color }}>
+          {p.name}: {p.value}
+        </p>
+      ))}
+    </div>
+  );
+};
+
+// ─── Dashboard ────────────────────────────────────────────────────
 const Dashboard = () => {
+  const { lang } = useLanguage();
+
   const [kpis, setKpis] = useState({
     activeEmployees: 0,
     presentToday: 0,
@@ -42,7 +124,6 @@ const Dashboard = () => {
         supabase.from('audit_log').select('action, table_name, created_at').order('created_at', { ascending: false }).limit(6),
       ]);
 
-      // KPIs
       const activeEmployees = empRes.count || 0;
       const todayAtt = attRes.data || [];
       const presentToday = todayAtt.filter(a => a.status === 'present' || a.status === 'late').length;
@@ -52,7 +133,6 @@ const Dashboard = () => {
       const totalSalaries = salaryRes.data?.reduce((s, r) => s + (Number(r.net_salary) || 0), 0) || 0;
       setKpis({ activeEmployees, presentToday, absentToday, activeAdvances, totalAdvancesAmount, totalSalaries });
 
-      // Orders by app for pie chart
       const appTotals: Record<string, number> = {};
       ordersRes.data?.forEach(r => {
         const name = (r.apps as any)?.name || 'غير معروف';
@@ -60,7 +140,6 @@ const Dashboard = () => {
       });
       setOrdersByApp(Object.entries(appTotals).map(([app, orders]) => ({ app, orders })));
 
-      // Weekly attendance — group by date
       const weekMap: Record<string, { present: number; absent: number; leave: number }> = {};
       weekAttRes.data?.forEach(r => {
         if (!weekMap[r.date]) weekMap[r.date] = { present: 0, absent: 0, leave: 0 };
@@ -68,7 +147,9 @@ const Dashboard = () => {
         else if (r.status === 'absent') weekMap[r.date].absent++;
         else if (r.status === 'leave' || r.status === 'sick') weekMap[r.date].leave++;
       });
-      const dayNames = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+      const dayNames = lang === 'ar'
+        ? ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
+        : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const weekData = Object.entries(weekMap)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([date, counts]) => ({
@@ -77,15 +158,10 @@ const Dashboard = () => {
         }));
       setAttendanceWeek(weekData);
 
-      // Activity feed from audit_log
       if (auditRes.data && auditRes.data.length > 0) {
         const iconMap: Record<string, typeof Users> = {
-          employees: Users,
-          attendance: UserCheck,
-          advances: CreditCard,
-          salary_records: Wallet,
-          daily_orders: TrendingUp,
-          vehicles: DollarSign,
+          employees: Users, attendance: UserCheck, advances: CreditCard,
+          salary_records: Wallet, daily_orders: TrendingUp, vehicles: DollarSign,
         };
         setRecentActivity(
           auditRes.data.map(a => ({
@@ -100,90 +176,161 @@ const Dashboard = () => {
     };
 
     fetchDashboard();
-  }, []);
+  }, [lang]);
+
+  const kpiCards: MetricCardProps[] = [
+    {
+      title: lang === 'ar' ? 'المناديب النشطين' : 'Active Employees',
+      value: loading ? '—' : kpis.activeEmployees,
+      icon: Users,
+      iconBg: 'bg-brand-50 dark:bg-brand-500/15',
+      iconColor: 'text-brand-500',
+    },
+    {
+      title: lang === 'ar' ? 'رواتب الشهر' : 'Monthly Salaries',
+      value: loading ? '—' : `${kpis.totalSalaries.toLocaleString()} ر.س`,
+      icon: Wallet,
+      iconBg: 'bg-success/10',
+      iconColor: 'text-success',
+    },
+    {
+      title: lang === 'ar' ? 'الحاضرين اليوم' : 'Present Today',
+      value: loading ? '—' : kpis.presentToday,
+      icon: UserCheck,
+      iconBg: 'bg-info/10',
+      iconColor: 'text-info',
+      subtitle: lang === 'ar' ? `غائب: ${kpis.absentToday}` : `Absent: ${kpis.absentToday}`,
+    },
+    {
+      title: lang === 'ar' ? 'إجمالي السلف' : 'Total Advances',
+      value: loading ? '—' : `${kpis.totalAdvancesAmount.toLocaleString()} ر.س`,
+      icon: CreditCard,
+      iconBg: 'bg-warning/10',
+      iconColor: 'text-warning',
+      subtitle: lang === 'ar' ? `${kpis.activeAdvances} سلف نشطة` : `${kpis.activeAdvances} active`,
+    },
+    {
+      title: lang === 'ar' ? 'السلف النشطة' : 'Active Advances',
+      value: loading ? '—' : kpis.activeAdvances,
+      icon: DollarSign,
+      iconBg: 'bg-brand-50 dark:bg-brand-500/15',
+      iconColor: 'text-brand-500',
+    },
+    {
+      title: lang === 'ar' ? 'التنبيهات' : 'Alerts',
+      value: loading ? '—' : kpis.absentToday,
+      icon: Bell,
+      iconBg: 'bg-destructive/10',
+      iconColor: 'text-destructive',
+    },
+  ];
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      <div>
-        <h1 className="page-title">لوحة التحكم</h1>
-        <p className="page-subtitle mt-1">نظرة عامة على النظام</p>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-        <StatCard title="المناديب النشطين" value={loading ? '...' : kpis.activeEmployees} icon={Users} color="primary" />
-        <StatCard title="رواتب الشهر" value={loading ? '...' : `${kpis.totalSalaries.toLocaleString()} ر.س`} icon={Wallet} color="success" />
-        <StatCard title="الحاضرين اليوم" value={loading ? '...' : kpis.presentToday} icon={UserCheck} color="info" subtitle={`غائب: ${kpis.absentToday}`} />
-        <StatCard title="السلف القائمة" value={loading ? '...' : `${kpis.totalAdvancesAmount.toLocaleString()} ر.س`} icon={CreditCard} color="warning" subtitle={`${kpis.activeAdvances} سلف`} />
-        <StatCard title="السلف النشطة" value={loading ? '...' : kpis.activeAdvances} icon={DollarSign} color="primary" />
-        <StatCard title="حاضر / غائب" value={loading ? '...' : `${kpis.presentToday} / ${kpis.absentToday}`} icon={TrendingUp} color="success" />
-      </div>
-
-      {/* Charts + Alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        <div className="lg:col-span-2 bg-card rounded-xl border border-border/50 shadow-sm p-4 sm:p-5">
-          <h3 className="font-semibold text-foreground mb-3 sm:mb-4 text-sm sm:text-base">الحضور هذا الأسبوع</h3>
-          {attendanceWeek.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">
-              لا توجد بيانات حضور للأسبوع الحالي
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={attendanceWeek}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220,13%,90%)" />
-                <XAxis dataKey="day" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="present" name="حاضر" fill="hsl(152,60%,40%)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="absent" name="غائب" fill="hsl(0,72%,51%)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="leave" name="إجازة" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+    <div className="space-y-5 animate-fade-in">
+      {/* ── Page header ────────────────────────────────────── */}
+      <div className="page-header">
+        <div className="page-breadcrumb">
+          <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
+          <span className="page-breadcrumb-sep">/</span>
+          <span className="text-foreground font-medium">{lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</span>
         </div>
+        <h1 className="page-title">{lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</h1>
+        <p className="page-subtitle">{lang === 'ar' ? 'نظرة عامة على النظام' : 'System overview'}</p>
+      </div>
+
+      {/* ── KPI cards ──────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+        {kpiCards.map((card, i) => (
+          <MetricCard key={i} {...card} />
+        ))}
+      </div>
+
+      {/* ── Charts row ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+        {/* Weekly attendance bar chart */}
+        <div className="lg:col-span-2">
+          <ChartCard title={lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Weekly Attendance'}>
+            {attendanceWeek.length === 0 ? (
+              <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">
+                {lang === 'ar' ? 'لا توجد بيانات حضور' : 'No attendance data'}
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={210}>
+                <BarChart data={attendanceWeek} barGap={4} barCategoryGap="28%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="present" name={lang === 'ar' ? 'حاضر' : 'Present'} fill="#12B76A" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="absent" name={lang === 'ar' ? 'غائب' : 'Absent'} fill="#F04438" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="leave" name={lang === 'ar' ? 'إجازة' : 'Leave'} fill="#F79009" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </ChartCard>
+        </div>
+
+        {/* Alerts */}
         <AlertsList />
       </div>
 
-      {/* Orders + P&L */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4 sm:p-5">
-          <h3 className="font-semibold text-foreground mb-3 sm:mb-4 text-sm sm:text-base">الطلبات حسب التطبيق</h3>
+      {/* ── Bottom row ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+        {/* Orders by platform donut */}
+        <ChartCard title={lang === 'ar' ? 'الطلبات حسب التطبيق' : 'Orders by Platform'}>
           {ordersByApp.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">
-              لا توجد بيانات طلبات هذا الشهر
+            <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">
+              {lang === 'ar' ? 'لا توجد بيانات طلبات' : 'No orders data'}
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={210}>
               <PieChart>
-                <Pie data={ordersByApp} dataKey="orders" nameKey="app" cx="50%" cy="50%" outerRadius={80}
-                  label={({ app, percent }) => `${app} ${(percent * 100).toFixed(0)}%`}>
+                <Pie
+                  data={ordersByApp}
+                  dataKey="orders"
+                  nameKey="app"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={85}
+                  paddingAngle={3}
+                >
                   {ordersByApp.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={0} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend
+                  iconType="circle"
+                  iconSize={8}
+                  formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>}
+                />
               </PieChart>
             </ResponsiveContainer>
           )}
-        </div>
+        </ChartCard>
 
-        {/* Recent Activity */}
-        <div className="bg-card rounded-xl border border-border/50 shadow-sm p-4 sm:p-5">
-          <h3 className="font-semibold text-foreground mb-3 sm:mb-4 text-sm sm:text-base">آخر النشاطات</h3>
-          <div className="space-y-1">
+        {/* Recent activity */}
+        <ChartCard title={lang === 'ar' ? 'آخر النشاطات' : 'Recent Activity'}>
+          <div className="space-y-1 -mx-1">
             {recentActivity.map((item, i) => (
-              <div key={i} className="flex items-center gap-3 p-2.5 sm:p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                  <item.icon size={15} />
+              <div
+                key={i}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors"
+              >
+                <div className="icon-box-sm bg-brand-50 dark:bg-brand-500/15 flex-shrink-0">
+                  <item.icon size={14} className="text-brand-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-foreground truncate">{item.text}</p>
-                  {item.time && <p className="text-xs text-muted-foreground">{item.time}</p>}
+                  {item.time && (
+                    <p className="text-xs text-muted-foreground">{item.time}</p>
+                  )}
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </ChartCard>
       </div>
     </div>
   );
