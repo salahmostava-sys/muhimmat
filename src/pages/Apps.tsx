@@ -183,6 +183,7 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
 // ─── Main Apps Page ───────────────────────────────────────────────────────────
 const Apps = () => {
   const { toast } = useToast();
+  const { permissions } = usePermissions('apps');
   const [apps, setApps] = useState<AppData[]>([]);
   const [selectedApp, setSelectedApp] = useState<AppData | null>(null);
   const [appEmployees, setAppEmployees] = useState<EmployeeInApp[]>([]);

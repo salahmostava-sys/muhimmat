@@ -56,6 +56,7 @@ interface Props {
 
 const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { lang, isRTL } = useLanguage();
+  const { permissions } = usePermissions('attendance');
   const statusConfig = lang === 'ar' ? statusConfigAr : statusConfigEn;
   const dateLocale = lang === 'ar' ? ar : enUS;
 
