@@ -1341,7 +1341,7 @@ const Salaries = () => {
                    <td className={`${tfClass} sticky text-right border-l border-border/30`} style={{ left: 0, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 176, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 288, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   {PLATFORMS.map(p => {
+                   {platforms.map(p => {
                      const pc = PLATFORM_COLORS[p];
                      const totalOrders = totals.platform[p] || 0;
                      const totalSal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
