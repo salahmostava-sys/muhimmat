@@ -207,23 +207,23 @@
 
   /* ─── Page header ────────────────────────────────────────────── */
   .page-header {
-    @apply space-y-1 mb-4;
+    @apply mb-3;
   }
 
   .page-breadcrumb {
-    @apply flex items-center gap-1.5 text-xs text-muted-foreground;
+    @apply flex items-center gap-1 text-xs text-muted-foreground mb-0.5;
   }
 
   .page-breadcrumb-sep {
-    @apply text-muted-foreground/50;
+    @apply opacity-40;
   }
 
   .page-title {
-    @apply text-xl font-bold text-foreground tracking-tight;
+    @apply text-lg font-bold text-foreground tracking-tight;
   }
 
   .page-subtitle {
-    @apply text-sm text-muted-foreground;
+    @apply text-xs text-muted-foreground;
   }
 
   /* ─── Badges ────────────────────────────────────────────────── */

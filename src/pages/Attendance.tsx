@@ -38,26 +38,22 @@ const Attendance = () => {
   };
 
   return (
-    <div className="space-y-4" dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Page header breadcrumb */}
-      <div className="page-header">
-        <nav className="page-breadcrumb">
-          <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
-          <span className="page-breadcrumb-sep">/</span>
-          <span>{t('attendance')}</span>
-        </nav>
-        <h1 className="page-title">{t('attendance')}</h1>
-        <p className="page-subtitle">
-          {lang === 'ar' ? 'تسجيل ومتابعة حضور المناديب' : 'Track and manage employee attendance'}
-        </p>
-      </div>
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div />
+    <div className="space-y-3" dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Row 1: breadcrumb + title | download button */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <nav className="page-breadcrumb">
+            <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
+            <span className="page-breadcrumb-sep">/</span>
+            <span>{t('attendance')}</span>
+          </nav>
+          <h1 className="page-title">{t('attendance')}</h1>
+        </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              <Download size={15} />
-              {lang === 'ar' ? '📥 تحميل تقرير ▾' : '📥 Download Report ▾'}
+            <Button variant="outline" size="sm" className="gap-2 h-8">
+              <Download size={13} />
+              {lang === 'ar' ? 'تحميل تقرير ▾' : 'Download Report ▾'}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -68,13 +64,13 @@ const Attendance = () => {
         </DropdownMenu>
       </div>
 
-      {/* Shared month/year filter */}
-      <div className="flex items-center gap-3 flex-wrap bg-muted/30 rounded-xl border border-border/50 px-4 py-3">
-        <span className="text-sm font-medium text-muted-foreground">
-          {lang === 'ar' ? 'عرض سجلات شهر:' : 'Show records for:'}
+      {/* Row 2: filters inline */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground font-medium">
+          {lang === 'ar' ? 'الشهر:' : 'Month:'}
         </span>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="h-8 w-[130px] text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -84,7 +80,7 @@ const Attendance = () => {
           </SelectContent>
         </Select>
         <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[100px]">
+          <SelectTrigger className="h-8 w-[90px] text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -93,7 +89,7 @@ const Attendance = () => {
             ))}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {MONTHS[Number(selectedMonth)]} {selectedYear}
         </span>
       </div>
