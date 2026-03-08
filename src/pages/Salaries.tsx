@@ -1824,7 +1824,7 @@ const Salaries = () => {
                         const noScheme = orders > 0 && scheme === null;
                         return (
                           // Single cell: orders + salary below in small text
-                          <td key={`${p}-col`} className={`${tdClass} text-center border-l border-border/20`}
+                      <td key={`${p}-col`} className={`${tdClass} text-center border-l border-border/20`}
                             style={{ background: noScheme ? 'rgba(234,179,8,0.1)' : rowBg }}
                             onDoubleClick={() => setEditingCell({ rowId: r.id, platform: p })}>
                             {editingCell?.rowId === r.id && editingCell?.platform === p ? (
@@ -1841,8 +1841,7 @@ const Salaries = () => {
                               <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
                                 <div className="flex flex-col items-center leading-tight">
                                   <span
-                                    style={{ color: orders === 0 ? undefined : noScheme ? 'hsl(var(--warning))' : pc?.valueColor }}
-                                    className={`font-semibold text-xs ${orders === 0 ? 'text-muted-foreground/30' : ''}`}
+                                    className={`font-semibold text-xs ${orders === 0 ? 'text-muted-foreground/30' : 'text-foreground'}`}
                                   >
                                     {orders === 0 ? '—' : orders}
                                   </span>
@@ -1850,10 +1849,7 @@ const Salaries = () => {
                                      noScheme ? (
                                        <span className="text-[9px] text-warning font-semibold">⚙️ إعداد مطلوب</span>
                                      ) : (
-                                      <span
-                                        style={{ color: pc?.valueColor }}
-                                        className="text-[10px] opacity-75 font-normal"
-                                      >
+                                      <span className="text-[10px] text-foreground opacity-75 font-normal">
                                         {salary.toLocaleString()} ر.س
                                       </span>
                                     )
