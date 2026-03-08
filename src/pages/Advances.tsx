@@ -232,9 +232,8 @@ const EmployeeDetailModal = ({ employeeId, employeeName, advances, onClose, onAd
                   const rem = adv.amount - paid;
                   const isExpanded = expandedId === adv.id;
                   return (
-                    <>
+                    <React.Fragment key={adv.id}>
                       <tr
-                        key={adv.id}
                         className="border-b border-border/30 hover:bg-muted/20 cursor-pointer"
                         onClick={() => setExpandedId(isExpanded ? null : adv.id)}
                       >
@@ -250,7 +249,7 @@ const EmployeeDetailModal = ({ employeeId, employeeName, advances, onClose, onAd
                         <td className="p-3 text-muted-foreground text-xs">{adv.note || '—'}</td>
                       </tr>
                       {isExpanded && (adv.advance_installments || []).length > 0 && (
-                        <tr key={`${adv.id}-expand`} className="bg-muted/10">
+                        <tr className="bg-muted/10">
                           <td colSpan={7} className="p-0">
                             <div className="px-4 pb-3">
                               <table className="w-full text-xs mt-1">
@@ -281,7 +280,7 @@ const EmployeeDetailModal = ({ employeeId, employeeName, advances, onClose, onAd
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>
