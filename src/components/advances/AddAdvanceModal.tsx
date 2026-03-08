@@ -1,37 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { employees, advances } from '@/data/mock';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   onClose: () => void;
   editId?: string | null;
 }
 
+interface EmployeeOption {
+  id: string;
+  name: string;
+}
+
 const AddAdvanceModal = ({ onClose, editId }: Props) => {
   const { toast } = useToast();
-  const existing = editId ? advances.find(a => a.id === editId) : null;
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
 
   const [form, setForm] = useState({
-    employeeId: existing?.employeeId || '',
-    amount: existing?.amount?.toString() || '',
-    disbursementDate: existing?.disbursementDate || '',
-    totalInstallments: existing ? Math.ceil(existing.amount / existing.monthlyInstallment).toString() : '',
-    monthlyAmount: existing?.monthlyInstallment?.toString() || '',
+    employeeId: '',
+    amount: '',
+    disbursementDate: '',
+    totalInstallments: '',
+    monthlyAmount: '',
     firstDeductionMonth: '',
     note: '',
-    status: existing?.status || 'active',
+    status: 'active',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.from('employees').select('id, name').eq('status', 'active').order('name').then(({ data }) => {
+      if (data) setEmployees(data);
+    });
+
+    if (editId) {
+      supabase.from('advances').select('*').eq('id', editId).maybeSingle().then(({ data }) => {
+        if (data) {
+          setForm({
+            employeeId: data.employee_id,
+            amount: String(data.amount),
+            disbursementDate: data.disbursement_date,
+            totalInstallments: String(data.total_installments),
+            monthlyAmount: String(data.monthly_amount),
+            firstDeductionMonth: data.first_deduction_month,
+            note: data.note || '',
+            status: data.status,
+          });
+        }
+      });
+    }
+  }, [editId]);
 
   const setField = (k: string, v: string) => {
     setForm(f => {
       const nf = { ...f, [k]: v };
-      // Auto-calculate monthly amount when amount or installments change
       if ((k === 'amount' || k === 'totalInstallments') && nf.amount && nf.totalInstallments) {
         const monthly = Math.ceil(parseFloat(nf.amount) / parseInt(nf.totalInstallments));
         nf.monthlyAmount = String(monthly);
@@ -40,11 +68,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
     });
   };
 
-  // Check for existing active advance
-  const hasActiveAdvance = !editId && form.employeeId &&
-    advances.some(a => a.employeeId === form.employeeId && a.status === 'active');
-
-  const save = () => {
+  const save = async () => {
     const errs: Record<string, string> = {};
     if (!form.employeeId) errs.employeeId = 'اختر المندوب';
     if (!form.amount || parseFloat(form.amount) <= 0) errs.amount = 'المبلغ مطلوب';
@@ -55,8 +79,38 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    toast({ title: editId ? 'تم تعديل السلفة ✅' : 'تم إضافة السلفة ✅' });
-    onClose();
+    setSaving(true);
+    try {
+      if (editId) {
+        const { error } = await supabase.from('advances').update({
+          amount: parseFloat(form.amount),
+          monthly_amount: parseFloat(form.monthlyAmount),
+          total_installments: parseInt(form.totalInstallments),
+          disbursement_date: form.disbursementDate,
+          note: form.note || null,
+          status: form.status as any,
+        }).eq('id', editId);
+        if (error) throw error;
+        toast({ title: 'تم تعديل السلفة ✅' });
+      } else {
+        const { error } = await supabase.from('advances').insert({
+          employee_id: form.employeeId,
+          amount: parseFloat(form.amount),
+          monthly_amount: parseFloat(form.monthlyAmount),
+          total_installments: parseInt(form.totalInstallments),
+          disbursement_date: form.disbursementDate,
+          first_deduction_month: form.firstDeductionMonth,
+          note: form.note || null,
+          status: 'active',
+        });
+        if (error) throw error;
+        toast({ title: 'تم إضافة السلفة ✅' });
+      }
+      onClose();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setSaving(false);
   };
 
   const F = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
@@ -76,19 +130,13 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {hasActiveAdvance && (
-            <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 text-sm text-warning">
-              ⚠️ هذا المندوب لديه سلفة نشطة — هل تريد المتابعة؟
-            </div>
-          )}
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
               <F label="المندوب" required error={errors.employeeId}>
                 <Select value={form.employeeId} onValueChange={v => setField('employeeId', v)} disabled={!!editId}>
                   <SelectTrigger><SelectValue placeholder="اختر المندوب" /></SelectTrigger>
                   <SelectContent>
-                    {employees.filter(e => e.status === 'active').map(e => (
+                    {employees.map(e => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -157,7 +205,9 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
 
         <div className="flex justify-between p-6 border-t border-border">
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button onClick={save} className="gap-2"><Check size={16} /> {editId ? 'حفظ التعديلات' : 'إضافة السلفة'}</Button>
+          <Button onClick={save} disabled={saving} className="gap-2">
+            <Check size={16} /> {editId ? 'حفظ التعديلات' : 'إضافة السلفة'}
+          </Button>
         </div>
       </div>
     </div>
