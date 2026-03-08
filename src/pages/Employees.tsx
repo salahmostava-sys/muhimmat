@@ -461,8 +461,8 @@ const Employees = () => {
                 <Th field="bank_account_number" label={t('bankAccount')} />
                 <Th label={t('documents')} sortable={false} />
                 <Th field="status" label={t('status')} />
-                <Th label={t('actions')} sortable={false} />
                 <Th field="email" label={t('email')} />
+                <Th label={t('actions')} sortable={false} />
               </tr>
             </thead>
             <tbody>
