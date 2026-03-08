@@ -270,6 +270,20 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         await supabase.from('employees').update(updates).eq('id', empId);
       }
 
+      // Sync employee_apps: delete old, insert new
+      await supabase.from('employee_apps').delete().eq('employee_id', empId);
+      if (form.selected_apps.length > 0) {
+        const appsToInsert = form.selected_apps
+          .map(appName => {
+            const appData = availableApps.find(a => a.name === appName);
+            return appData ? { employee_id: empId, app_id: appData.id, status: 'active' } : null;
+          })
+          .filter(Boolean) as { employee_id: string; app_id: string; status: string }[];
+        if (appsToInsert.length > 0) {
+          await supabase.from('employee_apps').insert(appsToInsert);
+        }
+      }
+
       toast({
         title: isEdit ? 'تم تحديث بيانات المندوب' : 'تم إضافة المندوب بنجاح',
         description: form.name,
