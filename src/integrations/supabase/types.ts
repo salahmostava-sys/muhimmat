@@ -137,28 +137,34 @@ export type Database = {
       }
       apps: {
         Row: {
+          brand_color: string
           created_at: string
           id: string
           is_active: boolean
           logo_url: string | null
           name: string
           name_en: string | null
+          text_color: string
         }
         Insert: {
+          brand_color?: string
           created_at?: string
           id?: string
           is_active?: boolean
           logo_url?: string | null
           name: string
           name_en?: string | null
+          text_color?: string
         }
         Update: {
+          brand_color?: string
           created_at?: string
           id?: string
           is_active?: boolean
           logo_url?: string | null
           name?: string
           name_en?: string | null
+          text_color?: string
         }
         Relationships: []
       }
