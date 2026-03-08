@@ -17,6 +17,7 @@ import Orders from "./pages/Orders";
 import Salaries from "./pages/Salaries";
 import Advances from "./pages/Advances";
 import Vehicles from "./pages/Vehicles";
+import FuelPage from "./pages/Fuel";
 
 import Deductions from "./pages/Deductions";
 import Apps from "./pages/Apps";
