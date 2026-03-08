@@ -28,6 +28,7 @@ interface EmployeeData {
   salary_type: string;
   base_salary: number;
   preferred_language?: string | null;
+  nationality?: string | null;
 }
 
 interface Props {
