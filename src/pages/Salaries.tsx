@@ -453,6 +453,7 @@ const Salaries = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
 
   // ─── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
@@ -928,6 +929,7 @@ const Salaries = () => {
   );
 
   const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/60 text-right sticky z-20";
+  const thBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/50 text-center";
   const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border-b border-border/20 bg-card sticky z-10";
   const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border-b border-border/20";
   const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center bg-muted/60";
@@ -1158,6 +1160,70 @@ const Salaries = () => {
                       </th>
                     );
                   })}
+                  <th className={thBase}>الراتب الأساسي</th>
+                  <th className={thBase}>حوافز</th>
+                  <th className={thBase}>إجازة مرضية</th>
+                  <th className={thBase}>إجمالي الإضافات</th>
+                  <th className={`${thBase} border-l border-border/50`}>الإجمالي مع الراتب</th>
+                  <th className={thBase}>قسط سلفة</th>
+                  <th className={thBase}>استقطاعات خارجية</th>
+                  <th className={thBase}>مخالفات</th>
+                  <th className={thBase}>محفظة هنقرستيشن</th>
+                  <th className={thBase}>محفظة طيو</th>
+                  <th className={`${thBase} border-l border-border/50`}>تلف طعام</th>
+                  <th className={`${thBase} border-l border-border/50`}>إجمالي المستقطعات</th>
+                  <th className={thBase}>الصافي</th>
+                  <th className={thBase}>تحويل</th>
+                  <th className={`${thBase} border-l border-border/50`}>متبقي</th>
+                  <th className={thBase}>طريقة الصرف</th>
+                  <th className={`${thBase} border-l border-border/50`}>المدينة</th>
+                  <th className={thBase}>الحالة</th>
+                  <th className={thBase}>اعتماد</th>
+                  <th className={thBase}>صرف</th>
+                  <th className={thBase}>طباعة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => {
+                  const c = computeRow(r);
+                  if (!c) return null;
+                  return (
+                    <tr key={r.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                      <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>
+                        <span className="whitespace-nowrap">{r.employeeName}</span>
+                      </td>
+                      <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 176, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
+                      <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 288, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
+                      {PLATFORMS.map(p => {
+                        const pc = PLATFORM_COLORS[p];
+                        const orders = r.platformOrders[p] || 0;
+                        const scheme = empPlatformScheme?.[r.employeeId]?.[p];
+                        const target = scheme?.target_orders;
+                        const cellBg = orders === 0
+                          ? 'bg-muted/20'
+                          : (target && orders >= target)
+                            ? 'bg-success/10'
+                            : '';
+                        return (
+                          <td key={p} className={`${tdClass} text-center ${cellBg}`}
+                            onDoubleClick={() => setEditingCell({ rowId: r.id, platform: p })}>
+                            {editingCell?.rowId === r.id && editingCell?.platform === p ? (
+                              <input
+                                autoFocus
+                                type="number"
+                                defaultValue={orders}
+                                className="w-16 text-center border rounded px-1 py-0.5 text-xs bg-background"
+                                onBlur={e => { updatePlatformOrders(r.id, p, Number(e.target.value)); setEditingCell(null); }}
+                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingCell(null); }}
+                              />
+                            ) : (
+                              <span style={{ color: orders === 0 ? undefined : pc?.valueColor }} className={orders === 0 ? 'text-muted-foreground/30' : 'font-semibold'}>
+                                {orders === 0 ? '—' : orders}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
                       <td className={`${tdClass} font-bold text-primary border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
                       <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-success" /></td>
                       <td className={tdClass}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-success" /></td>
