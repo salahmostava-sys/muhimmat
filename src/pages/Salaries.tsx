@@ -1227,7 +1227,7 @@ const Salaries = () => {
 
   const ThSort = ({ field, label, className = '' }: { field: string; label: string; className?: string }) => (
     <th
-      className={`px-3 py-2 text-xs font-semibold whitespace-nowrap border-b border-border/50 text-center cursor-pointer select-none hover:brightness-90 transition-all ${className}`}
+      className={`px-3 py-2 text-xs font-semibold whitespace-nowrap border border-border/60 text-center cursor-pointer select-none hover:brightness-90 transition-all ${className}`}
       onClick={() => handleSort(field)}
     >
       {label}
