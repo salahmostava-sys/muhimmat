@@ -144,6 +144,7 @@ export type Database = {
           logo_url: string | null
           name: string
           name_en: string | null
+          scheme_id: string | null
           text_color: string
         }
         Insert: {
@@ -154,6 +155,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           name_en?: string | null
+          scheme_id?: string | null
           text_color?: string
         }
         Update: {
@@ -164,9 +166,18 @@ export type Database = {
           logo_url?: string | null
           name?: string
           name_en?: string | null
+          scheme_id?: string | null
           text_color?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "apps_scheme_id_fkey"
+            columns: ["scheme_id"]
+            isOneToOne: false
+            referencedRelation: "salary_schemes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance: {
         Row: {
