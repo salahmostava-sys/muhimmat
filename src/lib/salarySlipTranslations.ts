@@ -123,6 +123,7 @@ const translations: Record<SlipLanguage, SlipTranslations> = {
     statusPending: 'Pending',
     statusApproved: 'Approved',
     statusPaid: 'Paid',
+    sectionEarnings: 'Earnings',
     payBank: '🏦 Bank Transfer',
     payCash: '💵 Cash',
     sectionPlatforms: 'Orders by Platform',
