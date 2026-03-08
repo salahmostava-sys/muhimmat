@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Smartphone, Search, Plus, Edit2, Power, PowerOff, X, Check } from 'lucide-react';
+import { Smartphone, Search, Plus, Edit2, Power, PowerOff, X, Check, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -81,7 +91,6 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md border border-border/50">
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-bold text-foreground">
             {isEdit ? 'تعديل التطبيق' : 'إضافة تطبيق جديد'}
@@ -91,7 +100,6 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-5 space-y-4">
           <div>
             <Label className="text-sm mb-1.5 block">اسم التطبيق (عربي) <span className="text-destructive">*</span></Label>
@@ -102,73 +110,41 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
             <Input value={form.name_en} onChange={e => setForm(p => ({ ...p, name_en: e.target.value }))} placeholder="e.g. HungerStation" dir="ltr" />
           </div>
 
-          {/* Color pickers */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm mb-1.5 block">لون التطبيق</Label>
               <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={form.brand_color}
-                  onChange={e => setForm(p => ({ ...p, brand_color: e.target.value }))}
-                  className="w-10 h-10 rounded-lg border border-border cursor-pointer"
-                />
-                <Input
-                  value={form.brand_color}
-                  onChange={e => setForm(p => ({ ...p, brand_color: e.target.value }))}
-                  className="flex-1 font-mono text-sm"
-                  dir="ltr"
-                  maxLength={7}
-                />
+                <input type="color" value={form.brand_color} onChange={e => setForm(p => ({ ...p, brand_color: e.target.value }))} className="w-10 h-10 rounded-lg border border-border cursor-pointer" />
+                <Input value={form.brand_color} onChange={e => setForm(p => ({ ...p, brand_color: e.target.value }))} className="flex-1 font-mono text-sm" dir="ltr" maxLength={7} />
               </div>
             </div>
             <div>
               <Label className="text-sm mb-1.5 block">لون النص</Label>
               <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={form.text_color}
-                  onChange={e => setForm(p => ({ ...p, text_color: e.target.value }))}
-                  className="w-10 h-10 rounded-lg border border-border cursor-pointer"
-                />
-                <Input
-                  value={form.text_color}
-                  onChange={e => setForm(p => ({ ...p, text_color: e.target.value }))}
-                  className="flex-1 font-mono text-sm"
-                  dir="ltr"
-                  maxLength={7}
-                />
+                <input type="color" value={form.text_color} onChange={e => setForm(p => ({ ...p, text_color: e.target.value }))} className="w-10 h-10 rounded-lg border border-border cursor-pointer" />
+                <Input value={form.text_color} onChange={e => setForm(p => ({ ...p, text_color: e.target.value }))} className="flex-1 font-mono text-sm" dir="ltr" maxLength={7} />
               </div>
             </div>
           </div>
 
-          {/* Preview */}
           <div>
             <Label className="text-sm mb-1.5 block">معاينة</Label>
-            <div
-              className="rounded-xl px-5 py-3 text-center font-bold text-base"
-              style={{ backgroundColor: form.brand_color, color: form.text_color }}
-            >
+            <div className="rounded-xl px-5 py-3 text-center font-bold text-base" style={{ backgroundColor: form.brand_color, color: form.text_color }}>
               {form.name || 'اسم التطبيق'}
             </div>
           </div>
 
-          {/* Active toggle */}
           <div className="flex items-center justify-between bg-muted/40 rounded-xl px-4 py-3">
             <Label className="text-sm font-medium">حالة التطبيق</Label>
             <div className="flex items-center gap-3">
               <span className={`text-xs font-medium ${form.is_active ? 'text-success' : 'text-muted-foreground'}`}>
                 {form.is_active ? 'مفعّل' : 'معطّل'}
               </span>
-              <Switch
-                checked={form.is_active}
-                onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))}
-              />
+              <Switch checked={form.is_active} onCheckedChange={v => setForm(p => ({ ...p, is_active: v }))} />
             </div>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border">
           <Button variant="outline" onClick={onClose} disabled={saving}>إلغاء</Button>
           <Button onClick={handleSave} disabled={saving} className="gap-2">
@@ -190,7 +166,9 @@ const Apps = () => {
   const [search, setSearch] = useState('');
   const [loadingApps, setLoadingApps] = useState(true);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
-  const [modalApp, setModalApp] = useState<AppData | null | undefined>(undefined); // undefined = closed, null = new
+  const [modalApp, setModalApp] = useState<AppData | null | undefined>(undefined);
+  const [deleteApp, setDeleteApp] = useState<AppData | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchApps = async () => {
     setLoadingApps(true);
@@ -200,7 +178,6 @@ const Apps = () => {
       .order('name');
     if (!data) { setLoadingApps(false); return; }
 
-    // Get employee count per app
     const appsWithCounts = await Promise.all(
       data.map(async (app: any) => {
         const { count } = await supabase
@@ -233,7 +210,6 @@ const Apps = () => {
     const startDate = `${currentMonth}-01`;
     const endDate = `${currentMonth}-${new Date(parseInt(currentMonth.split('-')[0]), parseInt(currentMonth.split('-')[1]), 0).getDate()}`;
 
-    // Fetch active employees only (not absconded/terminated)
     const { data: empApps } = await supabase
       .from('employee_apps')
       .select('employee_id, employees!inner(id, name, status, sponsorship_status)')
@@ -280,6 +256,23 @@ const Apps = () => {
     fetchApps();
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!deleteApp) return;
+    setDeleting(true);
+    const { error } = await supabase.from('apps').delete().eq('id', deleteApp.id);
+    if (error) {
+      toast({ title: 'حدث خطأ أثناء الحذف', description: error.message, variant: 'destructive' });
+      setDeleting(false);
+      return;
+    }
+    invalidateAppColorsCache();
+    toast({ title: `تم حذف تطبيق "${deleteApp.name}" ✅` });
+    if (selectedApp?.id === deleteApp.id) { setSelectedApp(null); setAppEmployees([]); }
+    setDeleteApp(null);
+    setDeleting(false);
+    fetchApps();
+  };
+
   const filteredEmployees = appEmployees.filter(e => e.name.includes(search));
 
   return (
@@ -297,9 +290,9 @@ const Apps = () => {
             <p className="page-subtitle">إدارة التطبيقات ومناديب كل تطبيق</p>
           </div>
           {permissions.can_edit && (
-          <Button onClick={() => setModalApp(null)} className="gap-2">
-            <Plus size={16} /> إضافة تطبيق
-          </Button>
+            <Button onClick={() => setModalApp(null)} className="gap-2">
+              <Plus size={16} /> إضافة تطبيق
+            </Button>
           )}
         </div>
       </div>
@@ -315,62 +308,89 @@ const Apps = () => {
               <div
                 key={app.id}
                 onClick={() => app.is_active && handleSelectApp(app)}
-                className={`relative p-5 rounded-xl border-2 text-center transition-all cursor-pointer group
-                  ${!app.is_active ? 'opacity-50 cursor-not-allowed' : ''}
-                  ${isSelected ? 'ring-2 ring-primary border-primary shadow-md' : 'border-border hover:shadow-md'}`}
+                className={`relative rounded-xl text-center transition-all cursor-pointer group overflow-hidden
+                  ${!app.is_active ? 'opacity-60 cursor-not-allowed' : ''}
+                  ${isSelected ? 'ring-4 shadow-xl scale-[1.02]' : 'hover:shadow-lg hover:scale-[1.01]'}`}
+                style={isSelected ? { outline: `3px solid ${app.brand_color}`, outlineOffset: '2px' } : {}}
               >
-                {/* Action buttons */}
-                {permissions.can_edit && (
-                <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={e => { e.stopPropagation(); setModalApp(app); }}
-                    className="w-6 h-6 rounded-md bg-background/90 border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary transition-colors"
-                    title="تعديل"
+                <div className="p-5 h-full" style={{ backgroundColor: app.brand_color }}>
+                  {/* Action buttons */}
+                  {permissions.can_edit && (
+                    <div
+                      className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={e => { e.stopPropagation(); setModalApp(app); }}
+                        className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.25)', color: app.text_color }}
+                        title="تعديل"
+                      >
+                        <Edit2 size={11} />
+                      </button>
+                      <button
+                        onClick={e => handleToggleActive(app, e)}
+                        className="w-6 h-6 rounded-md flex items-center justify-center transition-colors hover:bg-black/40"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.25)', color: app.text_color }}
+                        title={app.is_active ? 'تعطيل' : 'تفعيل'}
+                      >
+                        {app.is_active ? <Power size={11} /> : <PowerOff size={11} />}
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setDeleteApp(app); }}
+                        className="w-6 h-6 rounded-md flex items-center justify-center transition-colors hover:bg-red-600/80"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.25)', color: app.text_color }}
+                        title="حذف"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Letter avatar */}
+                  <div
+                    className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center text-xl font-bold shadow-md"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: app.text_color }}
                   >
-                    <Edit2 size={11} />
-                  </button>
-                  <button
-                    onClick={e => handleToggleActive(app, e)}
-                    className={`w-6 h-6 rounded-md bg-background/90 border border-border flex items-center justify-center transition-colors ${app.is_active ? 'text-success hover:text-destructive hover:border-destructive' : 'text-muted-foreground hover:text-success hover:border-success'}`}
-                    title={app.is_active ? 'تعطيل' : 'تفعيل'}
-                  >
-                    {app.is_active ? <Power size={11} /> : <PowerOff size={11} />}
-                  </button>
-                </div>
-                )}
-
-                {/* Color indicator dot */}
-                <div
-                  className="w-10 h-10 rounded-full mx-auto mb-3 flex items-center justify-center text-lg font-bold"
-                  style={{ backgroundColor: app.brand_color, color: app.text_color }}
-                >
-                  {app.name.charAt(0)}
-                </div>
-
-                <h3 className="font-bold text-sm text-foreground">{app.name}</h3>
-                {app.name_en && <p className="text-xs text-muted-foreground mt-0.5">{app.name_en}</p>}
-                <p className="text-2xl font-bold mt-2" style={{ color: app.brand_color }}>{app.employeeCount}</p>
-                <p className="text-xs text-muted-foreground">مندوب</p>
-
-                {!app.is_active && (
-                  <div className="mt-2">
-                    <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">معطّل</span>
+                    {app.name.charAt(0)}
                   </div>
-                )}
+
+                  <h3 className="font-bold text-sm" style={{ color: app.text_color }}>{app.name}</h3>
+                  {app.name_en && (
+                    <p className="text-xs mt-0.5" style={{ color: app.text_color, opacity: 0.75 }}>{app.name_en}</p>
+                  )}
+                  <p className="text-3xl font-bold mt-2" style={{ color: app.text_color }}>
+                    {app.employeeCount}
+                  </p>
+                  <p className="text-xs" style={{ color: app.text_color, opacity: 0.75 }}>مندوب</p>
+
+                  {!app.is_active && (
+                    <div className="mt-2">
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-full"
+                        style={{ backgroundColor: 'rgba(0,0,0,0.2)', color: app.text_color }}
+                      >
+                        معطّل
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
 
           {/* Add new card */}
-          <button
-            onClick={() => setModalApp(null)}
-            className="p-5 rounded-xl border-2 border-dashed border-border text-center transition-all hover:border-primary/50 hover:bg-primary/5 group"
-          >
-            <div className="w-10 h-10 rounded-full bg-muted mx-auto mb-3 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-              <Plus size={18} className="text-muted-foreground group-hover:text-primary" />
-            </div>
-            <p className="text-sm text-muted-foreground group-hover:text-primary font-medium">إضافة تطبيق</p>
-          </button>
+          {permissions.can_edit && (
+            <button
+              onClick={() => setModalApp(null)}
+              className="p-5 rounded-xl border-2 border-dashed border-border text-center transition-all hover:border-primary/50 hover:bg-primary/5 group min-h-[140px] flex flex-col items-center justify-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-muted mx-auto mb-3 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                <Plus size={20} className="text-muted-foreground group-hover:text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground group-hover:text-primary font-medium">إضافة تطبيق</p>
+            </button>
+          )}
         </div>
       )}
 
@@ -416,7 +436,7 @@ const Apps = () => {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Edit/Add Modal */}
       {modalApp !== undefined && (
         <AppModal
           app={modalApp}
@@ -424,6 +444,29 @@ const Apps = () => {
           onSaved={() => { fetchApps(); if (selectedApp) handleSelectApp(selectedApp); }}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteApp} onOpenChange={open => { if (!open) setDeleteApp(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف التطبيق</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف تطبيق <strong>"{deleteApp?.name}"</strong>؟
+              سيتم حذف جميع البيانات المرتبطة به. هذا الإجراء لا يمكن التراجع عنه.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'جاري الحذف...' : 'حذف'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
