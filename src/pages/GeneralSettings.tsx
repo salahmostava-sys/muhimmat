@@ -8,7 +8,7 @@ import { Settings2, Database, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 
 export default function GeneralSettings() {

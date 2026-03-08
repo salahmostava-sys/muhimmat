@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO, addDays } from 'date-fns';
 
 // Static label map — not data

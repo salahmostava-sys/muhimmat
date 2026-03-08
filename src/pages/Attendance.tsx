@@ -9,7 +9,7 @@ import MonthlyRecord from '@/components/attendance/MonthlyRecord';
 import AttendanceStats from '@/components/attendance/AttendanceStats';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTranslation } from 'react-i18next';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 
 const MONTHS_AR = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',

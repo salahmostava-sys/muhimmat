@@ -4,7 +4,7 @@ import { TrendingUp, Award, Users, Package, Wallet, ArrowUpRight, ArrowDownRight
 import { supabase } from '@/integrations/supabase/client';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 
 interface AppStat { id: string; name: string; brand_color: string; text_color: string; orders: number; }
 interface TopRider { id: string; name: string; orders: number; app: string; appColor: string; }
