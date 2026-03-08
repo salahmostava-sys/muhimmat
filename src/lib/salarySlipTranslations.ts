@@ -80,6 +80,7 @@ const translations: Record<SlipLanguage, SlipTranslations> = {
     statusPending: 'معلّق',
     statusApproved: 'معتمد',
     statusPaid: 'مصروف',
+    sectionEarnings: 'الاستحقاقات',
     payBank: '🏦 بنك',
     payCash: '💵 ماش',
     sectionPlatforms: 'الطلبات حسب المنصة',
