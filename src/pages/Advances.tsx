@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, CreditCard, Download, ChevronDown, ChevronUp, Pause, Play, Edit2 } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Plus, CreditCard, Download, Upload, ChevronDown, ChevronUp, Pause, Play, Edit2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
@@ -530,6 +530,52 @@ const Advances = () => {
   const [editAdvance, setEditAdvance] = useState<Advance | null>(null);
   const [detailEmployee, setDetailEmployee] = useState<{ id: string; name: string } | null>(null);
 
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const handleImportAdvances = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const wb = XLSX.read(ev.target?.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      if (!rows.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
+      let success = 0;
+      for (const row of rows) {
+        const empName = row['الاسم'];
+        if (!empName) continue;
+        const emp = employees.find(e => e.name === empName);
+        if (!emp) continue;
+        const amount = parseFloat(row['المبلغ']) || 0;
+        const monthly = parseFloat(row['القسط']) || amount;
+        const installments = monthly > 0 ? Math.ceil(amount / monthly) : 1;
+        await supabase.from('advances').insert({
+          employee_id: emp.id,
+          amount,
+          monthly_amount: monthly,
+          total_installments: installments,
+          disbursement_date: row['تاريخ الصرف'] || format(new Date(), 'yyyy-MM-dd'),
+          first_deduction_month: row['أول شهر خصم'] || format(new Date(), 'yyyy-MM'),
+          status: 'active',
+        });
+        success++;
+      }
+      toast({ title: `تم استيراد ${success} سلفة ✅` });
+      fetchAll();
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  const handleAdvancesTemplate = () => {
+    const headers = [['الاسم', 'المبلغ', 'القسط', 'تاريخ الصرف (YYYY-MM-DD)', 'أول شهر خصم (YYYY-MM)']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'قالب');
+    XLSX.writeFile(wb, 'template_advances.xlsx');
+  };
+
   const fetchAll = async () => {
     setLoading(true);
     const [advRes, empRes] = await Promise.all([
@@ -605,12 +651,20 @@ const Advances = () => {
           <h1 className="page-title flex items-center gap-2"><CreditCard size={20} /> السلف والأقساط</h1>
         </div>
         <div className="flex gap-2">
+          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportAdvances} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 h-8"><Download size={14} /> 📥 تحميل تقرير ▾</Button>
+              <Button variant="outline" size="sm" className="gap-2 h-8"><Download size={14} /> 📥 تحميل ▾</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {permissions.can_edit && (
+                <DropdownMenuItem onClick={() => importRef.current?.click()}>
+                  <Upload size={14} className="ml-2" /> استيراد Excel
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={handleAdvancesTemplate}>📋 تحميل القالب</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           {permissions.can_edit && (

@@ -3,7 +3,7 @@ import { Bell, Search, CheckCircle, Clock, X, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
@@ -254,6 +254,14 @@ const Alerts = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel (مرتب حسب الأولوية)</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => {
+                const headers = [['النوع', 'الجهة', 'تاريخ الاستحقاق', 'المتبقي (يوم)', 'الأولوية']];
+                const ws = XLSX.utils.aoa_to_sheet(headers);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'قالب');
+                XLSX.writeFile(wb, 'template_alerts.xlsx');
+              }}>📋 تحميل القالب</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardCheck, CalendarDays, Download, BarChart2 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ClipboardCheck, CalendarDays, Download, Upload, BarChart2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import DailyAttendance from '@/components/attendance/DailyAttendance';
 import MonthlyRecord from '@/components/attendance/MonthlyRecord';
 import AttendanceStats from '@/components/attendance/AttendanceStats';
@@ -27,6 +27,7 @@ const Attendance = () => {
   const { lang, isRTL } = useLanguage();
   const { t } = useTranslation();
   const MONTHS = lang === 'ar' ? MONTHS_AR : MONTHS_EN;
+  const importRef = useRef<HTMLInputElement>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth()));
   const [selectedYear, setSelectedYear] = useState(String(currentYear));
@@ -36,6 +37,14 @@ const Attendance = () => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, lang === 'ar' ? 'الحضور' : 'Attendance');
     XLSX.writeFile(wb, `attendance_${selectedYear}-${String(Number(selectedMonth) + 1).padStart(2, '0')}.xlsx`);
+  };
+
+  const handleAttendanceTemplate = () => {
+    const headers = [['اسم الموظف', 'التاريخ (YYYY-MM-DD)', 'الحالة (present/absent/leave/sick/late)', 'ملاحظات']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, lang === 'ar' ? 'قالب' : 'Template');
+    XLSX.writeFile(wb, 'template_attendance.xlsx');
   };
 
   return (
@@ -50,16 +59,24 @@ const Attendance = () => {
           </nav>
           <h1 className="page-title">{t('attendance')}</h1>
         </div>
+        <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2 h-8">
               <Download size={13} />
-              {lang === 'ar' ? 'تحميل تقرير ▾' : 'Download Report ▾'}
+              {lang === 'ar' ? '📥 تحميل ▾' : '📥 Download ▾'}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={handleExportAttendance}>
               {lang === 'ar' ? '📊 تصدير Excel (ملخص شهري)' : '📊 Export Excel (Monthly Summary)'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => importRef.current?.click()}>
+              <Upload size={14} className="ml-2" /> {lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleAttendanceTemplate}>
+              📋 {lang === 'ar' ? 'تحميل القالب' : 'Download Template'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Wrench, Download, Edit, Trash2, Bike } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, Plus, Wrench, Download, Upload, Edit, Trash2, Bike } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
@@ -221,6 +222,49 @@ const Motorcycles = () => {
   const [showForm, setShowForm] = useState(false);
   const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
 
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const wb = XLSX.read(ev.target?.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      if (!rows.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
+      let success = 0;
+      for (const row of rows) {
+        const plate = row['رقم اللوحة'] || row['plate_number'];
+        if (!plate) continue;
+        await supabase.from('vehicles').upsert({
+          plate_number: String(plate),
+          type: row['النوع'] === 'سيارة' ? 'car' : 'motorcycle',
+          brand: row['الماركة'] || null,
+          model: row['الموديل'] || null,
+          year: row['سنة الصنع'] ? parseInt(row['سنة الصنع']) : null,
+          status: row['status'] || 'active',
+          insurance_expiry: row['انتهاء التأمين'] || null,
+          registration_expiry: row['انتهاء التسجيل'] || null,
+          authorization_expiry: row['انتهاء التفويض'] || null,
+        }, { onConflict: 'plate_number' });
+        success++;
+      }
+      toast({ title: `تم استيراد ${success} مركبة ✅` });
+      fetchVehicles();
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
+  const handleTemplate = () => {
+    const headers = [['رقم اللوحة', 'النوع (موتوسيكل/سيارة)', 'الماركة', 'الموديل', 'سنة الصنع', 'انتهاء التأمين', 'انتهاء التسجيل', 'انتهاء التفويض']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'قالب');
+    XLSX.writeFile(wb, 'template_vehicles.xlsx');
+  };
+
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
     const { data: rows, error } = await supabase.from('vehicles').select('*').order('plate_number');
@@ -286,9 +330,22 @@ const Motorcycles = () => {
           <h1 className="page-title">بيانات الموتوسيكلات</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleExport}>
-            <Download size={15} /> تصدير Excel
-          </Button>
+          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2"><Download size={15} /> 📥 تحميل ▾</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {permissions.can_edit && (
+                <DropdownMenuItem onClick={() => importRef.current?.click()}>
+                  <Upload size={14} className="ml-2" /> استيراد Excel
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل القالب</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {permissions.can_edit && (
             <Button className="gap-2" onClick={() => { setEditVehicle(null); setShowForm(true); }}>
               <Plus size={16} /> إضافة مركبة
