@@ -374,7 +374,7 @@ const Login = () => {
           {features.map((f, i) => (
             <div key={i} className="flex items-center gap-2.5">
               <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: i % 2 === 0 ? '#3b82f6' : '#8b5cf6' }} />
+                style={{ background: '#465FFF' }} />
               <span className="text-[13px] text-gray-300">{f}</span>
             </div>
           ))}
