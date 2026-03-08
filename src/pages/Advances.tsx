@@ -11,9 +11,24 @@ import { format } from 'date-fns';
 const statusLabels: Record<string, string> = { active: 'نشطة', completed: 'مكتملة', paused: 'متوقفة' };
 const statusStyles: Record<string, string> = { active: 'badge-info', completed: 'badge-success', paused: 'badge-warning' };
 
-const Advances = () => {
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const handleExport = () => {
+    const rows = filtered.map(a => ({
+      'المندوب': a.employeeName,
+      'مبلغ السلفة': a.amount,
+      'المسدد': a.paidAmount,
+      'المتبقي': a.amount - a.paidAmount,
+      'القسط الشهري': a.monthlyInstallment,
+      'أقساط متبقية': a.remainingInstallments,
+      'تاريخ الصرف': a.disbursementDate,
+      'الحالة': statusLabels[a.status],
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'السلف');
+    XLSX.writeFile(wb, `السلف_${format(new Date(), 'yyyy-MM')}.xlsx`);
+  };
+
+  const totalActive = advances.filter(a => a.status === 'active').reduce((s, a) => s + (a.amount - a.paidAmount), 0);
 
   const filtered = advances.filter(a => {
     const matchSearch = a.employeeName.includes(search);
