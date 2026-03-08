@@ -1,188 +1,32 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings as SettingsIcon, Plus, Users, Shield, Pencil, Trash2, ChevronRight, ChevronLeft, X, Check, Loader2 } from 'lucide-react';
+import { Settings as SettingsIcon, Plus, Users, Shield, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import type { SalaryScheme } from '@/data/mock';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
-// ─── Schemes Tab ──────────────────────────────────────────────────
+// ─── Schemes Tab — redirects to /salary-schemes ───────────────────
 const SchemesTab = () => {
-  const { toast } = useToast();
-  const [schemes, setSchemes] = useState<SalaryScheme[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editing, setEditing] = useState<SalaryScheme | null>(null);
-
-  const [name, setName] = useState('');
-  const [app, setApp] = useState('');
-  const [tiers, setTiers] = useState([{ from: 1, to: 500, pricePerOrder: 5 }]);
-  const [hasTarget, setHasTarget] = useState(false);
-  const [targetOrders, setTargetOrders] = useState(700);
-  const [targetBonus, setTargetBonusVal] = useState(400);
-
-  const openAdd = () => {
-    setEditing(null);
-    setName(''); setApp(''); setTiers([{ from: 1, to: 500, pricePerOrder: 5 }]);
-    setHasTarget(false); setTargetOrders(700); setTargetBonusVal(400);
-    setShowModal(true);
-  };
-
-  const openEdit = (s: SalaryScheme) => {
-    setEditing(s);
-    setName(s.name); setApp(s.app); setTiers(s.tiers.map(t => ({ from: t.from, to: t.to, pricePerOrder: t.pricePerOrder })));
-    setHasTarget(!!s.targetBonus);
-    setTargetOrders(s.targetBonus?.target || 700);
-    setTargetBonusVal(s.targetBonus?.bonus || 400);
-    setShowModal(true);
-  };
-
-  const addTier = () => setTiers(prev => [...prev, { from: (prev[prev.length - 1]?.to || 0) + 1, to: (prev[prev.length - 1]?.to || 0) + 500, pricePerOrder: 6 }]);
-  const removeTier = (i: number) => setTiers(prev => prev.filter((_, idx) => idx !== i));
-  const updateTier = (i: number, field: string, val: number) => setTiers(prev => prev.map((t, idx) => idx === i ? { ...t, [field]: val } : t));
-
-  const handleSave = () => {
-    if (!name || !app) { toast({ title: 'خطأ', description: 'الاسم والتطبيق مطلوبان', variant: 'destructive' }); return; }
-    const scheme: SalaryScheme = {
-      id: editing?.id || String(Date.now()),
-      name, app, tiers,
-      targetBonus: hasTarget ? { target: targetOrders, bonus: targetBonus } : undefined,
-      status: editing?.status || 'active',
-      assignedCount: editing?.assignedCount || 0,
-    };
-    if (editing) {
-      setSchemes(prev => prev.map(s => s.id === editing.id ? scheme : s));
-      toast({ title: 'تم التعديل', description: 'تم تعديل السكيمة بنجاح' });
-    } else {
-      setSchemes(prev => [...prev, scheme]);
-      toast({ title: 'تمت الإضافة', description: 'تمت إضافة السكيمة بنجاح' });
-    }
-    setShowModal(false);
-  };
-
-  const handleArchive = (id: string) => {
-    setSchemes(prev => prev.map(s => s.id === id ? { ...s, status: s.status === 'active' ? 'archived' : 'active' } : s));
-    toast({ title: 'تم التحديث' });
-  };
-
-  const appsList = ['هنقرستيشن', 'جاهز', 'كيتا', 'توبو', 'نينجا'];
-
+  const navigate = useNavigate();
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button className="gap-2" onClick={openAdd}><Plus size={16} /> إضافة سكيمة</Button>
+    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+        <Settings as SettingsIcon size={26} />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {schemes.map(s => (
-          <div key={s.id} className={`bg-card rounded-xl border shadow-sm p-5 ${s.status === 'active' ? 'border-border/50' : 'border-border/30 opacity-70'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="font-semibold text-foreground">{s.name}</h3>
-                <p className="text-xs text-muted-foreground">{s.app} — {s.assignedCount} مناديب</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={s.status === 'active' ? 'badge-success' : 'badge-warning'}>{s.status === 'active' ? 'نشطة' : 'مؤرشفة'}</span>
-                <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"><Pencil size={14} /></button>
-                <button onClick={() => handleArchive(s.id)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors" title={s.status === 'active' ? 'أرشفة' : 'تفعيل'}>
-                  {s.status === 'active' ? <Trash2 size={14} /> : <Check size={14} />}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-1.5 mb-3">
-              <p className="text-xs font-medium text-muted-foreground">الشرائح:</p>
-              {s.tiers.map((t, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm bg-muted/50 rounded-lg px-3 py-1.5">
-                  <span className="text-muted-foreground">من {t.from} إلى {t.to === 9999 ? '∞' : t.to}</span>
-                  <span className="mr-auto font-semibold text-primary">{t.pricePerOrder} ر.س/طلب</span>
-                </div>
-              ))}
-            </div>
-            {s.targetBonus && (
-              <div className="bg-success/10 rounded-lg px-3 py-2 text-sm">
-                <span className="text-success font-medium">🎯 Target Bonus:</span> عند {s.targetBonus.target} طلب → +{s.targetBonus.bonus} ر.س
-              </div>
-            )}
-          </div>
-        ))}
+      <div>
+        <h3 className="text-lg font-semibold text-foreground">إدارة سكيمات الرواتب</h3>
+        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+          يمكنك إنشاء وتعديل سكيمات الرواتب وشرائح الأسعار والمستهدفات من صفحة السكيمات المخصصة.
+        </p>
       </div>
-
-      <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'تعديل السكيمة' : 'إضافة سكيمة جديدة'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>اسم السكيمة *</Label>
-                <Input value={name} onChange={e => setName(e.target.value)} placeholder="سكيمة هنقر Q2 2025" />
-              </div>
-              <div className="space-y-2">
-                <Label>التطبيق *</Label>
-                <Select value={app} onValueChange={setApp}>
-                  <SelectTrigger><SelectValue placeholder="اختر التطبيق" /></SelectTrigger>
-                  <SelectContent>{appsList.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>شرائح الأسعار</Label>
-                <Button size="sm" variant="outline" onClick={addTier} className="gap-1 h-7 text-xs"><Plus size={12} /> إضافة شريحة</Button>
-              </div>
-              {tiers.map((t, i) => (
-                <div key={i} className="flex items-center gap-2 bg-muted/50 rounded-lg p-2">
-                  <div className="flex-1 grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">من</p>
-                      <Input type="number" value={t.from} onChange={e => updateTier(i, 'from', +e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">إلى</p>
-                      <Input type="number" value={t.to} onChange={e => updateTier(i, 'to', +e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">ر.س/طلب</p>
-                      <Input type="number" step="0.5" value={t.pricePerOrder} onChange={e => updateTier(i, 'pricePerOrder', +e.target.value)} className="h-8 text-sm" />
-                    </div>
-                  </div>
-                  {tiers.length > 1 && (
-                    <button onClick={() => removeTier(i)} className="text-destructive hover:text-destructive/80 p-1"><X size={14} /></button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-3 border border-border/50 rounded-lg p-3">
-              <div className="flex items-center justify-between">
-                <Label>مكافأة الهدف (Target Bonus)</Label>
-                <Switch checked={hasTarget} onCheckedChange={setHasTarget} />
-              </div>
-              {hasTarget && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">عدد الطلبات المستهدف</Label>
-                    <Input type="number" value={targetOrders} onChange={e => setTargetOrders(+e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">قيمة المكافأة (ر.س)</Label>
-                    <Input type="number" value={targetBonus} onChange={e => setTargetBonusVal(+e.target.value)} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowModal(false)}>إلغاء</Button>
-            <Button onClick={handleSave}>{editing ? 'حفظ التعديلات' : 'إضافة السكيمة'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <Button onClick={() => navigate('/settings/schemes')} className="gap-2">
+        <ExternalLink size={16} /> الانتقال إلى صفحة السكيمات
+      </Button>
     </div>
   );
 };

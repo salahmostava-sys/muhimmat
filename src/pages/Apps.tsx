@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { invalidateAppColorsCache } from '@/hooks/useAppColors';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface AppData {
   id: string;
