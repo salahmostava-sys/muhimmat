@@ -1394,6 +1394,7 @@ const Salaries = () => {
                    <td className={`${tfClass} text-success`}>{totals.totalAdditions.toLocaleString()}</td>
                    <td className={`${tfClass} text-primary border-l border-border/30`}>{totals.totalWithSalary.toLocaleString()}</td>
                    <td className={`${tfClass} text-destructive`}>{totals.advance.toLocaleString()}</td>
+                   <td className={`${tfClass} text-warning`}>—</td>
                    <td className={`${tfClass} text-destructive`}>{totals.externalDed.toLocaleString()}</td>
                    <td className={`${tfClass} text-destructive`}>{totals.violations.toLocaleString()}</td>
                    <td className={`${tfClass} text-destructive`}>{totals.walletH.toLocaleString()}</td>
