@@ -198,11 +198,11 @@
   }
 
   .ta-td {
-    @apply px-4 py-2 text-sm text-foreground;
+    @apply px-4 py-1.5 text-sm text-foreground;
   }
 
   .ta-td-center {
-    @apply px-4 py-2 text-sm text-foreground text-center;
+    @apply px-4 py-1.5 text-sm text-foreground text-center;
   }
 
   /* ─── Page header ────────────────────────────────────────────── */
