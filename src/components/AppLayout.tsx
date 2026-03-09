@@ -25,6 +25,8 @@ interface AppLayoutProps {
 const routeTitles: Record<string, string> = {
   '/': 'dashboard',
   '/employees': 'employees',
+  '/departments': 'departments',
+  '/positions': 'positions',
   '/attendance': 'attendance',
   '/orders': 'orders',
   '/salaries': 'payroll',
@@ -34,6 +36,7 @@ const routeTitles: Record<string, string> = {
   '/fuel': 'fuel',
   '/apps': 'apps',
   '/alerts': 'alerts',
+  '/reports': 'reports',
   '/analytics': 'analytics',
   '/violation-resolver': 'violationResolver',
   '/activity-log': 'activityLog',
