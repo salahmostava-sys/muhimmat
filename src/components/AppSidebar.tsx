@@ -40,6 +40,7 @@ const AppSidebar = () => {
         { label: t('apps'), icon: Smartphone, path: '/apps' },
         { label: t('alerts'), icon: Bell, path: '/alerts' },
         { label: t('analytics'), icon: TrendingUp, path: '/analytics' },
+        { label: t('activityLog'), icon: Activity, path: '/activity-log' },
       ],
     },
     {
