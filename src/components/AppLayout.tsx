@@ -36,6 +36,7 @@ const routeTitles: Record<string, string> = {
   '/alerts': 'alerts',
   '/analytics': 'analytics',
   '/violation-resolver': 'violationResolver',
+  '/activity-log': 'activityLog',
   '/settings/schemes': 'schemes',
   '/settings/users': 'users',
   '/settings/general': 'generalSettings',
