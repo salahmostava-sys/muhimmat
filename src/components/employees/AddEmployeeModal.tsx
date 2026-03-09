@@ -57,12 +57,17 @@ const F = ({ label, required, error, children }: { label: string; required?: boo
   </div>
 );
 
-const UploadArea = ({ label, icon, file, existingUrl, onFile, onRemove }: {
-  label: string; icon: string; file: File | null; existingUrl?: string | null;
+// ─── Secure Upload Area — uses signed URLs for existing private docs ──────────
+const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }: {
+  label: string; icon: string; file: File | null; existingStoragePath?: string | null;
   onFile: (f: File) => void; onRemove: () => void;
 }) => {
   const ref = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
+
+  // Generate a signed URL for existing document (private bucket)
+  const storagePath = extractStoragePath(existingStoragePath);
+  const signedUrl = useSignedUrl('employee-documents', storagePath);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDrag(false);
@@ -70,7 +75,7 @@ const UploadArea = ({ label, icon, file, existingUrl, onFile, onRemove }: {
     if (f) onFile(f);
   };
 
-  const hasContent = file || existingUrl;
+  const hasContent = file || existingStoragePath;
 
   return (
     <div className="flex-1 min-w-[130px]">
@@ -88,10 +93,12 @@ const UploadArea = ({ label, icon, file, existingUrl, onFile, onRemove }: {
               file.type.startsWith('image/')
                 ? <img src={URL.createObjectURL(file)} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
                 : <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-2xl">📄</div>
-            ) : existingUrl ? (
-              <img src={existingUrl} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
+            ) : signedUrl ? (
+              <img src={signedUrl} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
+            ) : existingStoragePath ? (
+              <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-xl">📄</div>
             ) : null}
-            <p className="text-xs text-foreground truncate max-w-[120px] mx-auto">{file ? file.name : 'مرفوع مسبقاً'}</p>
+            <p className="text-xs text-foreground truncate max-w-[120px] mx-auto">{file ? file.name : 'مرفوع مسبقاً 🔒'}</p>
             <button type="button" onClick={e => { e.stopPropagation(); onRemove(); }} className="text-xs text-destructive hover:underline flex items-center gap-1 mx-auto">
               <Trash2 size={10} /> حذف
             </button>
