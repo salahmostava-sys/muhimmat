@@ -215,9 +215,13 @@ const Employees = () => {
     setLoading(true);
     const { data: rows, error } = await supabase
       .from('employees')
-      .select('*')
+      .select('*, departments(id, name), positions(id, name)')
       .order('name', { ascending: true });
-    if (!error && rows) setData(rows as Employee[]);
+    if (!error && rows) setData(rows.map(r => ({
+      ...r,
+      department: (r as any).departments ?? null,
+      position: (r as any).positions ?? null,
+    })) as Employee[]);
     else if (error) toast({ title: t('errorLoading'), description: error.message, variant: 'destructive' });
     setLoading(false);
   }, [toast, t]);
