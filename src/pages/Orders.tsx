@@ -367,7 +367,7 @@ const SpreadsheetGrid = () => {
                 const rowBg = idx % 2 === 0 ? 'hsl(var(--card))' : 'hsl(var(--muted)/0.05)';
 
                 return (
-                  <>
+                  <React.Fragment key={emp.id}>
                     {/* Main employee row */}
                     <tr key={emp.id}
                       className={`border-b border-border/30 select-none
