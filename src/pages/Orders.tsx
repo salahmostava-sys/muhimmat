@@ -684,17 +684,18 @@ const Orders = () => {
     XLSX.writeFile(wb, 'template_orders.xlsx');
   };
 
+  const { lang } = useLanguage();
   return (
-  <div className="space-y-3" dir="rtl">
+  <div className="space-y-3" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
     <div className="flex items-center justify-between gap-3 flex-wrap">
       <div>
         <nav className="page-breadcrumb">
-          <span>الرئيسية</span>
+          <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
           <span className="page-breadcrumb-sep">/</span>
-          <span>الطلبات اليومية</span>
+          <span>{lang === 'ar' ? 'الطلبات اليومية' : 'Daily Orders'}</span>
         </nav>
         <h1 className="page-title flex items-center gap-2">
-          <Package size={18} /> الطلبات اليومية
+          <Package size={18} /> {lang === 'ar' ? 'الطلبات اليومية' : 'Daily Orders'}
         </h1>
       </div>
       <DropdownMenu>
