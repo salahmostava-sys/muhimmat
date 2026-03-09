@@ -619,7 +619,7 @@ const Salaries = () => {
       const [empRes, extRes, ordersRes, appsWithSchemeRes] = await Promise.all([
         supabase
           .from('employees')
-          .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language')
+          .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone')
           .eq('status', 'active')
           .order('name'),
 
