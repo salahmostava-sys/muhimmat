@@ -998,6 +998,11 @@ const Salaries = () => {
 
       updateRow(row.id, { status: 'paid', isDirty: false });
       toast({ title: '✅ تم الصرف وحفظ سجل الراتب' });
+      if (row.phone) {
+        const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
+        sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\n✅ تم صرف راتبك لشهر ${monthLabel}\nالمبلغ: ${computeRow(row).netSalary.toLocaleString()} ر.س\n\nشكراً لجهودك.`)
+          .then(ok => { if (!ok) toast({ title: 'تعذّر إرسال إشعار واتساب' }); });
+      }
     } catch (err: any) {
       toast({ title: 'خطأ أثناء الصرف', description: err.message, variant: 'destructive' });
     }
