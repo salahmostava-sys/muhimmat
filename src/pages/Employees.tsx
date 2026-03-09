@@ -519,6 +519,12 @@ const Employees = () => {
                     <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap" dir="ltr">{emp.phone || '—'}</td>
                     <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.job_title || '—'}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="text-xs text-muted-foreground">{emp.department?.name || '—'}</span>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className="text-xs text-muted-foreground">{emp.position?.name || '—'}</span>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <InlineSelect
                         value={emp.city || ''}
                         options={[{ value: 'makkah', label: t('makkah') }, { value: 'jeddah', label: t('jeddah') }]}
