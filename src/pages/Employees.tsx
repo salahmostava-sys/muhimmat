@@ -488,7 +488,7 @@ const Employees = () => {
                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={18} className="text-center py-16">
+                  <td colSpan={21} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <span className="text-4xl">👥</span>
                       <p className="font-medium">{t('noEmployees')}</p>
