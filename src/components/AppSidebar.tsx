@@ -39,7 +39,7 @@ const AppSidebar = () => {
         { label: t('attendance'), icon: Clock, path: '/attendance' },
         { label: t('apps'), icon: Smartphone, path: '/apps' },
         { label: t('alerts'), icon: Bell, path: '/alerts' },
-        { label: 'التحليلات', icon: TrendingUp, path: '/analytics' },
+        { label: t('analytics'), icon: TrendingUp, path: '/analytics' },
       ],
     },
     {
@@ -55,10 +55,10 @@ const AppSidebar = () => {
       sectionLabel: t('operations'),
       items: [
         { label: t('orders'), icon: Package, path: '/orders' },
-        { label: 'بيانات المركبات', icon: Bike, path: '/motorcycles' },
-        { label: 'تسليم العهد', icon: FileDown, path: '/vehicle-assignment' },
-        { label: 'بيانات الاستهلاك', icon: Fuel, path: '/fuel' },
-        { label: 'مُحقق المخالفات', icon: FileWarning, path: '/violation-resolver' },
+        { label: t('vehicles'), icon: Bike, path: '/motorcycles' },
+        { label: t('vehicleAssignment'), icon: FileDown, path: '/vehicle-assignment' },
+        { label: t('fuel'), icon: Fuel, path: '/fuel' },
+        { label: t('violationResolver'), icon: FileWarning, path: '/violation-resolver' },
       ],
     },
     {
@@ -66,7 +66,7 @@ const AppSidebar = () => {
       sectionLabel: t('settings'),
       items: [
         { label: t('schemes'), icon: Settings, path: '/settings/schemes' },
-        { label: 'المستخدمون والصلاحيات', icon: Users, path: '/settings/users' },
+        { label: t('users'), icon: Users, path: '/settings/users' },
         { label: t('generalSettings'), icon: Settings2, path: '/settings/general' },
       ],
     },

@@ -208,12 +208,15 @@ const resources = {
       orders: 'Daily Orders',
       vehicles: 'Vehicle Data',
       vehicleTracking: 'Vehicle Tracking',
+      vehicleAssignment: 'Vehicle Assignment',
       fuel: 'Fuel & Mileage',
       schemes: 'Salary Schemes',
       users: 'Users',
       permissions: 'Permissions',
       reports: 'Reports',
       settings: 'Settings',
+      analytics: 'Analytics',
+      violationResolver: 'Violation Resolver',
 
       // ─── Departments ─────────────────────────────────────────
       hr: 'Human Resources',

@@ -29,80 +29,70 @@ const Analytics = () => {
     const load = async () => {
       setLoading(true);
 
-      const [appsRes, empRes, salRes] = await Promise.all([
+      // ── Step 1: Parallel initial fetches ──
+      const [appsRes, empRes, salRes, prevOrdersRes, empOrdersRes, empNamesRes] = await Promise.all([
         supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true),
         supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('salary_records').select('net_salary').eq('month_year', currentMonth).eq('is_approved', true),
+        supabase.from('daily_orders').select('orders_count').gte('date', `${prevMonth}-01`).lte('date', `${prevMonth}-31`),
+        supabase.from('daily_orders').select('employee_id, orders_count, app_id').gte('date', `${currentMonth}-01`).lte('date', `${currentMonth}-31`),
+        supabase.from('employees').select('id, name').eq('status', 'active'),
       ]);
 
       setTotalEmployees(empRes.count || 0);
       setTotalSalariesPaid(salRes.data?.reduce((s, r) => s + (r.net_salary || 0), 0) || 0);
+      setPrevMonthOrders(prevOrdersRes.data?.reduce((s, r) => s + r.orders_count, 0) || 0);
 
       const apps = appsRes.data || [];
+      const appMap = Object.fromEntries(apps.map(a => [a.id, { name: a.name, color: a.brand_color }]));
+      const empMap = Object.fromEntries((empNamesRes.data || []).map(e => [e.id, e.name]));
 
-      // Per-app orders this month
-      const appStatsData: AppStat[] = await Promise.all(
-        apps.map(async app => {
-          const { data } = await supabase
-            .from('daily_orders')
-            .select('orders_count')
-            .eq('app_id', app.id)
-            .gte('date', `${currentMonth}-01`)
-            .lte('date', `${currentMonth}-31`);
-          const orders = data?.reduce((s, r) => s + r.orders_count, 0) || 0;
-          return { ...app, orders };
-        })
-      );
-      setAppStats(appStatsData.sort((a, b) => b.orders - a.orders));
+      // ── Step 2: Per-app orders + monthly trend in parallel ──
+      const trendMonths = Array.from({ length: MONTHS_BACK }, (_, i) => {
+        const d = subMonths(new Date(), MONTHS_BACK - 1 - i);
+        return {
+          label: format(d, 'MMM yy'),
+          start: format(startOfMonth(d), 'yyyy-MM-dd'),
+          end: format(endOfMonth(d), 'yyyy-MM-dd'),
+        };
+      });
+
+      const [appOrderResults, ...trendResults] = await Promise.all([
+        // Per-app aggregation from already-fetched empOrdersRes
+        Promise.resolve(apps.map(app => {
+          const appOrders = (empOrdersRes.data || [])
+            .filter(o => o.app_id === app.id)
+            .reduce((s, r) => s + r.orders_count, 0);
+          return { ...app, orders: appOrders };
+        })),
+        ...trendMonths.map(m =>
+          supabase.from('daily_orders').select('orders_count').gte('date', m.start).lte('date', m.end)
+        ),
+      ]);
+
+      const appStatsData = (appOrderResults as AppStat[]).sort((a, b) => b.orders - a.orders);
+      setAppStats(appStatsData);
       setTotalOrders(appStatsData.reduce((s, a) => s + a.orders, 0));
 
-      // Previous month orders for trend
-      const { data: prevOrders } = await supabase
-        .from('daily_orders')
-        .select('orders_count')
-        .gte('date', `${prevMonth}-01`)
-        .lte('date', `${prevMonth}-31`);
-      setPrevMonthOrders(prevOrders?.reduce((s, r) => s + r.orders_count, 0) || 0);
-
-      // Top riders this month
-      const { data: empOrders } = await supabase
-        .from('daily_orders')
-        .select('employee_id, orders_count, app_id')
-        .gte('date', `${currentMonth}-01`)
-        .lte('date', `${currentMonth}-31`);
-
-      const { data: empNames } = await supabase.from('employees').select('id, name').eq('status', 'active');
-      const empMap = Object.fromEntries((empNames || []).map(e => [e.id, e.name]));
-      const appMap = Object.fromEntries(apps.map(a => [a.id, { name: a.name, color: a.brand_color }]));
-
+      // Top riders
       const riderTotals: Record<string, { orders: number; app: string; appColor: string }> = {};
-      (empOrders || []).forEach(o => {
+      (empOrdersRes.data || []).forEach(o => {
         if (!riderTotals[o.employee_id]) {
           riderTotals[o.employee_id] = { orders: 0, app: appMap[o.app_id]?.name || '—', appColor: appMap[o.app_id]?.color || '#888' };
         }
         riderTotals[o.employee_id].orders += o.orders_count;
       });
-
       const topList = Object.entries(riderTotals)
         .map(([id, v]) => ({ id, name: empMap[id] || 'غير معروف', ...v }))
         .sort((a, b) => b.orders - a.orders)
         .slice(0, 10);
       setTopRiders(topList);
 
-      // Monthly trend (last 6 months)
-      const trend: MonthlyTrend[] = [];
-      for (let i = MONTHS_BACK - 1; i >= 0; i--) {
-        const m = format(subMonths(new Date(), i), 'yyyy-MM');
-        const mLabel = format(subMonths(new Date(), i), 'MMM yy');
-        const start = format(startOfMonth(subMonths(new Date(), i)), 'yyyy-MM-dd');
-        const end = format(endOfMonth(subMonths(new Date(), i)), 'yyyy-MM-dd');
-        const { data } = await supabase
-          .from('daily_orders')
-          .select('orders_count')
-          .gte('date', start)
-          .lte('date', end);
-        trend.push({ month: mLabel, orders: data?.reduce((s, r) => s + r.orders_count, 0) || 0 });
-      }
+      // Monthly trend
+      const trend: MonthlyTrend[] = trendMonths.map((m, i) => ({
+        month: m.label,
+        orders: (trendResults[i] as any).data?.reduce((s: number, r: any) => s + r.orders_count, 0) || 0,
+      }));
       setMonthlyTrend(trend);
 
       setLoading(false);
