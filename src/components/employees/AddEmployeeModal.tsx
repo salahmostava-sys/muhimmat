@@ -513,19 +513,19 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <div className="flex gap-4">
                 <UploadArea
                   label="الصورة الشخصية" icon="📷"
-                  file={files.personal} existingUrl={editEmployee?.personal_photo_url}
+                  file={files.personal} existingStoragePath={editEmployee?.personal_photo_url}
                   onFile={f => setFiles(p => ({ ...p, personal: f }))}
                   onRemove={() => setFiles(p => ({ ...p, personal: null }))}
                 />
                 <UploadArea
                   label="صورة الهوية" icon="🪪"
-                  file={files.id} existingUrl={editEmployee?.id_photo_url}
+                  file={files.id} existingStoragePath={editEmployee?.id_photo_url}
                   onFile={f => setFiles(p => ({ ...p, id: f }))}
                   onRemove={() => setFiles(p => ({ ...p, id: null }))}
                 />
                 <UploadArea
                   label="صورة الرخصة" icon="🚗"
-                  file={files.license} existingUrl={editEmployee?.license_photo_url}
+                  file={files.license} existingStoragePath={editEmployee?.license_photo_url}
                   onFile={f => setFiles(p => ({ ...p, license: f }))}
                   onRemove={() => setFiles(p => ({ ...p, license: null }))}
                 />
