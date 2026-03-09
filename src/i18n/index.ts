@@ -218,6 +218,7 @@ const resources = {
       settings: 'Settings',
       analytics: 'Analytics',
       violationResolver: 'Violation Resolver',
+      activityLog: 'Activity Log',
 
       // ─── Departments ─────────────────────────────────────────
       hr: 'Human Resources',
