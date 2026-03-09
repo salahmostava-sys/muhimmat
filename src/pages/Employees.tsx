@@ -456,8 +456,19 @@ const Employees = () => {
             <SelectItem value="safe">{t('residencySafe')}</SelectItem>
           </SelectContent>
         </Select>
-        {(statusFilter !== 'all' || salaryTypeFilter !== 'all' || residencyFilter !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setStatusFilter('all'); setSalaryTypeFilter('all'); setResidencyFilter('all'); }}>
+        {departments.length > 0 && (
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الأقسام</SelectItem>
+              {departments.map(d => (
+                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {(statusFilter !== 'all' || salaryTypeFilter !== 'all' || residencyFilter !== 'all' || departmentFilter !== 'all') && (
+          <Button variant="ghost" size="sm" onClick={() => { setStatusFilter('all'); setSalaryTypeFilter('all'); setResidencyFilter('all'); setDepartmentFilter('all'); }}>
             {t('clearAll')}
           </Button>
         )}
