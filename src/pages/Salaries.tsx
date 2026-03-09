@@ -67,6 +67,7 @@ interface SalaryRow {
   status: 'pending' | 'approved' | 'paid';
   isDirty?: boolean;
   preferredLanguage: SlipLanguage;
+  phone?: string | null;
 }
 
 interface SchemeData {
