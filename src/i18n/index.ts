@@ -22,12 +22,15 @@ const resources = {
       orders: 'الطلبات اليومية',
       vehicles: 'بيانات المركبات',
       vehicleTracking: 'تتبع المركبات',
+      vehicleAssignment: 'تسليم العهد',
       fuel: 'الوقود والكيلومترات',
       schemes: 'السكيمات',
       users: 'المستخدمون',
       permissions: 'الصلاحيات',
       reports: 'التقارير',
       settings: 'الإعدادات',
+      analytics: 'التحليلات',
+      violationResolver: 'مُحقق المخالفات',
 
       // ─── Departments ─────────────────────────────────────────
       hr: 'الموارد البشرية',
