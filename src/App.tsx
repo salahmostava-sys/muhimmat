@@ -73,28 +73,31 @@ const App = () => (
                                 <Suspense fallback={<PageLoader />}>
                                   <Routes>
                                     <Route path="/" element={<Dashboard />} />
-                                    <Route path="/employees" element={<Employees />} />
-                                    <Route path="/attendance" element={<Attendance />} />
-                                    <Route path="/orders" element={<Orders />} />
-                                    <Route path="/salaries" element={<Salaries />} />
-                                    <Route path="/advances" element={<Advances />} />
-                                    <Route path="/motorcycles" element={<Motorcycles />} />
-                                    <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
-                                    <Route path="/fuel" element={<FuelPage />} />
-                                    <Route path="/apps" element={<Apps />} />
-                                    <Route path="/alerts" element={<Alerts />} />
-                                    <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
-                                    <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
-                                    <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
-                                    <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
-                                    <Route path="/deductions" element={<Navigate to="/advances" replace />} />
-                                    <Route path="/settings/schemes" element={<SalarySchemes />} />
-                                    <Route path="/settings/users" element={<UsersAndPermissions />} />
-                                    <Route path="/settings/general" element={<GeneralSettings />} />
-                                    <Route path="/analytics" element={<Analytics />} />
-                                    <Route path="/violation-resolver" element={<ViolationResolver />} />
-                                    <Route path="/activity-log" element={<ActivityLog />} />
-                                    <Route path="*" element={<NotFound />} />
+                                     <Route path="/employees" element={<Employees />} />
+                                     <Route path="/departments" element={<Departments />} />
+                                     <Route path="/positions" element={<Positions />} />
+                                     <Route path="/attendance" element={<Attendance />} />
+                                     <Route path="/orders" element={<Orders />} />
+                                     <Route path="/salaries" element={<Salaries />} />
+                                     <Route path="/advances" element={<Advances />} />
+                                     <Route path="/motorcycles" element={<Motorcycles />} />
+                                     <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
+                                     <Route path="/fuel" element={<FuelPage />} />
+                                     <Route path="/apps" element={<Apps />} />
+                                     <Route path="/alerts" element={<Alerts />} />
+                                     <Route path="/reports" element={<Reports />} />
+                                     <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
+                                     <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
+                                     <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
+                                     <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
+                                     <Route path="/deductions" element={<Navigate to="/advances" replace />} />
+                                     <Route path="/settings/schemes" element={<SalarySchemes />} />
+                                     <Route path="/settings/users" element={<UsersAndPermissions />} />
+                                     <Route path="/settings/general" element={<GeneralSettings />} />
+                                     <Route path="/analytics" element={<Analytics />} />
+                                     <Route path="/violation-resolver" element={<ViolationResolver />} />
+                                     <Route path="/activity-log" element={<ActivityLog />} />
+                                     <Route path="*" element={<NotFound />} />
                                   </Routes>
                                 </Suspense>
                               </ErrorBoundary>
