@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, User, FileText, Wallet, Bike, CreditCard, Clock, Package, DollarSign } from 'lucide-react';
+import { ArrowRight, User, FileText, Wallet, Bike, CreditCard, Clock, Package, DollarSign, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Employee {
@@ -97,6 +98,46 @@ const installmentStatusLabel: Record<string, string> = {
   deducted: 'مخصوم', pending: 'معلّق', deferred: 'مؤجل',
 };
 
+// ─── Secure Document Thumbnail ────────────────────────────────────────────────
+// Uses signed URLs for private employee-documents bucket
+const SecureDocThumb = ({
+  storagePath, label,
+}: { storagePath: string | null | undefined; label: string }) => {
+  const path = extractStoragePath(storagePath);
+  const signedUrl = useSignedUrl('employee-documents', path);
+
+  if (!path) return null;
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {signedUrl ? (
+        <a href={signedUrl} target="_blank" rel="noreferrer" className="group">
+          <img
+            src={signedUrl}
+            className="w-20 h-20 object-cover rounded-lg border border-border group-hover:opacity-80 transition-opacity"
+            alt={label}
+          />
+        </a>
+      ) : (
+        <div className="w-20 h-20 rounded-lg border border-border bg-muted flex items-center justify-center">
+          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+        </div>
+      )}
+      <p className="text-xs text-center text-muted-foreground">{label}</p>
+      {signedUrl && (
+        <a
+          href={signedUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-0.5 text-[10px] text-primary hover:underline"
+        >
+          <ExternalLink size={9} /> فتح
+        </a>
+      )}
+    </div>
+  );
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const EmployeeProfile = ({ employee, onBack }: Props) => {
   const [activeTab, setActiveTab] = useState('basic');
@@ -105,6 +146,10 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
   const [employeeApps, setEmployeeApps] = useState<EmployeeApp[]>([]);
   const [expandedAdv, setExpandedAdv] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Signed URL for personal photo (used in profile header)
+  const personalPhotoPath = extractStoragePath(employee.personal_photo_url);
+  const personalPhotoSigned = useSignedUrl('employee-documents', personalPhotoPath);
 
   const residencyDays = employee.residency_expiry
     ? differenceInDays(parseISO(employee.residency_expiry), new Date())
@@ -150,10 +195,17 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
       <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
         <div className="flex items-start gap-5 flex-wrap">
           <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0">
-            {employee.personal_photo_url
-              ? <img src={employee.personal_photo_url} className="w-full h-full object-cover" alt="" />
-              : <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold">{employee.name.charAt(0)}</div>
-            }
+            {personalPhotoSigned ? (
+              <img src={personalPhotoSigned} className="w-full h-full object-cover" alt="" />
+            ) : employee.personal_photo_url ? (
+              <div className="w-full h-full bg-muted flex items-center justify-center">
+                <Loader2 size={16} className="animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold">
+                {employee.name.charAt(0)}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
@@ -219,6 +271,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
               )}
               {((employee as any).birth_date || employee.dob) && <InfoField label="تاريخ الميلاد" value={(employee as any).birth_date || employee.dob} />}
               {employee.city && <InfoField label="المدينة" value={employee.city === 'makkah' ? 'مكة المكرمة' : 'جدة'} />}
+              {employee.job_title && <InfoField label="المسمى الوظيفي" value={employee.job_title} />}
               {employee.join_date && <InfoField label="تاريخ الانضمام" value={employee.join_date} />}
               {employee.sponsorship_status && (
                 <InfoField label="حالة الكفالة" value={{
@@ -231,7 +284,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
           </div>
         </TabsContent>
 
-        {/* Tab 2: Documents */}
+        {/* Tab 2: Documents — uses Signed URLs for private bucket */}
         <TabsContent value="docs">
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
             <h3 className="font-semibold text-foreground mb-5">الوثائق والتواريخ</h3>
@@ -256,27 +309,17 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                 }[employee.license_status] || employee.license_status} />
               )}
             </div>
-            {/* Document thumbnails */}
+
+            {/* Secure document thumbnails — signed URLs only */}
             <div className="mt-5 flex gap-4 flex-wrap">
-              {employee.personal_photo_url && (
-                <a href={employee.personal_photo_url} target="_blank" rel="noreferrer" className="group">
-                  <img src={employee.personal_photo_url} className="w-20 h-20 object-cover rounded-lg border border-border group-hover:opacity-80 transition-opacity" alt="الصورة الشخصية" />
-                  <p className="text-xs text-center text-muted-foreground mt-1">الصورة الشخصية</p>
-                </a>
-              )}
-              {employee.id_photo_url && (
-                <a href={employee.id_photo_url} target="_blank" rel="noreferrer" className="group">
-                  <img src={employee.id_photo_url} className="w-20 h-20 object-cover rounded-lg border border-border group-hover:opacity-80 transition-opacity" alt="صورة الهوية" />
-                  <p className="text-xs text-center text-muted-foreground mt-1">صورة الهوية</p>
-                </a>
-              )}
-              {employee.license_photo_url && (
-                <a href={employee.license_photo_url} target="_blank" rel="noreferrer" className="group">
-                  <img src={employee.license_photo_url} className="w-20 h-20 object-cover rounded-lg border border-border group-hover:opacity-80 transition-opacity" alt="صورة الرخصة" />
-                  <p className="text-xs text-center text-muted-foreground mt-1">صورة الرخصة</p>
-                </a>
-              )}
+              <SecureDocThumb storagePath={employee.personal_photo_url} label="الصورة الشخصية" />
+              <SecureDocThumb storagePath={employee.id_photo_url} label="صورة الهوية" />
+              <SecureDocThumb storagePath={employee.license_photo_url} label="صورة الرخصة" />
             </div>
+
+            <p className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1">
+              🔒 الوثائق محمية بروابط مؤقتة (5 دقائق)
+            </p>
           </div>
         </TabsContent>
 
