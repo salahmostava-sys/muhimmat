@@ -281,6 +281,7 @@ const Employees = () => {
     const matchSearch = !q || e.name.toLowerCase().includes(q) || (e.phone || '').includes(q) || (e.national_id || '').includes(q);
     const matchStatus = statusFilter === 'all' || e.status === statusFilter;
     const matchSalary = salaryTypeFilter === 'all' || e.salary_type === salaryTypeFilter;
+    const matchDept = departmentFilter === 'all' || e.department?.id === departmentFilter;
     let matchRes = true;
     if (residencyFilter !== 'all' && e.residency_expiry) {
       const days = differenceInDays(parseISO(e.residency_expiry), new Date());
@@ -288,7 +289,7 @@ const Employees = () => {
       else if (residencyFilter === 'warning') matchRes = days >= 30 && days < 60;
       else if (residencyFilter === 'safe') matchRes = days >= 60;
     }
-    return matchSearch && matchStatus && matchSalary && matchRes;
+    return matchSearch && matchStatus && matchSalary && matchDept && matchRes;
   }).sort((a, b) => {
     if (!sortField || !sortDir) return 0;
     let va: any, vb: any;
