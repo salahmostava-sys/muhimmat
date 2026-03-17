@@ -1,12 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
-  Search, Plus, Download, Printer, Eye, Edit, Trash2,
-  ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2
+  Search, Plus, Download, Eye, Edit, Trash2,
+  ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
+  Columns, Filter, X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel
+} from '@/components/ui/dropdown-menu';
 import { useLanguage } from '@/context/LanguageContext';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -23,7 +27,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 type Employee = {
   id: string;
   name: string;
@@ -47,80 +51,74 @@ type Employee = {
   base_salary: number;
   nationality?: string | null;
   preferred_language?: string | null;
-  department?: { id: string; name: string } | null;
-  position?: { id: string; name: string } | null;
   trade_register?: { id: string; name: string } | null;
 };
 
-type SortField =
-  | 'name' | 'national_id' | 'phone' | 'job_title' | 'email' | 'city'
-  | 'join_date' | 'residency_expiry' | 'days_residency' | 'residency_status'
-  | 'license_status' | 'sponsorship_status' | 'bank_account_number' | 'status';
+type SortField = keyof Employee | 'days_residency' | 'residency_status';
 type SortDir = 'asc' | 'desc' | null;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Column definitions ───────────────────────────────────────────────────────
+const ALL_COLUMNS = [
+  { key: 'seq',                  label: '#',                    sortable: false },
+  { key: 'name',                 label: 'الاسم',                sortable: true  },
+  { key: 'national_id',          label: 'رقم الهوية',           sortable: true  },
+  { key: 'job_title',            label: 'المسمى الوظيفي',       sortable: true  },
+  { key: 'city',                 label: 'المدينة',              sortable: true  },
+  { key: 'phone',                label: 'رقم الهاتف',           sortable: true  },
+  { key: 'nationality',          label: 'الجنسية',              sortable: true  },
+  { key: 'sponsorship_status',   label: 'حالة الكفالة',         sortable: true  },
+  { key: 'join_date',            label: 'تاريخ الانضمام',       sortable: true  },
+  { key: 'birth_date',           label: 'تاريخ الميلاد',        sortable: true  },
+  { key: 'residency_expiry',     label: 'انتهاء الإقامة',       sortable: true  },
+  { key: 'days_residency',       label: 'المتبقي (يوم)',        sortable: true  },
+  { key: 'residency_status',     label: 'حالة الإقامة',         sortable: false },
+  { key: 'license_status',       label: 'حالة الرخصة',          sortable: true  },
+  { key: 'bank_account_number',  label: 'رقم الحساب البنكي',   sortable: false },
+  { key: 'email',                label: 'البريد الإلكتروني',    sortable: false },
+  { key: 'actions',              label: 'الإجراءات',            sortable: false },
+] as const;
+
+type ColKey = typeof ALL_COLUMNS[number]['key'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const calcResidency = (expiry?: string | null) => {
-  if (!expiry) return { days: null, status: 'unknown' as const };
+  if (!expiry) return { days: null as null | number, status: 'unknown' as const };
   const days = differenceInDays(parseISO(expiry), new Date());
-  return { days, status: days >= 0 ? 'valid' : 'expired' };
+  return { days, status: (days >= 0 ? 'valid' : 'expired') as 'valid' | 'expired' };
 };
 
+// ─── Badges ───────────────────────────────────────────────────────────────────
 const CityBadge = ({ city }: { city?: string | null }) => {
-  const { t } = useTranslation();
   if (!city) return <span className="text-muted-foreground/40">—</span>;
   return city === 'makkah'
-    ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-accent text-accent-foreground">{t('makkah')}</span>
-    : <span className="badge-info">{t('jeddah')}</span>;
+    ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-accent text-accent-foreground">مكة</span>
+    : <span className="badge-info">جدة</span>;
 };
 
 const LicenseBadge = ({ status }: { status?: string | null }) => {
-  const { t } = useTranslation();
   if (!status) return <span className="text-muted-foreground/40">—</span>;
-  const map: Record<string, { labelKey: string; cls: string }> = {
-    has_license: { labelKey: 'hasLicense', cls: 'badge-success' },
-    no_license: { labelKey: 'noLicense', cls: 'badge-urgent' },
-    applied: { labelKey: 'applied', cls: 'badge-warning' },
+  const map: Record<string, { label: string; cls: string }> = {
+    has_license: { label: 'لديه رخصة',      cls: 'badge-success' },
+    no_license:  { label: 'ليس لديه رخصة',  cls: 'badge-urgent'  },
+    applied:     { label: 'تم التقديم',      cls: 'badge-warning' },
   };
   const m = map[status];
-  return m ? <span className={m.cls}>{t(m.labelKey)}</span> : null;
+  return m ? <span className={m.cls}>{m.label}</span> : null;
 };
 
 const SponsorBadge = ({ status }: { status?: string | null }) => {
-  const { t } = useTranslation();
   if (!status) return <span className="text-muted-foreground/40">—</span>;
-  const map: Record<string, { labelKey: string; cls: string }> = {
-    sponsored: { labelKey: 'sponsored', cls: 'badge-info' },
-    not_sponsored: { labelKey: 'notSponsored', cls: 'bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded-full' },
-    absconded: { labelKey: 'absconded', cls: 'badge-urgent' },
-    terminated: { labelKey: 'terminated', cls: 'bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded-full' },
+  const map: Record<string, { label: string; cls: string }> = {
+    sponsored:     { label: 'على الكفالة',       cls: 'badge-info'    },
+    not_sponsored: { label: 'ليس على الكفالة',   cls: 'bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded-full' },
+    absconded:     { label: 'هروب',              cls: 'badge-urgent'  },
+    terminated:    { label: 'انتهاء الخدمة',     cls: 'bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded-full' },
   };
   const m = map[status];
-  return m ? <span className={m.cls}>{t(m.labelKey)}</span> : null;
+  return m ? <span className={m.cls}>{m.label}</span> : null;
 };
 
-const StatusBadge = ({ status }: { status: string }) => {
-  const { t } = useTranslation();
-  const map: Record<string, { labelKey: string; cls: string }> = {
-    active: { labelKey: 'active', cls: 'badge-success' },
-    inactive: { labelKey: 'inactive', cls: 'badge-warning' },
-    ended: { labelKey: 'ended', cls: 'badge-urgent' },
-  };
-  const m = map[status];
-  return m ? <span className={m.cls}>{t(m.labelKey)}</span> : null;
-};
-
-const DocIcons = ({ idUrl, licUrl, photoUrl }: { idUrl?: string | null; licUrl?: string | null; photoUrl?: string | null }) => {
-  const { t } = useTranslation();
-  return (
-    <div className="flex gap-1.5">
-      <span title={t('nationalId')} className={idUrl ? 'text-success' : 'text-muted-foreground/30'}>🪪</span>
-      <span title={t('licenseStatus')} className={licUrl ? 'text-success' : 'text-muted-foreground/30'}>🚗</span>
-      <span title={t('photo')} className={photoUrl ? 'text-success' : 'text-muted-foreground/30'}>📷</span>
-    </div>
-  );
-};
-
-// ─── Inline Editable Cell ─────────────────────────────────────────────────────
+// ─── Inline Select ────────────────────────────────────────────────────────────
 interface InlineSelectProps {
   value: string;
   options: { value: string; label: string }[];
@@ -128,7 +126,6 @@ interface InlineSelectProps {
   renderDisplay: () => React.ReactNode;
 }
 const InlineSelect = ({ value, options, onSave, renderDisplay }: InlineSelectProps) => {
-  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -142,8 +139,8 @@ const InlineSelect = ({ value, options, onSave, renderDisplay }: InlineSelectPro
     setTimeout(() => setSaved(false), 1500);
   };
 
-  if (saved) return <span className="text-success text-xs flex items-center gap-1"><Check size={12} /> {t('saved')}</span>;
-  if (saving) return <span className="text-muted-foreground text-xs">{t('saving')}</span>;
+  if (saved)   return <span className="text-success text-xs flex items-center gap-1"><Check size={12} /> تم</span>;
+  if (saving)  return <span className="text-muted-foreground text-xs flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> ...</span>;
 
   if (editing) {
     return (
@@ -161,11 +158,7 @@ const InlineSelect = ({ value, options, onSave, renderDisplay }: InlineSelectPro
   }
 
   return (
-    <div
-      className="group flex items-center gap-1 cursor-pointer"
-      onClick={() => setEditing(true)}
-      title={t('clickToEdit')}
-    >
+    <div className="group flex items-center gap-1 cursor-pointer" onClick={() => setEditing(true)} title="اضغط للتعديل">
       {renderDisplay()}
       <Pencil size={10} className="text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-opacity flex-shrink-0" />
     </div>
@@ -173,19 +166,17 @@ const InlineSelect = ({ value, options, onSave, renderDisplay }: InlineSelectPro
 };
 
 // ─── Sort Icon ────────────────────────────────────────────────────────────────
-const SortIcon = ({ field, sortField, sortDir }: { field: SortField; sortField: SortField | null; sortDir: SortDir }) => {
-  if (sortField !== field) return <ChevronsUpDown size={12} className="text-muted-foreground/40 inline ml-1" />;
-  if (sortDir === 'asc') return <ChevronUp size={12} className="text-primary inline ml-1" />;
-  return <ChevronDown size={12} className="text-primary inline ml-1" />;
+const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: string | null; sortDir: SortDir }) => {
+  if (sortField !== field) return <ChevronsUpDown size={11} className="text-muted-foreground/40 inline ms-1" />;
+  if (sortDir === 'asc')   return <ChevronUp size={11} className="text-primary inline ms-1" />;
+  return <ChevronDown size={11} className="text-primary inline ms-1" />;
 };
 
 // ─── Skeleton Row ─────────────────────────────────────────────────────────────
-const SkeletonRow = () => (
+const SkeletonRow = ({ cols }: { cols: number }) => (
   <tr className="border-b border-border/30">
-    {Array.from({ length: 21 }).map((_, i) => (
-      <td key={i} className="px-3 py-3">
-        <Skeleton className="h-4 w-full" />
-      </td>
+    {Array.from({ length: cols }).map((_, i) => (
+      <td key={i} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
     ))}
   </tr>
 );
@@ -196,51 +187,50 @@ const Employees = () => {
   const { lang } = useLanguage();
   const { toast } = useToast();
   const { permissions } = usePermissions('employees');
-  const [data, setData] = useState<Employee[]>([]);
+
+  const [data, setData]       = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [salaryTypeFilter, setSalaryTypeFilter] = useState('all');
-  const [residencyFilter, setResidencyFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [sortField, setSortField] = useState<SortField | null>('name');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [sortField, setSortField] = useState<string | null>('name');
+  const [sortDir, setSortDir]     = useState<SortDir>('asc');
+
+  // visible columns
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
+    new Set(ALL_COLUMNS.map(c => c.key))
+  );
+
+  // per-column filters
+  const [colFilters, setColFilters] = useState<Record<string, string>>({});
+
+  // modals
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editEmployee, setEditEmployee] = useState<Employee | null>(null);
+  const [showAddModal, setShowAddModal]     = useState(false);
+  const [editEmployee, setEditEmployee]     = useState<Employee | null>(null);
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting]             = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  // ── Fetch departments for filter ──
-  useEffect(() => {
-    supabase.from('departments').select('id, name').order('name').then(({ data: depts }) => {
-      if (depts) setDepartments(depts);
-    });
-  }, []);
-
-  // ── Fetch from Supabase ──
+  // ── Fetch ──
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     const { data: rows, error } = await supabase
       .from('employees')
-      .select('*, departments(id, name), positions(id, name), trade_registers(id, name)')
+      .select('*, trade_registers(id, name)')
       .order('name', { ascending: true });
-    if (!error && rows) setData(rows.map(r => ({
-      ...r,
-      department: (r as any).departments ?? null,
-      position: (r as any).positions ?? null,
-      trade_register: (r as any).trade_registers ?? null,
-    })) as Employee[]);
-    else if (error) toast({ title: t('errorLoading'), description: error.message, variant: 'destructive' });
+    if (!error && rows) {
+      setData(rows.map(r => ({
+        ...r,
+        trade_register: (r as any).trade_registers ?? null,
+      })) as Employee[]);
+    } else if (error) {
+      toast({ title: 'خطأ في تحميل البيانات', description: error.message, variant: 'destructive' });
+    }
     setLoading(false);
-  }, [toast, t]);
+  }, [toast]);
 
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
 
   // ── Sort handler ──
-  const handleSort = (field: SortField) => {
+  const handleSort = (field: string) => {
     if (sortField === field) {
       if (sortDir === 'asc') setSortDir('desc');
       else if (sortDir === 'desc') { setSortField(null); setSortDir(null); }
@@ -251,100 +241,139 @@ const Employees = () => {
     }
   };
 
-  // ── Inline save with optimistic update ──
+  // ── Inline save ──
   const saveField = useCallback(async (id: string, field: string, value: string) => {
     const prev = data.find(e => e.id === id);
-    setData(prev2 => prev2.map(e => e.id === id ? { ...e, [field]: value } : e));
+    setData(d => d.map(e => e.id === id ? { ...e, [field]: value } : e));
     const { error } = await supabase.from('employees').update({ [field]: value }).eq('id', id);
     if (error) {
-      setData(prev2 => prev2.map(e => e.id === id ? { ...e, [field]: (prev as any)?.[field] } : e));
-      toast({ title: t('errorSaving'), description: error.message, variant: 'destructive' });
+      setData(d => d.map(e => e.id === id ? { ...e, [field]: (prev as any)?.[field] } : e));
+      toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
     }
-  }, [data, toast, t]);
+  }, [data, toast]);
 
-  // ── Delete employee ──
+  // ── Delete ──
   const handleDelete = useCallback(async () => {
     if (!deleteEmployee) return;
     setDeleting(true);
     const { error } = await supabase.from('employees').delete().eq('id', deleteEmployee.id);
     if (error) {
-      toast({ title: t('errorDeleting') || 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     } else {
-      setData(prev => prev.filter(e => e.id !== deleteEmployee.id));
-      toast({ title: t('deleted') || 'تم الحذف', description: deleteEmployee.name });
+      setData(d => d.filter(e => e.id !== deleteEmployee.id));
+      toast({ title: 'تم الحذف', description: deleteEmployee.name });
     }
     setDeleting(false);
     setDeleteEmployee(null);
-  }, [deleteEmployee, toast, t]);
+  }, [deleteEmployee, toast]);
+
+  // ── setColFilter helper ──
+  const setColFilter = (key: string, value: string) => {
+    setColFilters(prev => {
+      const next = { ...prev };
+      if (!value || value === 'all') delete next[key];
+      else next[key] = value;
+      return next;
+    });
+  };
+
+  // ── unique values for select filters ──
+  const uniqueVals = useMemo(() => ({
+    city:               [...new Set(data.map(e => e.city).filter(Boolean))] as string[],
+    nationality:        [...new Set(data.map(e => e.nationality).filter(Boolean))] as string[],
+    sponsorship_status: ['sponsored', 'not_sponsored', 'absconded', 'terminated'],
+    license_status:     ['has_license', 'no_license', 'applied'],
+    job_title:          [...new Set(data.map(e => e.job_title).filter(Boolean))] as string[],
+  }), [data]);
 
   // ── Filter + sort ──
-  const filtered = data.filter(e => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || e.name.toLowerCase().includes(q) || (e.phone || '').includes(q) || (e.national_id || '').includes(q);
-    const matchStatus = statusFilter === 'all' || e.status === statusFilter;
-    const matchSalary = salaryTypeFilter === 'all' || e.salary_type === salaryTypeFilter;
-    const matchDept = departmentFilter === 'all' || e.department?.id === departmentFilter;
-    let matchRes = true;
-    if (residencyFilter !== 'all' && e.residency_expiry) {
-      const days = differenceInDays(parseISO(e.residency_expiry), new Date());
-      if (residencyFilter === 'urgent') matchRes = days < 30;
-      else if (residencyFilter === 'warning') matchRes = days >= 30 && days < 60;
-      else if (residencyFilter === 'safe') matchRes = days >= 60;
-    }
-    return matchSearch && matchStatus && matchSalary && matchDept && matchRes;
-  }).sort((a, b) => {
-    if (!sortField || !sortDir) return 0;
-    let va: any, vb: any;
-    switch (sortField) {
-      case 'name': va = a.name; vb = b.name; break;
-      case 'national_id': va = a.national_id || ''; vb = b.national_id || ''; break;
-      case 'phone': va = a.phone || ''; vb = b.phone || ''; break;
-      case 'job_title': va = a.job_title || ''; vb = b.job_title || ''; break;
-      case 'email': va = a.email || ''; vb = b.email || ''; break;
-      case 'join_date': va = a.join_date || ''; vb = b.join_date || ''; break;
-      case 'residency_expiry': va = a.residency_expiry || ''; vb = b.residency_expiry || ''; break;
-      case 'days_residency': {
-        va = a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999;
-        vb = b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999;
-        break;
+  const filtered = useMemo(() => {
+    let rows = data.filter(emp => {
+      const res = calcResidency(emp.residency_expiry);
+
+      for (const [key, val] of Object.entries(colFilters)) {
+        if (!val) continue;
+        switch (key) {
+          case 'name':
+            if (!emp.name.toLowerCase().includes(val.toLowerCase())) return false;
+            break;
+          case 'national_id':
+            if (!(emp.national_id || '').includes(val)) return false;
+            break;
+          case 'phone':
+            if (!(emp.phone || '').includes(val)) return false;
+            break;
+          case 'job_title':
+            if ((emp.job_title || '') !== val) return false;
+            break;
+          case 'city':
+            if ((emp.city || '') !== val) return false;
+            break;
+          case 'nationality':
+            if ((emp.nationality || '') !== val) return false;
+            break;
+          case 'sponsorship_status':
+            if ((emp.sponsorship_status || '') !== val) return false;
+            break;
+          case 'license_status':
+            if ((emp.license_status || '') !== val) return false;
+            break;
+          case 'residency_status': {
+            if (val === 'valid'   && res.status !== 'valid')   return false;
+            if (val === 'expired' && res.status !== 'expired') return false;
+            if (val === 'urgent'  && (res.days === null || res.days >= 30)) return false;
+            break;
+          }
+          case 'email':
+            if (!(emp.email || '').toLowerCase().includes(val.toLowerCase())) return false;
+            break;
+          case 'bank_account_number':
+            if (!(emp.bank_account_number || '').includes(val)) return false;
+            break;
+        }
       }
-      case 'status': va = a.status; vb = b.status; break;
-      case 'license_status': va = a.license_status || ''; vb = b.license_status || ''; break;
-      case 'sponsorship_status': va = a.sponsorship_status || ''; vb = b.sponsorship_status || ''; break;
-      case 'city': va = a.city || ''; vb = b.city || ''; break;
-      case 'bank_account_number': va = a.bank_account_number || ''; vb = b.bank_account_number || ''; break;
-      default: va = (a as any)[sortField] || ''; vb = (b as any)[sortField] || '';
+      return true;
+    });
+
+    if (sortField && sortDir) {
+      rows = [...rows].sort((a, b) => {
+        let va: any, vb: any;
+        if (sortField === 'days_residency') {
+          va = a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999;
+          vb = b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999;
+        } else {
+          va = (a as any)[sortField] ?? '';
+          vb = (b as any)[sortField] ?? '';
+        }
+        if (va < vb) return sortDir === 'asc' ? -1 : 1;
+        if (va > vb) return sortDir === 'asc' ? 1  : -1;
+        return 0;
+      });
     }
-    if (va < vb) return sortDir === 'asc' ? -1 : 1;
-    if (va > vb) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
+    return rows;
+  }, [data, colFilters, sortField, sortDir]);
 
   // ── Export ──
   const handleExport = () => {
-    const rows = filtered.map(e => {
+    const rows = filtered.map((e, i) => {
       const { days, status } = calcResidency(e.residency_expiry);
       return {
+        '#': i + 1,
         'الاسم': e.name,
-        'كود الموظف': e.employee_code || '',
         'رقم الهوية': e.national_id || '',
-        'رقم الهاتف': e.phone || '',
-        'البريد الإلكتروني': e.email || '',
-        'المدينة': e.city === 'makkah' ? 'مكة' : e.city === 'jeddah' ? 'جدة' : '',
-        'الجنسية': e.nationality || '',
         'المسمى الوظيفي': e.job_title || '',
-        'القسم': e.department?.name || '',
-        'المسمى التفصيلي': e.position?.name || '',
+        'المدينة': e.city === 'makkah' ? 'مكة' : e.city === 'jeddah' ? 'جدة' : '',
+        'رقم الهاتف': e.phone || '',
+        'الجنسية': e.nationality || '',
+        'حالة الكفالة': { sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة', absconded: 'هروب', terminated: 'انتهاء الخدمة' }[e.sponsorship_status || ''] || '',
         'تاريخ الانضمام': e.join_date || '',
         'تاريخ الميلاد': e.birth_date || '',
-        'تاريخ انتهاء الإقامة': e.residency_expiry || '',
+        'انتهاء الإقامة': e.residency_expiry || '',
         'المتبقي (يوم)': days ?? '',
         'حالة الإقامة': status === 'valid' ? 'صالحة' : status === 'expired' ? 'منتهية' : '',
-        'الرخصة': { has_license: 'لديه رخصة', no_license: 'ليس لديه رخصة', applied: 'تم التقديم' }[e.license_status || ''] || '',
-        'حالة الكفالة': { sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة', absconded: 'هروب', terminated: 'انتهاء الخدمة' }[e.sponsorship_status || ''] || '',
+        'حالة الرخصة': { has_license: 'لديه رخصة', no_license: 'ليس لديه رخصة', applied: 'تم التقديم' }[e.license_status || ''] || '',
         'رقم الحساب البنكي': e.bank_account_number || '',
-        'نوع الراتب': e.salary_type === 'orders' ? 'بالطلب' : 'ثابت',
-        'الحالة': { active: 'نشط', inactive: 'موقوف', ended: 'منتهي' }[e.status] || e.status,
+        'البريد الإلكتروني': e.email || '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -354,29 +383,22 @@ const Employees = () => {
   };
 
   const handleTemplate = () => {
-    const headers = [[t('name'), t('jobTitle'), t('nationalId'), t('phone'), t('email'),
-      'city (makkah/jeddah)', t('joinDate'), t('residencyExpiry'),
-      'license_status (has_license/no_license/applied)',
-      'sponsorship_status (sponsored/not_sponsored/absconded/terminated)',
-      t('bankAccount'), 'salary_type (orders/shift)', 'status (active/inactive/ended)']];
+    const headers = [['الاسم', 'رقم الهوية', 'رقم الهاتف', 'البريد الإلكتروني', 'المدينة (makkah/jeddah)',
+      'الجنسية', 'المسمى الوظيفي', 'تاريخ الانضمام', 'تاريخ الميلاد', 'انتهاء الإقامة',
+      'حالة الرخصة (has_license/no_license/applied)',
+      'حالة الكفالة (sponsored/not_sponsored/absconded/terminated)',
+      'رقم الحساب البنكي', 'نوع الراتب (orders/shift)', 'الحالة (active/inactive/ended)']];
     const ws = XLSX.utils.aoa_to_sheet(headers);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, t('template'));
+    XLSX.utils.book_append_sheet(wb, ws, 'القالب');
     XLSX.writeFile(wb, 'import_template.xlsx');
   };
 
-  // ── Th helper ──
-  const Th = ({ field, label, sortable = true }: { field?: SortField; label: string; sortable?: boolean }) => (
-    <th
-      className={`ta-th select-none ${sortable && field ? 'cursor-pointer hover:text-foreground' : ''}`}
-      onClick={sortable && field ? () => handleSort(field) : undefined}
-    >
-      {label}
-      {sortable && field && <SortIcon field={field} sortField={sortField} sortDir={sortDir} />}
-    </th>
-  );
+  // ── active cols (ordered) ──
+  const activeCols = ALL_COLUMNS.filter(c => visibleCols.has(c.key));
+  const hasActiveFilters = Object.keys(colFilters).length > 0;
 
-  // ── Profile view ──
+  // ── profile view ──
   if (selectedEmployee) {
     const emp = data.find(e => e.id === selectedEmployee);
     if (emp) return <EmployeeProfile employee={emp as any} onBack={() => setSelectedEmployee(null)} />;
@@ -384,281 +406,351 @@ const Employees = () => {
 
   return (
     <div className="space-y-4">
-      {/* Page header */}
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <nav className="page-breadcrumb">
-            <span>{t('hr')}</span>
+            <span>الموارد البشرية</span>
             <span className="page-breadcrumb-sep">/</span>
-            <span className="text-foreground font-medium">{t('employees')}</span>
+            <span className="text-foreground font-medium">الموظفين</span>
           </nav>
-          <h1 className="page-title">{t('employees')}</h1>
+          <h1 className="page-title">الموظفين</h1>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {permissions.can_edit && (
-            <Button onClick={() => { setEditEmployee(null); setShowAddModal(true); }} className="gap-2">
-              <Plus size={16} /> {t('addEmployee')}
-            </Button>
-          )}
-          {permissions.can_edit && (
-            <Button variant="outline" onClick={() => setShowImportModal(true)} className="gap-2">
-              📥 {lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}
-            </Button>
-          )}
+        <div className="flex gap-2 flex-wrap items-center">
+          {/* Hide/show columns */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2"><Download size={15} /> {t('downloadReport')} ▾</Button>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <Columns size={14} /> الأعمدة
+              </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExport}>📊 {t('exportExcel')}</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleTemplate}>📋 {t('downloadTemplate')}</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-52 max-h-80 overflow-y-auto">
+              <DropdownMenuLabel>إظهار / إخفاء الأعمدة</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => window.print()}>
-                <Printer size={14} className="ml-2" /> {lang === 'ar' ? 'طباعة' : 'Print'}
-              </DropdownMenuItem>
+              {ALL_COLUMNS.filter(c => c.key !== 'seq' && c.key !== 'actions').map(col => (
+                <DropdownMenuCheckboxItem
+                  key={col.key}
+                  checked={visibleCols.has(col.key)}
+                  onCheckedChange={checked => {
+                    setVisibleCols(prev => {
+                      const next = new Set(prev);
+                      if (checked) next.add(col.key); else next.delete(col.key);
+                      return next;
+                    });
+                  }}
+                >
+                  {col.label}
+                </DropdownMenuCheckboxItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Data management */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <Download size={14} /> البيانات ▾
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              {permissions.can_edit && (
+                <DropdownMenuItem onClick={() => setShowImportModal(true)}>📥 استيراد Excel</DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل قالب</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => window.print()}>🖨️ طباعة</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {permissions.can_edit && (
+            <Button onClick={() => { setEditEmployee(null); setShowAddModal(true); }} className="gap-2 h-9">
+              <Plus size={15} /> إضافة موظف
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={t('searchPlaceholder')}
-            className="ps-9 h-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36 h-9"><SelectValue placeholder={t('status')} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('allStatuses')}</SelectItem>
-            <SelectItem value="active">{t('active')}</SelectItem>
-            <SelectItem value="inactive">{t('inactive')}</SelectItem>
-            <SelectItem value="ended">{t('ended')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={salaryTypeFilter} onValueChange={setSalaryTypeFilter}>
-          <SelectTrigger className="w-32 h-9"><SelectValue placeholder={t('salaryType')} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('all')}</SelectItem>
-            <SelectItem value="orders">{t('byOrders')}</SelectItem>
-            <SelectItem value="shift">{t('shift')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={residencyFilter} onValueChange={setResidencyFilter}>
-          <SelectTrigger className="w-40 h-9"><SelectValue placeholder={t('residencyStatus')} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t('allResidencies')}</SelectItem>
-            <SelectItem value="urgent">{t('residencyUrgent')}</SelectItem>
-            <SelectItem value="warning">{t('residencyWarning')}</SelectItem>
-            <SelectItem value="safe">{t('residencySafe')}</SelectItem>
-          </SelectContent>
-        </Select>
-        {departments.length > 0 && (
-          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-40 h-9"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">كل الأقسام</SelectItem>
-              {departments.map(d => (
-                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {(statusFilter !== 'all' || salaryTypeFilter !== 'all' || residencyFilter !== 'all' || departmentFilter !== 'all') && (
-          <Button variant="ghost" size="sm" onClick={() => { setStatusFilter('all'); setSalaryTypeFilter('all'); setResidencyFilter('all'); setDepartmentFilter('all'); }}>
-            {t('clearAll')}
+      {/* Active filters summary */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-xs text-muted-foreground flex items-center gap-1"><Filter size={12} /> الفلاتر النشطة:</span>
+          {Object.entries(colFilters).map(([key, val]) => {
+            const colLabel = ALL_COLUMNS.find(c => c.key === key)?.label || key;
+            return (
+              <span key={key} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                {colLabel}: {val}
+                <button onClick={() => setColFilter(key, '')} className="hover:text-destructive"><X size={10} /></button>
+              </span>
+            );
+          })}
+          <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setColFilters({})}>
+            مسح الكل
           </Button>
-        )}
-        <span className="text-xs text-muted-foreground ms-auto">{filtered.length} {t('results')}</span>
+        </div>
+      )}
+
+      {/* Result count */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">{filtered.length} نتيجة</span>
       </div>
 
       {/* Table */}
       <div className="ta-table-wrap">
-        <div className="overflow-x-scroll">
-          <table className="w-full min-w-[1700px]">
-            <thead className="ta-thead">
-              <tr>
-                <Th label={t('photo')} sortable={false} />
-                <Th field="name" label={t('name')} />
-                <Th field="national_id" label={t('nationalId')} />
-                <Th field="phone" label={t('phone')} />
-                <Th field="job_title" label={t('jobTitle')} />
-                <Th label="القسم" sortable={false} />
-                <Th label="المسمى التفصيلي" sortable={false} />
-                <Th field="city" label={t('city')} />
-                <Th label="الجنسية" sortable={false} />
-                <Th field="join_date" label={t('joinDate')} />
-                <Th field="residency_expiry" label={t('residencyExpiry')} />
-                <Th field="days_residency" label={t('residencyDays')} />
-                <Th field="residency_status" label={t('residencyStatus')} />
-                <Th field="license_status" label={t('licenseStatus')} />
-                <Th field="sponsorship_status" label={t('sponsorshipStatus')} />
-                <Th field="bank_account_number" label={t('bankAccount')} />
-                <Th label={t('documents')} sortable={false} />
-                <Th label="لغة الكشف" sortable={false} />
-                <Th field="status" label={t('status')} />
-                <Th field="email" label={t('email')} />
-                <Th label={t('actions')} sortable={false} />
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              {/* Column headers */}
+              <tr className="ta-thead">
+                {activeCols.map(col => (
+                  <th
+                    key={col.key}
+                    className={`ta-th select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-foreground' : ''}`}
+                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                  >
+                    {col.label}
+                    {col.sortable && <SortIcon field={col.key} sortField={sortField} sortDir={sortDir} />}
+                  </th>
+                ))}
+              </tr>
+
+              {/* Per-column filter row */}
+              <tr className="bg-muted/30 border-b border-border/40">
+                {activeCols.map(col => (
+                  <td key={col.key} className="px-2 py-1.5">
+                    {col.key === 'seq' || col.key === 'actions' || col.key === 'residency_status' || col.key === 'days_residency' || col.key === 'residency_expiry' || col.key === 'join_date' || col.key === 'birth_date' || col.key === 'bank_account_number'
+                      ? <div className="h-7" /> // no filter
+                      : col.key === 'city' ? (
+                        <Select value={colFilters.city || 'all'} onValueChange={v => setColFilter('city', v)}>
+                          <SelectTrigger className="h-7 text-xs w-full min-w-[100px]"><SelectValue placeholder="الكل" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">الكل</SelectItem>
+                            <SelectItem value="makkah">مكة</SelectItem>
+                            <SelectItem value="jeddah">جدة</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : col.key === 'sponsorship_status' ? (
+                        <Select value={colFilters.sponsorship_status || 'all'} onValueChange={v => setColFilter('sponsorship_status', v)}>
+                          <SelectTrigger className="h-7 text-xs w-full min-w-[130px]"><SelectValue placeholder="الكل" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">الكل</SelectItem>
+                            <SelectItem value="sponsored">على الكفالة</SelectItem>
+                            <SelectItem value="not_sponsored">ليس على الكفالة</SelectItem>
+                            <SelectItem value="absconded">هروب</SelectItem>
+                            <SelectItem value="terminated">انتهاء الخدمة</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : col.key === 'license_status' ? (
+                        <Select value={colFilters.license_status || 'all'} onValueChange={v => setColFilter('license_status', v)}>
+                          <SelectTrigger className="h-7 text-xs w-full min-w-[120px]"><SelectValue placeholder="الكل" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">الكل</SelectItem>
+                            <SelectItem value="has_license">لديه رخصة</SelectItem>
+                            <SelectItem value="no_license">ليس لديه رخصة</SelectItem>
+                            <SelectItem value="applied">تم التقديم</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : col.key === 'nationality' ? (
+                        <Select value={colFilters.nationality || 'all'} onValueChange={v => setColFilter('nationality', v)}>
+                          <SelectTrigger className="h-7 text-xs w-full min-w-[110px]"><SelectValue placeholder="الكل" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">الكل</SelectItem>
+                            {uniqueVals.nationality.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : col.key === 'job_title' ? (
+                        <Select value={colFilters.job_title || 'all'} onValueChange={v => setColFilter('job_title', v)}>
+                          <SelectTrigger className="h-7 text-xs w-full min-w-[120px]"><SelectValue placeholder="الكل" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">الكل</SelectItem>
+                            {uniqueVals.job_title.map(j => <SelectItem key={j} value={j}>{j}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          className="h-7 text-xs px-2"
+                          placeholder="بحث..."
+                          value={colFilters[col.key] || ''}
+                          onChange={e => setColFilter(col.key, e.target.value)}
+                        />
+                      )
+                    }
+                  </td>
+                ))}
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={activeCols.length} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={21} className="text-center py-16">
+                  <td colSpan={activeCols.length} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <span className="text-4xl">👥</span>
-                      <p className="font-medium">{t('noEmployees')}</p>
-                      <p className="text-xs">{t('noEmployeesHint')}</p>
+                      <p className="font-medium">لا توجد نتائج</p>
+                      <p className="text-xs">جرّب تغيير الفلاتر أو إضافة موظف جديد</p>
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map(emp => {
+              ) : filtered.map((emp, idx) => {
                 const res = calcResidency(emp.residency_expiry);
                 const daysColor = res.days === null ? '' : res.days > 60 ? 'text-success' : res.days > 0 ? 'text-warning' : 'text-destructive font-bold';
-                const daysLabel = res.days === null ? '—' : `${res.days} ${t('residencyDays').split('(')[0].trim()}`;
-                const initial = emp.name.charAt(0);
 
                 return (
                   <tr key={emp.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      {emp.personal_photo_url
-                        ? <img src={emp.personal_photo_url} className="w-9 h-9 rounded-full object-cover" alt="" />
-                        : <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">{initial}</div>
-                      }
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start">
-                        {emp.name}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.national_id || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap" dir="ltr">{emp.phone || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.job_title || '—'}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className="text-xs text-muted-foreground">{emp.department?.name || '—'}</span>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <span className="text-xs text-muted-foreground">{emp.position?.name || '—'}</span>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <InlineSelect
-                        value={emp.city || ''}
-                        options={[{ value: 'makkah', label: t('makkah') }, { value: 'jeddah', label: t('jeddah') }]}
-                        onSave={v => saveField(emp.id, 'city', v)}
-                        renderDisplay={() => <CityBadge city={emp.city} />}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{(emp as any).nationality || '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.join_date ? format(parseISO(emp.join_date), 'yyyy/MM/dd') : '—'}</td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.residency_expiry ? format(parseISO(emp.residency_expiry), 'yyyy/MM/dd') : '—'}</td>
-                    <td className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap ${daysColor}`}>{res.days === null ? '—' : `${res.days}`}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      {res.status === 'valid'
-                        ? <span className="badge-success">{t('residencyValid')}</span>
-                        : res.status === 'expired'
-                        ? <span className="badge-urgent">{t('residencyExpired')}</span>
-                        : <span className="text-muted-foreground/40">—</span>
-                      }
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <InlineSelect
-                        value={emp.license_status || 'no_license'}
-                        options={[
-                          { value: 'has_license', label: t('hasLicense') },
-                          { value: 'no_license', label: t('noLicense') },
-                          { value: 'applied', label: t('applied') },
-                        ]}
-                        onSave={v => saveField(emp.id, 'license_status', v)}
-                        renderDisplay={() => <LicenseBadge status={emp.license_status} />}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <InlineSelect
-                        value={emp.sponsorship_status || 'not_sponsored'}
-                        options={[
-                          { value: 'sponsored', label: t('sponsored') },
-                          { value: 'not_sponsored', label: t('notSponsored') },
-                          { value: 'absconded', label: t('absconded') },
-                          { value: 'terminated', label: t('terminated') },
-                        ]}
-                        onSave={v => saveField(emp.id, 'sponsorship_status', v)}
-                        renderDisplay={() => <SponsorBadge status={emp.sponsorship_status} />}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.bank_account_number || '—'}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <DocIcons idUrl={emp.id_photo_url} licUrl={emp.license_photo_url} photoUrl={emp.personal_photo_url} />
-                    </td>
-                    {/* Preferred Language */}
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <InlineSelect
-                        value={emp.preferred_language || 'ar'}
-                        options={[
-                          { value: 'ar', label: '🇸🇦 عربي' },
-                          { value: 'en', label: '🇬🇧 English' },
-                          { value: 'ur', label: '🇵🇰 اردو' },
-                        ]}
-                        onSave={v => saveField(emp.id, 'preferred_language', v)}
-                        renderDisplay={() => {
-                          const langMap: Record<string, string> = { ar: '🇸🇦 عربي', en: '🇬🇧 English', ur: '🇵🇰 اردو' };
+                    {activeCols.map(col => {
+                      switch (col.key) {
+                        case 'seq':
+                          return <td key="seq" className="px-3 py-2.5 text-xs text-muted-foreground text-center">{idx + 1}</td>;
+
+                        case 'name':
                           return (
-                            <span className="inline-flex items-center text-xs font-medium text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
-                              {langMap[emp.preferred_language || 'ar'] || '🇸🇦 عربي'}
-                            </span>
+                            <td key="name" className="px-3 py-2.5 whitespace-nowrap">
+                              <div className="flex items-center gap-2.5">
+                                {emp.personal_photo_url
+                                  ? <img src={emp.personal_photo_url} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
+                                  : <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">{emp.name.charAt(0)}</div>
+                                }
+                                <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start">
+                                  {emp.name}
+                                </button>
+                              </div>
+                            </td>
                           );
-                        }}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <InlineSelect
-                        value={emp.status}
-                        options={[
-                          { value: 'active', label: t('active') },
-                          { value: 'inactive', label: t('inactive') },
-                          { value: 'ended', label: t('ended') },
-                        ]}
-                        onSave={v => saveField(emp.id, 'status', v)}
-                        renderDisplay={() => <StatusBadge status={emp.status} />}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-sm whitespace-nowrap" dir="ltr">
-                      {emp.email
-                        ? <a href={`mailto:${emp.email}`} className="text-primary hover:underline" title={`إرسال بريد إلى ${emp.email}`}>{emp.email}</a>
-                        : <span className="text-muted-foreground/40">—</span>
+
+                        case 'national_id':
+                          return <td key="national_id" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.national_id || '—'}</td>;
+
+                        case 'job_title':
+                          return <td key="job_title" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.job_title || '—'}</td>;
+
+                        case 'city':
+                          return (
+                            <td key="city" className="px-3 py-2.5 whitespace-nowrap">
+                              <InlineSelect
+                                value={emp.city || ''}
+                                options={[{ value: 'makkah', label: 'مكة' }, { value: 'jeddah', label: 'جدة' }]}
+                                onSave={v => saveField(emp.id, 'city', v)}
+                                renderDisplay={() => <CityBadge city={emp.city} />}
+                              />
+                            </td>
+                          );
+
+                        case 'phone':
+                          return <td key="phone" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap" dir="ltr">{emp.phone || '—'}</td>;
+
+                        case 'nationality':
+                          return <td key="nationality" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.nationality || '—'}</td>;
+
+                        case 'sponsorship_status':
+                          return (
+                            <td key="sponsorship_status" className="px-3 py-2.5 whitespace-nowrap">
+                              <InlineSelect
+                                value={emp.sponsorship_status || 'not_sponsored'}
+                                options={[
+                                  { value: 'sponsored',     label: 'على الكفالة'      },
+                                  { value: 'not_sponsored', label: 'ليس على الكفالة'  },
+                                  { value: 'absconded',     label: 'هروب'             },
+                                  { value: 'terminated',    label: 'انتهاء الخدمة'    },
+                                ]}
+                                onSave={v => saveField(emp.id, 'sponsorship_status', v)}
+                                renderDisplay={() => <SponsorBadge status={emp.sponsorship_status} />}
+                              />
+                            </td>
+                          );
+
+                        case 'join_date':
+                          return <td key="join_date" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.join_date ? format(parseISO(emp.join_date), 'yyyy/MM/dd') : '—'}</td>;
+
+                        case 'birth_date':
+                          return <td key="birth_date" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.birth_date ? format(parseISO(emp.birth_date), 'yyyy/MM/dd') : '—'}</td>;
+
+                        case 'residency_expiry':
+                          return <td key="residency_expiry" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.residency_expiry ? format(parseISO(emp.residency_expiry), 'yyyy/MM/dd') : '—'}</td>;
+
+                        case 'days_residency':
+                          return <td key="days_residency" className={`px-3 py-2.5 text-sm font-medium whitespace-nowrap text-center ${daysColor}`}>{res.days === null ? '—' : res.days}</td>;
+
+                        case 'residency_status':
+                          return (
+                            <td key="residency_status" className="px-3 py-2.5 whitespace-nowrap">
+                              {res.status === 'valid'
+                                ? <span className="badge-success">صالحة</span>
+                                : res.status === 'expired'
+                                ? <span className="badge-urgent">منتهية</span>
+                                : <span className="text-muted-foreground/40">—</span>
+                              }
+                            </td>
+                          );
+
+                        case 'license_status':
+                          return (
+                            <td key="license_status" className="px-3 py-2.5 whitespace-nowrap">
+                              <InlineSelect
+                                value={emp.license_status || 'no_license'}
+                                options={[
+                                  { value: 'has_license', label: 'لديه رخصة'     },
+                                  { value: 'no_license',  label: 'ليس لديه رخصة' },
+                                  { value: 'applied',     label: 'تم التقديم'    },
+                                ]}
+                                onSave={v => saveField(emp.id, 'license_status', v)}
+                                renderDisplay={() => <LicenseBadge status={emp.license_status} />}
+                              />
+                            </td>
+                          );
+
+                        case 'bank_account_number':
+                          return <td key="bank_account_number" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.bank_account_number || '—'}</td>;
+
+                        case 'email':
+                          return (
+                            <td key="email" className="px-3 py-2.5 text-sm whitespace-nowrap" dir="ltr">
+                              {emp.email
+                                ? <a href={`mailto:${emp.email}`} className="text-primary hover:underline">{emp.email}</a>
+                                : <span className="text-muted-foreground/40">—</span>
+                              }
+                            </td>
+                          );
+
+                        case 'actions':
+                          return (
+                            <td key="actions" className="px-3 py-2.5 whitespace-nowrap">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground">
+                                    ⋮
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => setSelectedEmployee(emp.id)}>
+                                    <Eye size={14} className="me-2" /> عرض الملف
+                                  </DropdownMenuItem>
+                                  {permissions.can_edit && (
+                                    <DropdownMenuItem onClick={() => { setEditEmployee(emp); setShowAddModal(true); }}>
+                                      <Edit size={14} className="me-2" /> تعديل البيانات
+                                    </DropdownMenuItem>
+                                  )}
+                                  {permissions.can_delete && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        onClick={() => setDeleteEmployee(emp)}
+                                        className="text-destructive focus:text-destructive"
+                                      >
+                                        <Trash2 size={14} className="me-2" /> حذف الموظف
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </td>
+                          );
+
+                        default:
+                          return <td key={(col as any).key} className="px-3 py-2.5">—</td>;
                       }
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="flex gap-1">
-                        <button onClick={() => setSelectedEmployee(emp.id)} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title={t('view')}>
-                          <Eye size={15} />
-                        </button>
-                        {permissions.can_edit && (
-                          <button
-                            onClick={() => { setEditEmployee(emp); setShowAddModal(true); }}
-                            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                            title={t('edit')}
-                          >
-                            <Edit size={15} />
-                          </button>
-                        )}
-                        {permissions.can_delete && (
-                          <button
-                            onClick={() => setDeleteEmployee(emp)}
-                            className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
-                            title={t('delete') || 'حذف'}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                    })}
                   </tr>
                 );
               })}
@@ -667,15 +759,12 @@ const Employees = () => {
         </div>
       </div>
 
+      {/* Modals */}
       {showAddModal && (
         <AddEmployeeModal
           onClose={() => { setShowAddModal(false); setEditEmployee(null); }}
           editEmployee={editEmployee}
-          onSuccess={() => {
-            fetchEmployees();
-            setShowAddModal(false);
-            setEditEmployee(null);
-          }}
+          onSuccess={() => { fetchEmployees(); setShowAddModal(false); setEditEmployee(null); }}
         />
       )}
 
@@ -686,24 +775,25 @@ const Employees = () => {
         />
       )}
 
+      {/* Delete confirmation */}
       <AlertDialog open={!!deleteEmployee} onOpenChange={open => !open && setDeleteEmployee(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('confirmDelete') || 'تأكيد الحذف'}</AlertDialogTitle>
+            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('deleteEmployeeConfirm') || 'هل أنت متأكد من حذف الموظف'} <span className="font-semibold text-foreground">{deleteEmployee?.name}</span>؟
-              {' '}{t('actionIrreversible') || 'لا يمكن التراجع عن هذا الإجراء.'}
+              هل أنت متأكد من حذف الموظف <span className="font-semibold text-foreground">{deleteEmployee?.name}</span>؟
+              {' '}لا يمكن التراجع عن هذا الإجراء.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>{t('cancel') || 'إلغاء'}</AlertDialogCancel>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-              {t('delete') || 'حذف'}
+              {deleting ? <Loader2 size={14} className="animate-spin me-1" /> : null}
+              حذف
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
