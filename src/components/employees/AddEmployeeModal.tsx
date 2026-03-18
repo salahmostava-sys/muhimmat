@@ -294,6 +294,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee, tradeRegisters: in
         join_date: form.join_date || null,
         birth_date: form.birth_date || null,
         residency_expiry: form.residency_expiry || null,
+        health_insurance_expiry: form.health_insurance_expiry || null,
         probation_end_date: form.probation_end_date || null,
         license_status: form.license_status,
         sponsorship_status: form.sponsorship_status,
