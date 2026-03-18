@@ -881,6 +881,26 @@ const Employees = () => {
                             </td>
                           );
 
+                        case 'health_insurance_expiry': {
+                          const hiExpiry = emp.health_insurance_expiry;
+                          const hiDays = hiExpiry ? differenceInDays(parseISO(hiExpiry), new Date()) : null;
+                          const hiColor = hiDays === null ? '' : hiDays < 0 ? 'text-destructive font-bold' : hiDays <= 30 ? 'text-warning font-medium' : hiDays <= 60 ? 'text-amber-500' : 'text-success';
+                          return (
+                            <td key="health_insurance_expiry" className="px-3 py-2.5 whitespace-nowrap">
+                              {hiExpiry ? (
+                                <div className="flex flex-col gap-0.5">
+                                  <span className={`text-xs ${hiColor}`}>{format(parseISO(hiExpiry), 'yyyy/MM/dd')}</span>
+                                  {hiDays !== null && (
+                                    <span className={`text-[10px] ${hiColor}`}>
+                                      {hiDays < 0 ? `منتهي منذ ${Math.abs(hiDays)} يوم` : `متبقي ${hiDays} يوم`}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : <span className="text-muted-foreground/40">—</span>}
+                            </td>
+                          );
+                        }
+
                         case 'license_status':
                           return (
                             <td key="license_status" className="px-3 py-2.5 whitespace-nowrap">
