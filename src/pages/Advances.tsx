@@ -679,6 +679,28 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
           onClose={() => setShowPrint(false)}
         />
       )}
+
+      {/* ── Confirm Delete Advance Dialog ── */}
+      {deleteAdvanceId && (
+        <Dialog open onOpenChange={v => !v && setDeleteAdvanceId(null)}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle size={18} /> تأكيد حذف السلفة
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              سيتم حذف هذه السلفة وجميع أقساطها نهائياً ولا يمكن التراجع عن هذا الإجراء.
+            </p>
+            <DialogFooter className="gap-2 mt-2">
+              <Button variant="outline" onClick={() => setDeleteAdvanceId(null)}>إلغاء</Button>
+              <Button variant="destructive" onClick={handleDeleteAdvance} disabled={deletingAdvance}>
+                {deletingAdvance ? '...' : 'حذف نهائياً'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 };
