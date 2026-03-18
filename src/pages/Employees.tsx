@@ -263,7 +263,14 @@ const Employees = () => {
   const [deleting, setDeleting]             = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
 
-  // ── Fetch ──
+  // ── Fetch trade registers ──
+  useEffect(() => {
+    supabase.from('trade_registers').select('id, name, cr_number').order('name').then(({ data: tr }) => {
+      if (tr) setTradeRegisters(tr);
+    });
+  }, []);
+
+  // ── Fetch employees ──
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     const { data: rows, error } = await supabase
@@ -282,6 +289,23 @@ const Employees = () => {
   }, [toast]);
 
   useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+
+  // ── Assign / unassign trade register ──
+  const handleTradeAssign = async () => {
+    if (!tradeAssignEmp) return;
+    setTradeSaving(true);
+    const newVal = tradeAssignVal === '__none__' ? null : tradeAssignVal;
+    const { error } = await supabase.from('employees').update({ trade_register_id: newVal }).eq('id', tradeAssignEmp.id);
+    if (error) {
+      toast({ title: 'خطأ', description: error.message, variant: 'destructive' });
+    } else {
+      const reg = tradeRegisters.find(r => r.id === newVal) ?? null;
+      setData(d => d.map(e => e.id === tradeAssignEmp.id ? { ...e, trade_register: reg ? { id: reg.id, name: reg.name } : null } : e));
+      toast({ title: '✅ تم تحديث السجل التجاري' });
+      setTradeAssignEmp(null);
+    }
+    setTradeSaving(false);
+  };
 
   // ── Sort handler ──
   const handleSort = (field: string) => {
