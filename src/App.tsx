@@ -14,7 +14,6 @@ import AppLayout from "./components/AppLayout";
 import { Loader2 } from "lucide-react";
 import "@/i18n";
 
-// Lazy-loaded pages for code splitting
 const Login = lazy(() => import("./pages/Login"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
@@ -36,8 +35,7 @@ const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const Reports = lazy(() => import("./pages/Reports"));
-const TradeRegisters = lazy(() => import("./pages/TradeRegisters"));
-const MaintenanceLogs = lazy(() => import("./pages/MaintenanceLogs"));
+const EmployeeTiers = lazy(() => import("./pages/EmployeeTiers"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageLoader = () => (
@@ -73,31 +71,30 @@ const App = () => (
                                 <Suspense fallback={<PageLoader />}>
                                   <Routes>
                                     <Route path="/" element={<Dashboard />} />
-                                     <Route path="/employees" element={<Employees />} />
-                                     <Route path="/attendance" element={<Attendance />} />
-                                     <Route path="/orders" element={<Orders />} />
-                                     <Route path="/salaries" element={<Salaries />} />
-                                     <Route path="/advances" element={<Advances />} />
-                                     <Route path="/motorcycles" element={<Motorcycles />} />
-                                     <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
-                                     <Route path="/fuel" element={<FuelPage />} />
-                                     <Route path="/apps" element={<Apps />} />
-                                     <Route path="/alerts" element={<Alerts />} />
-                                     <Route path="/reports" element={<Reports />} />
-                                     <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
-                                     <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
-                                     <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
-                                     <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
-                                     <Route path="/deductions" element={<Navigate to="/advances" replace />} />
-                                     <Route path="/settings/schemes" element={<SalarySchemes />} />
-                                     <Route path="/settings/users" element={<UsersAndPermissions />} />
-                                     <Route path="/settings/general" element={<GeneralSettings />} />
-                                     <Route path="/settings/trade-registers" element={<TradeRegisters />} />
-                                     <Route path="/maintenance" element={<MaintenanceLogs />} />
-                                     <Route path="/analytics" element={<Analytics />} />
-                                     <Route path="/violation-resolver" element={<ViolationResolver />} />
-                                     <Route path="/activity-log" element={<ActivityLog />} />
-                                     <Route path="*" element={<NotFound />} />
+                                    <Route path="/employees" element={<Employees />} />
+                                    <Route path="/attendance" element={<Attendance />} />
+                                    <Route path="/orders" element={<Orders />} />
+                                    <Route path="/salaries" element={<Salaries />} />
+                                    <Route path="/advances" element={<Advances />} />
+                                    <Route path="/motorcycles" element={<Motorcycles />} />
+                                    <Route path="/vehicle-assignment" element={<VehicleAssignment />} />
+                                    <Route path="/fuel" element={<FuelPage />} />
+                                    <Route path="/apps" element={<Apps />} />
+                                    <Route path="/alerts" element={<Alerts />} />
+                                    <Route path="/reports" element={<Reports />} />
+                                    <Route path="/employee-tiers" element={<EmployeeTiers />} />
+                                    <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
+                                    <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
+                                    <Route path="/vehicles" element={<Navigate to="/motorcycles" replace />} />
+                                    <Route path="/vehicle-tracking" element={<Navigate to="/motorcycles" replace />} />
+                                    <Route path="/deductions" element={<Navigate to="/advances" replace />} />
+                                    <Route path="/settings/schemes" element={<SalarySchemes />} />
+                                    <Route path="/settings/users" element={<UsersAndPermissions />} />
+                                    <Route path="/settings/general" element={<GeneralSettings />} />
+                                    <Route path="/analytics" element={<Analytics />} />
+                                    <Route path="/violation-resolver" element={<ViolationResolver />} />
+                                    <Route path="/activity-log" element={<ActivityLog />} />
+                                    <Route path="*" element={<NotFound />} />
                                   </Routes>
                                 </Suspense>
                               </ErrorBoundary>
