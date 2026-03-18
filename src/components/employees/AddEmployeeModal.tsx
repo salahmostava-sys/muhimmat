@@ -19,7 +19,9 @@ interface EmployeeData {
   bank_account_number?: string | null;
   city?: string | null;
   join_date?: string | null;
+  birth_date?: string | null;
   residency_expiry?: string | null;
+  probation_end_date?: string | null;
   license_status?: string | null;
   sponsorship_status?: string | null;
   id_photo_url?: string | null;
@@ -157,6 +159,8 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     join_date: '',
     birth_date: '',
     residency_expiry: '',
+    probation_end_date: '',
+    probation_months: '' as string,
     license_status: 'no_license' as 'has_license' | 'no_license' | 'applied',
     sponsorship_status: 'not_sponsored' as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated',
     salary_type: 'orders' as 'orders' | 'shift',
@@ -183,6 +187,8 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         join_date: editEmployee.join_date || '',
         birth_date: (editEmployee as any).birth_date || '',
         residency_expiry: editEmployee.residency_expiry || '',
+        probation_end_date: editEmployee.probation_end_date || '',
+        probation_months: '',
         license_status: (editEmployee.license_status as 'has_license' | 'no_license' | 'applied') || 'no_license',
         sponsorship_status: (editEmployee.sponsorship_status as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated') || 'not_sponsored',
         salary_type: (editEmployee.salary_type as 'orders' | 'shift') || 'orders',
@@ -252,6 +258,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         join_date: form.join_date || null,
         birth_date: form.birth_date || null,
         residency_expiry: form.residency_expiry || null,
+        probation_end_date: form.probation_end_date || null,
         license_status: form.license_status,
         sponsorship_status: form.sponsorship_status,
         salary_type: form.salary_type,
@@ -399,6 +406,47 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="تاريخ الميلاد">
                 <Input type="date" value={form.birth_date} onChange={e => setField('birth_date', e.target.value)} />
               </F>
+              {/* ─── فترة التجربة ─── */}
+              <div className="sm:col-span-2">
+                <SectionTitle title="── فترة التجربة (اختياري) ──" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <F label="تحديد المدة (بالأشهر)">
+                    <div className="flex gap-2 flex-wrap">
+                      {[1, 2, 3, 6].map(m => (
+                        <button
+                          key={m} type="button"
+                          onClick={() => {
+                            const base = form.join_date ? new Date(form.join_date) : new Date();
+                            base.setMonth(base.getMonth() + m);
+                            const iso = base.toISOString().split('T')[0];
+                            setField('probation_months', String(m));
+                            setField('probation_end_date', iso);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${form.probation_months === String(m) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}
+                        >
+                          {m} {m === 1 ? 'شهر' : 'أشهر'}
+                        </button>
+                      ))}
+                    </div>
+                  </F>
+                  <F label="أو حدد تاريخ الانتهاء مباشرة">
+                    <Input
+                      type="date"
+                      value={form.probation_end_date}
+                      onChange={e => { setField('probation_end_date', e.target.value); setField('probation_months', ''); }}
+                    />
+                    {form.probation_end_date && (
+                      <button
+                        type="button"
+                        onClick={() => { setField('probation_end_date', ''); setField('probation_months', ''); }}
+                        className="text-xs text-destructive hover:underline mt-1"
+                      >
+                        × مسح فترة التجربة
+                      </button>
+                    )}
+                  </F>
+                </div>
+              </div>
               <F label="لغة كشف الراتب">
                 <div className="flex gap-2 mt-1">
                   {([
