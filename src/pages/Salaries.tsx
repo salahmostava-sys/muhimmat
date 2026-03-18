@@ -773,6 +773,12 @@ const Salaries = () => {
 
       const employees = empRes.data || [];
 
+      // Build attendance days map: employeeId → count of present/late days
+      const attendanceDaysMap: Record<string, number> = {};
+      attendanceRes.data?.forEach(r => {
+        attendanceDaysMap[r.employee_id] = (attendanceDaysMap[r.employee_id] || 0) + 1;
+      });
+
       const extMap: Record<string, number> = {};
       extRes.data?.forEach(d => {
         extMap[d.employee_id] = (extMap[d.employee_id] || 0) + Number(d.amount);
@@ -809,6 +815,7 @@ const Salaries = () => {
 
       const newRows: SalaryRow[] = employees.map(emp => {
         const empOrders = ordMap[emp.id] || {};
+        const attendanceDays = attendanceDaysMap[emp.id] || 0;
         const registeredApps = Object.keys(empOrders).filter(k => empOrders[k] > 0);
 
         const platformOrders: Record<string, number> = {};
@@ -817,14 +824,24 @@ const Salaries = () => {
         platforms.forEach(p => {
           const orders = empOrders[p] || 0;
           platformOrders[p] = orders;
-          if (orders === 0) { platformSalaries[p] = 0; return; }
 
-          // Use the platform's assigned scheme; if no scheme → salary = 0 + warning
           const scheme = appSchemeMap[p];
-          if (scheme && scheme.salary_scheme_tiers) {
+          if (!scheme) { platformSalaries[p] = 0; return; }
+
+          if (scheme.scheme_type === 'fixed_monthly') {
+            // Fixed monthly: calculate once per employee, assign to first platform that has this scheme
+            // Only calculate if this is the first platform using this scheme for the employee
+            const alreadyCalcForScheme = platforms.some(prev => prev !== p && appSchemeMap[prev]?.id === scheme.id && platformSalaries[prev] !== undefined);
+            if (alreadyCalcForScheme) {
+              platformSalaries[p] = 0; // already counted
+            } else {
+              platformSalaries[p] = calcFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
+            }
+          } else if (orders === 0) {
+            platformSalaries[p] = 0;
+          } else if (scheme.salary_scheme_tiers) {
             platformSalaries[p] = calcSalaryFromTiers(orders, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
           } else {
-            // Platform has no scheme assigned → 0 salary, show warning
             platformSalaries[p] = 0;
           }
         });
