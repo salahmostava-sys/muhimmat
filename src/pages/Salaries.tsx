@@ -1663,7 +1663,6 @@ const Salaries = () => {
 
   const [detailRow, setDetailRow] = useState<SalaryRow | null>(null);
   const [detailOrders, setDetailOrders] = useState<{appName: string; orders: number; salary: number}[]>([]);
-  const [detailLoading, setDetailLoading] = useState(false);
 
   const openEmployeeDetail = (row: SalaryRow) => {
     setDetailRow(row);
