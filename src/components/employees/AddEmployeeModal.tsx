@@ -187,6 +187,8 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
         join_date: editEmployee.join_date || '',
         birth_date: (editEmployee as any).birth_date || '',
         residency_expiry: editEmployee.residency_expiry || '',
+        probation_end_date: editEmployee.probation_end_date || '',
+        probation_months: '',
         license_status: (editEmployee.license_status as 'has_license' | 'no_license' | 'applied') || 'no_license',
         sponsorship_status: (editEmployee.sponsorship_status as 'sponsored' | 'not_sponsored' | 'absconded' | 'terminated') || 'not_sponsored',
         salary_type: (editEmployee.salary_type as 'orders' | 'shift') || 'orders',
