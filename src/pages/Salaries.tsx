@@ -259,34 +259,43 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
                   {row.violations > 0 ? `-${fmt(row.violations)}` : '—'}
                 </span>
               </div>
-              {/* Wallet hunger */}
-              <div className="flex justify-between items-center px-3 py-2">
-                <span className="text-foreground">{t.walletHunger}</span>
-                <span className={`font-semibold ${row.walletHunger > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {row.walletHunger > 0 ? `-${fmt(row.walletHunger)}` : '—'}
-                </span>
-              </div>
-              {/* Wallet tuyo */}
-              <div className="flex justify-between items-center px-3 py-2">
-                <span className="text-foreground">{t.walletTuyo}</span>
-                <span className={`font-semibold ${row.walletTuyo > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {row.walletTuyo > 0 ? `-${fmt(row.walletTuyo)}` : '—'}
-                </span>
-              </div>
-              {/* Wallet jahiz */}
-              <div className="flex justify-between items-center px-3 py-2">
-                <span className="text-foreground">{t.walletJahiz}</span>
-                <span className={`font-semibold ${row.walletJahiz > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {row.walletJahiz > 0 ? `-${fmt(row.walletJahiz)}` : '—'}
-                </span>
-              </div>
-              {/* Food damage */}
-              <div className="flex justify-between items-center px-3 py-2">
-                <span className="text-foreground">{t.foodDamage}</span>
-                <span className={`font-semibold ${row.foodDamage > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {row.foodDamage > 0 ? `-${fmt(row.foodDamage)}` : '—'}
-                </span>
-              </div>
+              {/* Dynamic custom deductions */}
+              {Object.entries(row.customDeductions || {}).map(([k, v]) => {
+                const label = k.split('___').slice(1).join('___') || k;
+                return (
+                  <div key={k} className="flex justify-between items-center px-3 py-2">
+                    <span className="text-foreground">{label}</span>
+                    <span className={`font-semibold ${v > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {v > 0 ? `-${fmt(v)}` : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+              {/* Legacy wallet fields */}
+              {row.walletHunger > 0 && (
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-foreground">{t.walletHunger}</span>
+                  <span className="font-semibold text-destructive">-{fmt(row.walletHunger)}</span>
+                </div>
+              )}
+              {row.walletTuyo > 0 && (
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-foreground">{t.walletTuyo}</span>
+                  <span className="font-semibold text-destructive">-{fmt(row.walletTuyo)}</span>
+                </div>
+              )}
+              {row.walletJahiz > 0 && (
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-foreground">{t.walletJahiz}</span>
+                  <span className="font-semibold text-destructive">-{fmt(row.walletJahiz)}</span>
+                </div>
+              )}
+              {row.foodDamage > 0 && (
+                <div className="flex justify-between items-center px-3 py-2">
+                  <span className="text-foreground">{t.foodDamage}</span>
+                  <span className="font-semibold text-destructive">-{fmt(row.foodDamage)}</span>
+                </div>
+              )}
             </div>
             <div className="flex justify-between items-center px-3 py-2.5 bg-destructive/15 font-bold">
               <span className="text-destructive">{t.totalDeductions}</span>
