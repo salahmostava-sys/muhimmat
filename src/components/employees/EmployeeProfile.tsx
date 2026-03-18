@@ -264,8 +264,10 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
             <h3 className="font-semibold text-foreground mb-5">البيانات الأساسية</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <InfoField label="الاسم الكامل" value={employee.name} />
+              {employee.employee_code && <InfoField label="كود الموظف" value={employee.employee_code} dir="ltr" />}
               {employee.phone && <InfoField label="رقم الهاتف" value={employee.phone} dir="ltr" />}
               {employee.national_id && <InfoField label="رقم الهوية" value={employee.national_id} dir="ltr" />}
+              {employee.nationality && <InfoField label="الجنسية" value={employee.nationality} />}
               {employee.iban && <InfoField label="رقم IBAN" value={`SA••••••••${employee.iban.slice(-4)}`} />}
               {employee.bank_account_number && <InfoField label="رقم الحساب البنكي" value={employee.bank_account_number} dir="ltr" />}
               {employee.email && (
@@ -276,15 +278,22 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                   </a>
                 </div>
               )}
-              {((employee as any).birth_date || employee.dob) && <InfoField label="تاريخ الميلاد" value={(employee as any).birth_date || employee.dob} />}
+              {(employee.birth_date || employee.dob) && <InfoField label="تاريخ الميلاد" value={(employee.birth_date || employee.dob)!} />}
               {employee.city && <InfoField label="المدينة" value={employee.city === 'makkah' ? 'مكة المكرمة' : 'جدة'} />}
               {employee.job_title && <InfoField label="المسمى الوظيفي" value={employee.job_title} />}
               {employee.join_date && <InfoField label="تاريخ الانضمام" value={employee.join_date} />}
+              {employee.probation_end_date && <InfoField label="انتهاء فترة التجربة" value={employee.probation_end_date} />}
+              {employee.trade_register?.name && <InfoField label="السجل التجاري" value={employee.trade_register.name} />}
               {employee.sponsorship_status && (
                 <InfoField label="حالة الكفالة" value={{
                   sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة',
                   absconded: 'هروب', terminated: 'انتهاء الخدمة',
                 }[employee.sponsorship_status] || employee.sponsorship_status} />
+              )}
+              {employee.preferred_language && (
+                <InfoField label="لغة كشف الراتب" value={{
+                  ar: '🇸🇦 العربية', en: '🇬🇧 English', ur: '🇵🇰 اردو',
+                }[employee.preferred_language] || employee.preferred_language} />
               )}
               <InfoField label="الحالة" value={statusLabels[employee.status] || employee.status} />
             </div>
@@ -307,6 +316,22 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                   </p>
                 </div>
               )}
+              {employee.health_insurance_expiry && (() => {
+                const hiDays = differenceInDays(parseISO(employee.health_insurance_expiry), new Date());
+                return (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">تاريخ انتهاء التأمين الصحي</p>
+                    <p className={`text-sm font-medium ${hiDays < 0 ? 'text-destructive' : hiDays < 30 ? 'text-destructive' : hiDays < 60 ? 'text-warning' : 'text-foreground'}`}>
+                      {employee.health_insurance_expiry}
+                      {hiDays < 60 && (
+                        <span className="mr-2 text-xs">
+                          {hiDays < 0 ? `(منتهي منذ ${Math.abs(hiDays)} يوم)` : `(${hiDays} يوم متبق)`}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                );
+              })()}
               {employee.license_expiry && (
                 <InfoField label="تاريخ انتهاء رخصة القيادة" value={employee.license_expiry} />
               )}
