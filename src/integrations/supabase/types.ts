@@ -447,6 +447,7 @@ export type Database = {
           phone: string | null
           position_id: string | null
           preferred_language: string
+          probation_end_date: string | null
           residency_expiry: string | null
           salary_type: Database["public"]["Enums"]["salary_type"]
           sponsorship_status:
@@ -487,6 +488,7 @@ export type Database = {
           phone?: string | null
           position_id?: string | null
           preferred_language?: string
+          probation_end_date?: string | null
           residency_expiry?: string | null
           salary_type?: Database["public"]["Enums"]["salary_type"]
           sponsorship_status?:
@@ -527,6 +529,7 @@ export type Database = {
           phone?: string | null
           position_id?: string | null
           preferred_language?: string
+          probation_end_date?: string | null
           residency_expiry?: string | null
           salary_type?: Database["public"]["Enums"]["salary_type"]
           sponsorship_status?:
