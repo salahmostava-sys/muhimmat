@@ -78,6 +78,7 @@ const AppSidebar = () => {
       sectionLabel: t('reports'),
       items: [
         { label: t('activityLog'), icon: Activity, path: '/activity-log' },
+        { label: isRTL ? 'مركز التقارير' : 'Reports Center', icon: FileDown, path: '/reports' },
       ],
     },
     {
@@ -87,6 +88,7 @@ const AppSidebar = () => {
         { label: t('schemes'), icon: Settings, path: '/settings/schemes' },
         { label: t('users'), icon: Users, path: '/settings/users' },
         { label: t('generalSettings'), icon: Settings2, path: '/settings/general' },
+        { label: isRTL ? 'السجلات التجارية' : 'Trade Registers', icon: Briefcase, path: '/settings/trade-registers' },
       ],
     },
   ];

@@ -34,6 +34,8 @@ const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const EmployeeTiers = lazy(() => import("./pages/EmployeeTiers"));
+const Reports = lazy(() => import("./pages/Reports"));
+const TradeRegisters = lazy(() => import("./pages/TradeRegisters"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageLoader = () => (
@@ -79,7 +81,7 @@ const App = () => (
                                     <Route path="/fuel" element={<FuelPage />} />
                                     <Route path="/apps" element={<Apps />} />
                                     <Route path="/alerts" element={<Alerts />} />
-                                    <Route path="/reports" element={<Navigate to="/" replace />} />
+                                    <Route path="/reports" element={<Reports />} />
                                     <Route path="/employee-tiers" element={<EmployeeTiers />} />
                                     <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
                                     <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
@@ -89,7 +91,7 @@ const App = () => (
                                     <Route path="/settings/schemes" element={<SalarySchemes />} />
                                     <Route path="/settings/users" element={<UsersAndPermissions />} />
                                     <Route path="/settings/general" element={<GeneralSettings />} />
-                                    <Route path="/analytics" element={<Navigate to="/" replace />} />
+                                    <Route path="/settings/trade-registers" element={<TradeRegisters />} />
                                     <Route path="/violation-resolver" element={<ViolationResolver />} />
                                     <Route path="/activity-log" element={<ActivityLog />} />
                                     <Route path="*" element={<NotFound />} />
