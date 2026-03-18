@@ -71,6 +71,7 @@ const ALL_COLUMNS = [
   { key: 'phone',                label: 'رقم الهاتف',           sortable: true  },
   { key: 'nationality',          label: 'الجنسية',              sortable: true  },
   { key: 'sponsorship_status',   label: 'حالة الكفالة',         sortable: true  },
+  { key: 'trade_register',       label: 'السجل التجاري',        sortable: true  },
   { key: 'join_date',            label: 'تاريخ الانضمام',       sortable: true  },
   { key: 'birth_date',           label: 'تاريخ الميلاد',        sortable: true  },
   { key: 'probation_end_date',   label: 'انتهاء فترة التجربة',  sortable: true  },
