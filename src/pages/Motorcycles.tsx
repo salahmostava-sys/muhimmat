@@ -121,12 +121,16 @@ const VehicleFormModal = ({
     if (!form.plate_number.trim()) return toast({ title: 'يرجى إدخال رقم اللوحة', variant: 'destructive' });
     setSaving(true);
     const payload = {
-      plate_number: form.plate_number.trim(), type: form.type,
+      plate_number: form.plate_number.trim(),
+      plate_number_en: form.plate_number_en.trim() || null,
+      type: form.type,
       brand: form.brand || null, model: form.model || null,
       year: form.year ? parseInt(form.year) : null, status: form.status,
       insurance_expiry: form.insurance_expiry || null,
       registration_expiry: form.registration_expiry || null,
       authorization_expiry: form.authorization_expiry || null,
+      chassis_number: form.chassis_number.trim() || null,
+      serial_number: form.serial_number.trim() || null,
       notes: form.notes || null,
     };
     let error;
