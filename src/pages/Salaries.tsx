@@ -863,10 +863,14 @@ const Salaries = () => {
     }
   };
 
+  // ── City filter for salaries table
+  const [cityFilter, setCityFilter] = useState('all');
+
   const filteredBase = rows.filter(r => {
     const matchSearch = r.employeeName.includes(search);
     const matchStatus = statusFilter === 'all' || r.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchCity = cityFilter === 'all' || r.city === (cityFilter === 'makkah' ? 'مكة' : 'جدة');
+    return matchSearch && matchStatus && matchCity;
   });
 
   const filtered = [...filteredBase].sort((a, b) => {
