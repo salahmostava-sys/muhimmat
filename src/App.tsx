@@ -91,7 +91,7 @@ const App = () => (
                                     <Route path="/settings/general" element={<GeneralSettings />} />
                                     <Route path="/analytics" element={<Navigate to="/" replace />} />
                                     <Route path="/violation-resolver" element={<ViolationResolver />} />
-                                    <Route path="/activity-log" element={<ActivityLog />} />
+                                    <Route path="/activity-log" element={<Navigate to="/settings/general" replace />} />
                                     <Route path="*" element={<NotFound />} />
                                   </Routes>
                                 </Suspense>
