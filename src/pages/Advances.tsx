@@ -973,55 +973,14 @@ const Advances = () => {
               <tbody>
                 {filtered.map((s, idx) => (
                   <React.Fragment key={s.employeeId}>
-                    <tr className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${s.isWrittenOff ? 'opacity-60' : ''}`}>
+                    <tr className={`border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer ${s.isWrittenOff ? 'opacity-60' : ''}`}
+                      onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName, nationalId: s.nationalId, totalDebt: s.totalDebt, totalPaid: s.totalPaid, remaining: s.remaining, isWrittenOff: s.isWrittenOff, allAdvances: s.allAdvances })}>
                       <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">{idx + 1}</td>
                       <td className="px-3 py-3 text-right">
                         <div className="flex items-center gap-2">
-                          <button
-                            className="font-semibold text-primary hover:underline text-sm text-right"
-                            onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName, nationalId: s.nationalId, totalDebt: s.totalDebt, totalPaid: s.totalPaid, remaining: s.remaining })}
-                          >
-                            {s.employeeName}
-                          </button>
+                          <span className="font-semibold text-primary text-sm">{s.employeeName}</span>
                           {s.isWrittenOff && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full font-semibold">معدوم</span>}
                         </div>
-                        {/* Action buttons on name hover row */}
-                        {!s.isWrittenOff && permissions.can_edit && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <button
-                              onClick={() => setInlineRowEmpId(inlineRowEmpId === s.employeeId ? null : s.employeeId)}
-                              className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-primary transition-colors"
-                              title="إضافة سلفة أو سداد">
-                              {inlineRowEmpId === s.employeeId ? <ChevronUp size={11} /> : <Plus size={11} />}
-                              <span>{inlineRowEmpId === s.employeeId ? 'إخفاء' : 'إضافة'}</span>
-                            </button>
-                            <span className="text-muted-foreground/30 mx-1">|</span>
-                            <button
-                              onClick={() => setEditAdvance(s.allAdvances[0] || null)}
-                              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5">
-                              <Edit2 size={11} /> تعديل
-                            </button>
-                            {s.remaining > 0 && (
-                              <>
-                                <span className="text-muted-foreground/30 mx-1">|</span>
-                                <button
-                                  onClick={() => setWriteOffEmployee({ name: s.employeeName, remaining: s.remaining, advanceIds: s.allAdvances.map(a => a.id) })}
-                                  className="text-[11px] text-muted-foreground hover:text-destructive transition-colors flex items-center gap-0.5">
-                                  <AlertTriangle size={11} /> إعدام
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        )}
-                        {s.isWrittenOff && permissions.can_edit && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <button
-                              onClick={() => setRestoreWriteOffEmployee({ name: s.employeeName, advanceIds: s.allAdvances.map(a => a.id) })}
-                              className="flex items-center gap-0.5 text-[11px] text-warning hover:text-warning/80 transition-colors">
-                              <RotateCcw size={11} /> استرداد الديون
-                            </button>
-                          </div>
-                        )}
                       </td>
                       <td className="px-3 py-3 text-center text-sm font-mono text-foreground" dir="ltr">{s.nationalId}</td>
                       <td className="px-3 py-3 text-center">
@@ -1037,40 +996,8 @@ const Advances = () => {
                         <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
                       </td>
                     </tr>
-
-                    {/* Inline add row */}
-                    {inlineRowEmpId === s.employeeId && (
-                      <InlineRowEntry
-                        employeeId={s.employeeId}
-                        allAdvances={advances}
-                        onSaved={() => { setInlineRowEmpId(null); fetchAll(); }}
-                        onCancel={() => setInlineRowEmpId(null)}
-                      />
-                    )}
                   </React.Fragment>
                 ))}
-                {/* Temporary row for new employee — show only in normal view, not in written-off view */}
-                {!showWrittenOff && newEmpEntry && !filtered.some(s => s.employeeId === newEmpEntry.id) && (
-                  <React.Fragment key={`new-${newEmpEntry.id}`}>
-                    <tr className="border-b border-border/30 bg-primary/5">
-                      <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">—</td>
-                      <td className="px-3 py-3 text-right">
-                        <span className="font-semibold text-foreground text-sm">{newEmpEntry.name}</span>
-                        <span className="mr-2 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">جديد</span>
-                      </td>
-                      <td className="px-3 py-3 text-center text-xs text-muted-foreground">—</td>
-                      <td colSpan={3} className="px-3 py-3 text-center text-xs text-muted-foreground">لا توجد سلف بعد</td>
-                    </tr>
-                    {inlineRowEmpId === newEmpEntry.id && (
-                      <InlineRowEntry
-                        employeeId={newEmpEntry.id}
-                        allAdvances={advances}
-                        onSaved={() => { setInlineRowEmpId(null); setNewEmpEntry(null); fetchAll(); }}
-                        onCancel={() => { setInlineRowEmpId(null); setNewEmpEntry(null); }}
-                      />
-                    )}
-                  </React.Fragment>
-                )}
               </tbody>
               <tfoot>
                 <tr className="bg-muted/70 border-t-2 border-border/60">
