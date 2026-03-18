@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 import {
-  CalendarIcon, CheckCircle2, XCircle, Clock,
-  Palmtree, Stethoscope, UserCheck, Save, Plus
+  CalendarIcon, UserCheck, Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,33 +19,40 @@ type AttendanceStatus = 'present' | 'absent' | 'leave' | 'sick' | 'late';
 
 interface AttendanceRecord {
   employeeId: string;
-  status: AttendanceStatus | null;
+  status: AttendanceStatus | string | null;
   checkIn: string;
   checkOut: string;
   note: string;
-  customStatus: string;
-  showCustomInput: boolean;
 }
 
 type Employee = { id: string; name: string; salary_type: string; job_title?: string | null };
 
-const statusConfigAr = {
-  present: { label: 'حاضر',  icon: CheckCircle2, activeClass: 'bg-green-100 text-green-700 border-green-400 dark:bg-green-900/30 dark:text-green-400',   hoverClass: 'hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-900/20' },
-  absent:  { label: 'غائب',  icon: XCircle,      activeClass: 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400',             hoverClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-900/20' },
-  leave:   { label: 'إجازة', icon: Palmtree,     activeClass: 'bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400', hoverClass: 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300' },
-  sick:    { label: 'مريض',  icon: Stethoscope,  activeClass: 'bg-purple-100 text-purple-700 border-purple-400 dark:bg-purple-900/30 dark:text-purple-400', hoverClass: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300' },
-  late:    { label: 'متأخر', icon: Clock,        activeClass: 'bg-orange-100 text-orange-700 border-orange-400 dark:bg-orange-900/30 dark:text-orange-400', hoverClass: 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300' },
+// Color mapping per status key (for built-in statuses)
+const STATUS_COLORS: Record<string, string> = {
+  present: 'bg-green-100 text-green-800 border-green-300',
+  absent:  'bg-red-100 text-red-800 border-red-300',
+  leave:   'bg-yellow-100 text-yellow-800 border-yellow-300',
+  sick:    'bg-purple-100 text-purple-800 border-purple-300',
+  late:    'bg-orange-100 text-orange-800 border-orange-300',
+};
+const DEFAULT_COLOR = 'bg-primary/10 text-primary border-primary/30';
+
+const STATUS_LABELS_AR: Record<string, string> = {
+  present: 'حاضر',
+  absent:  'غائب',
+  leave:   'إجازة',
+  sick:    'مريض',
+  late:    'متأخر',
+};
+const STATUS_LABELS_EN: Record<string, string> = {
+  present: 'Present',
+  absent:  'Absent',
+  leave:   'Leave',
+  sick:    'Sick',
+  late:    'Late',
 };
 
-const statusConfigEn = {
-  present: { label: 'Present', icon: CheckCircle2, activeClass: 'bg-green-100 text-green-700 border-green-400 dark:bg-green-900/30 dark:text-green-400',   hoverClass: 'hover:bg-green-50 hover:text-green-700 hover:border-green-300 dark:hover:bg-green-900/20' },
-  absent:  { label: 'Absent',  icon: XCircle,      activeClass: 'bg-red-100 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-red-400',             hoverClass: 'hover:bg-red-50 hover:text-red-700 hover:border-red-300 dark:hover:bg-red-900/20' },
-  leave:   { label: 'Leave',   icon: Palmtree,     activeClass: 'bg-yellow-100 text-yellow-700 border-yellow-400 dark:bg-yellow-900/30 dark:text-yellow-400', hoverClass: 'hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-300' },
-  sick:    { label: 'Sick',    icon: Stethoscope,  activeClass: 'bg-purple-100 text-purple-700 border-purple-400 dark:bg-purple-900/30 dark:text-purple-400', hoverClass: 'hover:bg-purple-50 hover:text-purple-700 hover:border-purple-300' },
-  late:    { label: 'Late',    icon: Clock,        activeClass: 'bg-orange-100 text-orange-700 border-orange-400 dark:bg-orange-900/30 dark:text-orange-400', hoverClass: 'hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300' },
-};
-
-const STATUS_KEYS = Object.keys(statusConfigAr) as AttendanceStatus[];
+const BUILT_IN_STATUSES: AttendanceStatus[] = ['present', 'absent', 'leave', 'sick', 'late'];
 
 interface Props {
   selectedMonth: number;
@@ -55,8 +62,8 @@ interface Props {
 const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const { lang, isRTL } = useLanguage();
   const { permissions } = usePermissions('attendance');
-  const statusConfig = lang === 'ar' ? statusConfigAr : statusConfigEn;
   const dateLocale = lang === 'ar' ? ar : enUS;
+  const statusLabels = lang === 'ar' ? STATUS_LABELS_AR : STATUS_LABELS_EN;
 
   const [date, setDate] = useState<Date>(() => {
     const d = new Date();
@@ -70,6 +77,15 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   const [records, setRecords] = useState<Record<string, AttendanceRecord>>({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Custom statuses from localStorage
+  const [customStatuses, setCustomStatuses] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('custom_attendance_statuses') || '[]'); } catch { return []; }
+  });
+
+  // Per-row "adding custom status" input
+  const [addingCustomFor, setAddingCustomFor] = useState<string | null>(null);
+  const [customInput, setCustomInput] = useState('');
 
   useEffect(() => {
     setDate(prev => {
@@ -105,15 +121,13 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
             checkIn: existing?.check_in ?? '',
             checkOut: existing?.check_out ?? '',
             note: existing?.note ?? '',
-            customStatus: '',
-            showCustomInput: false,
           };
         });
         setRecords(initial);
       });
   }, [date, employees]);
 
-  const updateRecord = (empId: string, field: keyof AttendanceRecord, value: string | boolean | null) => {
+  const updateRecord = (empId: string, field: keyof AttendanceRecord, value: string | null) => {
     setRecords(prev => ({ ...prev, [empId]: { ...prev[empId], [field]: value } }));
   };
 
@@ -126,22 +140,39 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     toast({ title: lang === 'ar' ? 'تم تسجيل الكل حاضرين ✅' : 'All marked as present ✅' });
   };
 
+  const addCustomStatus = (empId: string) => {
+    const trimmed = customInput.trim();
+    if (!trimmed) return;
+    // Save to localStorage pool
+    if (!customStatuses.includes(trimmed)) {
+      const updated = [...customStatuses, trimmed];
+      setCustomStatuses(updated);
+      localStorage.setItem('custom_attendance_statuses', JSON.stringify(updated));
+    }
+    updateRecord(empId, 'status', trimmed);
+    setAddingCustomFor(null);
+    setCustomInput('');
+  };
+
   const handleSave = async () => {
     setSaving(true);
     const dateStr = format(date, 'yyyy-MM-dd');
     const toSave = Object.values(records).filter(r => r.status !== null);
     let saved = 0;
 
-    const dbStatusMap: Record<AttendanceStatus, 'present' | 'absent' | 'leave' | 'sick' | 'late'> = {
-      present: 'present', absent: 'absent', leave: 'leave',
-      sick: 'sick', late: 'late',
-    };
+    const validDbStatuses: AttendanceStatus[] = ['present', 'absent', 'leave', 'sick', 'late'];
+
     for (const r of toSave) {
-      const noteText = [r.note, r.customStatus].filter(Boolean).join(' | ') || null;
+      const dbStatus: AttendanceStatus = validDbStatuses.includes(r.status as AttendanceStatus)
+        ? (r.status as AttendanceStatus)
+        : 'present'; // fallback for custom
+
+      const noteText = [r.note, !validDbStatuses.includes(r.status as AttendanceStatus) ? r.status : ''].filter(Boolean).join(' | ') || null;
+
       const payload = {
         employee_id: r.employeeId,
         date: dateStr,
-        status: dbStatusMap[r.status!],
+        status: dbStatus,
         check_in: r.checkIn || null,
         check_out: r.checkOut || null,
         note: noteText,
@@ -161,12 +192,18 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
     });
   };
 
+  // Summary
   const summary = Object.values(records).reduce((acc, r) => {
     if (r.status) acc[r.status] = (acc[r.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   const savedCount = Object.values(records).filter(r => r.status !== null).length;
+
+  const allStatuses = [
+    ...BUILT_IN_STATUSES.map(k => ({ value: k, label: statusLabels[k] })),
+    ...customStatuses.map(s => ({ value: s, label: s })),
+  ];
 
   const colHeaders = {
     employee: lang === 'ar' ? 'المندوب' : 'Employee',
@@ -177,8 +214,8 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   };
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Sub-header: date picker + action buttons */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Popover>
@@ -216,7 +253,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
               <Save size={16} />
               {saving
                 ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...')
-                : `${lang === 'ar' ? 'حفظ الحضور' : 'Save Attendance'} (${savedCount})`}
+                : `${lang === 'ar' ? 'حفظ الحضور' : 'Save'} (${savedCount})`}
             </Button>
           )}
         </div>
@@ -224,9 +261,9 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
 
       {/* Summary pills */}
       <div className="flex gap-2 flex-wrap">
-        {STATUS_KEYS.map(key => (summary[key] ?? 0) > 0 ? (
-          <span key={key} className={`px-3 py-1 rounded-full text-xs font-medium border ${statusConfig[key].activeClass}`}>
-            {statusConfig[key].label}: {summary[key]}
+        {Object.entries(summary).map(([key, count]) => count > 0 ? (
+          <span key={key} className={`px-3 py-1 rounded-full text-xs font-medium border ${STATUS_COLORS[key] || DEFAULT_COLOR}`}>
+            {statusLabels[key] || key}: {count}
           </span>
         ) : null)}
         {savedCount === 0 && (
@@ -242,8 +279,10 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           <table className="w-full">
             <thead className="ta-thead">
               <tr>
-                <th className={`ta-th sticky ${isRTL ? 'right-0' : 'left-0'} bg-muted/40 min-w-[160px]`}>{colHeaders.employee}</th>
-                <th className="ta-th min-w-[420px]">{colHeaders.status}</th>
+                <th className={`ta-th sticky ${isRTL ? 'right-0' : 'left-0'} bg-muted/40 min-w-[160px] text-start`}>
+                  {colHeaders.employee}
+                </th>
+                <th className="ta-th min-w-[200px]">{colHeaders.status}</th>
                 <th className="ta-th-center">{colHeaders.checkIn}</th>
                 <th className="ta-th-center">{colHeaders.checkOut}</th>
                 <th className="ta-th min-w-[180px]">{colHeaders.note}</th>
@@ -259,16 +298,20 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                   </tr>
                 ))
               ) : employees.map(emp => {
-                const record = records[emp.id] ?? { status: null, checkIn: '', checkOut: '', note: '', customStatus: '', showCustomInput: false, employeeId: emp.id };
+                const record = records[emp.id] ?? { status: null, checkIn: '', checkOut: '', note: '', employeeId: emp.id };
+                const currentStatus = record.status;
+                const selectColor = currentStatus ? (STATUS_COLORS[currentStatus] || DEFAULT_COLOR) : '';
+                const isAddingCustom = addingCustomFor === emp.id;
+
                 return (
                   <tr key={emp.id} className="ta-tr">
-                    {/* Name */}
+                    {/* Name — always start-aligned per layout dir */}
                     <td className={`ta-td sticky ${isRTL ? 'right-0' : 'left-0'} bg-card`}>
-                      <div className="flex items-center gap-3">
+                      <div className={`flex items-center gap-3 ${isRTL ? 'flex-row' : 'flex-row'}`}>
                         <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
                           {emp.name.charAt(0)}
                         </div>
-                        <div>
+                        <div className="text-start">
                           <p className="text-sm font-medium text-foreground whitespace-nowrap">{emp.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {emp.job_title || (emp.salary_type === 'orders'
@@ -279,49 +322,63 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                       </div>
                     </td>
 
-                    {/* Status buttons */}
+                    {/* Status dropdown */}
                     <td className="ta-td">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex gap-1.5 flex-wrap">
-                          {STATUS_KEYS.map(key => {
-                            const cfg = statusConfig[key];
-                            const Icon = cfg.icon;
-                            const isActive = record.status === key;
-                            return (
-                              <button
-                                key={key}
-                                disabled={!permissions.can_edit}
-                                onClick={() => permissions.can_edit && updateRecord(emp.id, 'status', isActive ? null : key)}
-                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium border transition-all ${
-                                  isActive ? cfg.activeClass : `border-border/50 text-muted-foreground ${permissions.can_edit ? cfg.hoverClass : 'cursor-default opacity-70'}`
-                                }`}
-                              >
-                                <Icon size={12} />
-                                {cfg.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Custom status */}
-                        {permissions.can_edit && (record.showCustomInput ? (
-                          <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        {isAddingCustom ? (
+                          <div className="flex items-center gap-1.5">
                             <Input
-                              value={record.customStatus}
-                              onChange={e => updateRecord(emp.id, 'customStatus', e.target.value)}
-                              placeholder={lang === 'ar' ? 'حالة مخصصة...' : 'Custom status...'}
-                              className="text-xs h-7 max-w-[200px]"
+                              autoFocus
+                              value={customInput}
+                              onChange={e => setCustomInput(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') addCustomStatus(emp.id);
+                                if (e.key === 'Escape') { setAddingCustomFor(null); setCustomInput(''); }
+                              }}
+                              placeholder={lang === 'ar' ? 'اسم الحالة...' : 'Status name...'}
+                              className="h-8 text-xs w-32"
                             />
+                            <Button size="sm" className="h-8 text-xs px-2" onClick={() => addCustomStatus(emp.id)}>
+                              {lang === 'ar' ? 'إضافة' : 'Add'}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 text-xs px-2"
+                              onClick={() => { setAddingCustomFor(null); setCustomInput(''); }}>
+                              ✕
+                            </Button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => updateRecord(emp.id, 'showCustomInput', true)}
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors w-fit"
+                          <Select
+                            value={currentStatus || ''}
+                            disabled={!permissions.can_edit}
+                            onValueChange={v => {
+                              if (v === '__add_custom__') {
+                                setAddingCustomFor(emp.id);
+                                setCustomInput('');
+                              } else {
+                                updateRecord(emp.id, 'status', v || null);
+                              }
+                            }}
                           >
-                            <Plus size={11} />
-                            {lang === 'ar' ? 'إضافة حالة مخصصة' : 'Add custom status'}
-                          </button>
-                        ))}
+                            <SelectTrigger className={cn(
+                              'h-8 text-xs w-40 border',
+                              currentStatus ? selectColor : 'text-muted-foreground'
+                            )}>
+                              <SelectValue placeholder={lang === 'ar' ? 'اختر الحالة...' : 'Select status...'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {allStatuses.map(s => (
+                                <SelectItem key={s.value} value={s.value}>
+                                  <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[s.value] || DEFAULT_COLOR}`}>
+                                    {s.label}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                              <SelectItem value="__add_custom__" className="text-primary font-medium border-t mt-1">
+                                + {lang === 'ar' ? 'إضافة حالة جديدة...' : 'Add new status...'}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                     </td>
 

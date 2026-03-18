@@ -49,8 +49,9 @@ const Attendance = () => {
 
   return (
     <div className="space-y-3" dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Row 1: breadcrumb + title | download button */}
+      {/* ── Compact header: title+breadcrumb | filters+download ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
+        {/* Left: breadcrumb + title */}
         <div>
           <nav className="page-breadcrumb">
             <span>{lang === 'ar' ? 'الرئيسية' : 'Home'}</span>
@@ -59,71 +60,68 @@ const Attendance = () => {
           </nav>
           <h1 className="page-title">{t('attendance')}</h1>
         </div>
-        <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-2 h-8">
-              <Download size={13} />
-              {lang === 'ar' ? '📥 تحميل ▾' : '📥 Download ▾'}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleExportAttendance}>
-              {lang === 'ar' ? '📊 تصدير Excel (ملخص شهري)' : '📊 Export Excel (Monthly Summary)'}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => importRef.current?.click()}>
-              <Upload size={14} className="ml-2" /> {lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleAttendanceTemplate}>
-              📋 {lang === 'ar' ? 'تحميل القالب' : 'Download Template'}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+
+        {/* Right: month/year filters + download */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="h-8 w-[120px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((m, i) => (
+                <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="h-8 w-[80px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map(y => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs">
+                <Download size={13} />
+                {lang === 'ar' ? 'تحميل ▾' : 'Export ▾'}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportAttendance}>
+                📊 {lang === 'ar' ? 'تصدير Excel (ملخص شهري)' : 'Export Excel (Monthly Summary)'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => importRef.current?.click()}>
+                <Upload size={14} className="ms-2" /> {lang === 'ar' ? 'استيراد Excel' : 'Import Excel'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleAttendanceTemplate}>
+                📋 {lang === 'ar' ? 'تحميل القالب' : 'Download Template'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {/* Row 2: filters inline */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground font-medium">
-          {lang === 'ar' ? 'الشهر:' : 'Month:'}
-        </span>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="h-8 w-[130px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MONTHS.map((m, i) => (
-              <SelectItem key={i} value={String(i)}>{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="h-8 w-[90px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {YEARS.map(y => (
-              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-xs text-muted-foreground">
-          {MONTHS[Number(selectedMonth)]} {selectedYear}
-        </span>
-      </div>
-
-      <Tabs defaultValue="daily" className="space-y-5">
+      {/* ── Tabs ── */}
+      <Tabs defaultValue="daily" className="space-y-3">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="daily" className="gap-2">
-            <ClipboardCheck size={16} />
+            <ClipboardCheck size={15} />
             {lang === 'ar' ? 'التسجيل اليومي' : 'Daily Record'}
           </TabsTrigger>
-        <TabsTrigger value="monthly" className="gap-2">
-            <CalendarDays size={16} />
+          <TabsTrigger value="monthly" className="gap-2">
+            <CalendarDays size={15} />
             {lang === 'ar' ? 'السجل الشهري' : 'Monthly Record'}
           </TabsTrigger>
           <TabsTrigger value="stats" className="gap-2">
-            <BarChart2 size={16} />
+            <BarChart2 size={15} />
             {lang === 'ar' ? 'الإحصائيات' : 'Statistics'}
           </TabsTrigger>
         </TabsList>
@@ -145,4 +143,3 @@ const Attendance = () => {
 };
 
 export default Attendance;
-
