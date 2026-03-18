@@ -1665,10 +1665,8 @@ const Salaries = () => {
   const [detailOrders, setDetailOrders] = useState<{appName: string; orders: number; salary: number}[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  const openEmployeeDetail = async (row: SalaryRow) => {
+  const openEmployeeDetail = (row: SalaryRow) => {
     setDetailRow(row);
-    setDetailLoading(true);
-    const c = computeRow(row);
     // Build orders breakdown from row data
     const orders = platforms
       .filter(p => row.registeredApps.includes(p))
@@ -1678,7 +1676,6 @@ const Salaries = () => {
         salary: row.platformSalaries[p] || 0,
       }));
     setDetailOrders(orders);
-    setDetailLoading(false);
   };
 
   return (
