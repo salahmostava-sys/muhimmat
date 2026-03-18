@@ -815,6 +815,11 @@ const Advances = () => {
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportAdvances} />
           <Button variant="outline" size="sm" className="gap-2 h-8" onClick={handleExport}><Download size={14} /> تصدير</Button>
           <Button variant="outline" size="sm" className="gap-2 h-8" onClick={() => importRef.current?.click()}><Upload size={14} /> استيراد</Button>
+          {permissions.can_edit && (
+            <Button size="sm" className="gap-2 h-8" onClick={() => setShowAddEmployee(true)}>
+              <UserPlus size={14} /> مندوب جديد
+            </Button>
+          )}
         </div>
       </div>
 
