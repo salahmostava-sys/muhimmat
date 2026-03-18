@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Plus, CreditCard, Download, Upload, ChevronDown, ChevronUp, Pause, Play, Edit2, FileText } from 'lucide-react';
+import { Search, Plus, CreditCard, Download, Upload, Pause, Edit2, FileText, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
