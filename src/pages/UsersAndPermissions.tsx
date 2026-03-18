@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil } from 'lucide-react';
+import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil, KeyRound, UserX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +56,24 @@ interface UserWithRole {
 }
 interface UserPermissions { [key: string]: PagePermission; }
 
+// ─── Blue Toggle Switch ────────────────────────────────────────────────────────
+const BlueSwitch = ({ checked, onCheckedChange, disabled }: { checked: boolean; onCheckedChange: () => void; disabled?: boolean }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={checked}
+    disabled={disabled}
+    onClick={onCheckedChange}
+    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40
+      ${checked ? 'bg-primary' : 'bg-muted-foreground/25'}`}
+  >
+    <span
+      className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-md ring-0 transition-transform
+        ${checked ? 'translate-x-4' : 'translate-x-0'}`}
+    />
+  </button>
+);
+
 // ─── Users Tab ────────────────────────────────────────────────────────────────
 const UsersTab = () => {
   const { toast } = useToast();
@@ -74,6 +92,12 @@ const UsersTab = () => {
   const [savingRole, setSavingRole] = useState<string | null>(null);
   const [reactivating, setReactivating] = useState<string | null>(null);
 
+  // Edit user state
+  const [editTarget, setEditTarget] = useState<Profile | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
   const fetchUsers = async () => {
     setLoading(true);
     const [{ data: pData }, { data: rData }] = await Promise.all([
@@ -87,6 +111,49 @@ const UsersTab = () => {
   useEffect(() => { fetchUsers(); }, []);
 
   const getRole = (userId: string) => userRoles.find(r => r.user_id === userId)?.role as AppRoleType | undefined;
+
+  const openEdit = (u: Profile) => {
+    setEditTarget(u);
+    setEditName(u.name || '');
+    setEditPassword('');
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget) return;
+    if (!editName.trim()) {
+      toast({ title: 'خطأ', description: 'الاسم مطلوب', variant: 'destructive' });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      // Update name in profiles
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ name: editName.trim() })
+        .eq('id', editTarget.id);
+      if (profileError) throw profileError;
+
+      // Update password via edge function if provided
+      if (editPassword.trim().length > 0) {
+        if (editPassword.trim().length < 6) {
+          toast({ title: 'خطأ', description: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', variant: 'destructive' });
+          setEditSaving(false);
+          return;
+        }
+        const { error: pwError } = await supabase.functions.invoke('admin-update-user', {
+          body: { user_id: editTarget.id, password: editPassword.trim() },
+        });
+        if (pwError) throw pwError;
+      }
+
+      toast({ title: '✅ تم التحديث', description: `تم تحديث بيانات ${editName}` });
+      setEditTarget(null);
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    }
+    setEditSaving(false);
+  };
 
   const handleAdd = async () => {
     if (!newEmail || !newPassword || !newName) {
@@ -257,13 +324,21 @@ const UsersTab = () => {
 
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
+                        {/* Edit button */}
+                        <button
+                          onClick={() => openEdit(u)}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          title="تعديل بيانات المستخدم"
+                        >
+                          <Pencil size={14} />
+                        </button>
                         {u.is_active ? (
                           <button
                             onClick={() => setDeleteTarget(u)}
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             title="تعطيل المستخدم"
                           >
-                            <Trash2 size={14} />
+                            <UserX size={14} />
                           </button>
                         ) : (
                           <button
@@ -289,6 +364,60 @@ const UsersTab = () => {
         )}
       </div>
 
+      {/* Edit User Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={open => !open && setEditTarget(null)}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                <User size={16} className="text-primary" />
+              </div>
+              تعديل بيانات المستخدم
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <div className="bg-muted/40 rounded-lg px-3 py-2 text-sm text-muted-foreground" dir="ltr">
+              {editTarget?.email}
+            </div>
+            <div className="space-y-2">
+              <Label>الاسم الكامل</Label>
+              <Input value={editName} onChange={e => setEditName(e.target.value)} placeholder="اسم المستخدم" />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><KeyRound size={13} /> كلمة مرور جديدة <span className="text-muted-foreground font-normal text-xs">(اتركها فارغة إن لم ترد التغيير)</span></Label>
+              <Input
+                type="password"
+                value={editPassword}
+                onChange={e => setEditPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+            {/* Deactivate option in edit dialog */}
+            {editTarget?.is_active && (
+              <div className="border border-destructive/30 rounded-lg p-3 bg-destructive/5">
+                <p className="text-xs text-destructive font-medium mb-2 flex items-center gap-1.5">
+                  <AlertTriangle size={13} /> منطقة الخطر
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setEditTarget(null); setDeleteTarget(editTarget); }}
+                  className="flex items-center gap-2 text-xs text-destructive hover:underline font-medium"
+                >
+                  <UserX size={13} /> تعطيل هذا الحساب
+                </button>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={() => setEditTarget(null)}>إلغاء</Button>
+            <Button onClick={handleEdit} disabled={editSaving} className="gap-2">
+              {editSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              حفظ التعديلات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Disable confirmation dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <AlertDialogContent dir="rtl">
@@ -309,7 +438,7 @@ const UsersTab = () => {
               disabled={deleting}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
             >
-              {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              {deleting ? <Loader2 size={14} className="animate-spin" /> : <UserX size={14} />}
               تأكيد التعطيل
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -522,7 +651,9 @@ const PermissionsTab = () => {
                 </div>
               </div>
             </div>
-            <div className="ta-table-wrap">
+
+            {/* Permissions table with blue switches */}
+            <div className="ta-table-wrap overflow-hidden">
               <div className="px-4 py-3 border-b border-border/50 bg-muted/30 flex items-center justify-between">
                 <p className="text-sm font-semibold text-foreground">صلاحيات الصفحات</p>
                 <button onClick={resetToDefaults} className="text-xs text-primary hover:underline">إعادة للافتراضي</button>
@@ -531,28 +662,46 @@ const PermissionsTab = () => {
                 <div className="p-8 text-center"><Loader2 size={24} className="animate-spin mx-auto text-muted-foreground" /></div>
               ) : (
                 <table className="w-full">
-                  <thead className="ta-thead">
-                    <tr>
-                      <th className="ta-th text-right">الصفحة</th>
-                      <th className="ta-th text-center">عرض</th>
-                      <th className="ta-th text-center">تعديل</th>
-                      <th className="ta-th text-center">حذف</th>
+                  <thead>
+                    <tr className="bg-muted/20 border-b border-border/40">
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">الصفحة</th>
+                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-primary">عرض</th>
+                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-primary">تعديل</th>
+                      <th className="text-center px-4 py-2.5 text-xs font-semibold text-primary">حذف</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {PAGE_KEYS.map(({ key, label }) => {
+                    {PAGE_KEYS.map(({ key, label }, idx) => {
                       const perm = userPermissions[key] || { can_view: false, can_edit: false, can_delete: false };
                       return (
-                        <tr key={key} className="ta-tr">
-                          <td className="ta-td font-medium text-foreground">{label}</td>
-                          <td className="ta-td text-center">
-                            <Switch checked={perm.can_view} onCheckedChange={() => togglePermission(key, 'can_view')} disabled={pendingRole === 'admin'} />
+                        <tr key={key} className={`border-b border-border/20 hover:bg-primary/3 transition-colors ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}>
+                          <td className="px-4 py-2.5 text-sm font-medium text-foreground">{label}</td>
+                          <td className="px-4 py-2.5 text-center">
+                            <div className="flex justify-center">
+                              <BlueSwitch
+                                checked={perm.can_view}
+                                onCheckedChange={() => togglePermission(key, 'can_view')}
+                                disabled={pendingRole === 'admin'}
+                              />
+                            </div>
                           </td>
-                          <td className="ta-td text-center">
-                            <Switch checked={perm.can_edit && perm.can_view} onCheckedChange={() => togglePermission(key, 'can_edit')} disabled={!perm.can_view || pendingRole === 'admin'} />
+                          <td className="px-4 py-2.5 text-center">
+                            <div className="flex justify-center">
+                              <BlueSwitch
+                                checked={perm.can_edit && perm.can_view}
+                                onCheckedChange={() => togglePermission(key, 'can_edit')}
+                                disabled={!perm.can_view || pendingRole === 'admin'}
+                              />
+                            </div>
                           </td>
-                          <td className="ta-td text-center">
-                            <Switch checked={perm.can_delete && perm.can_view} onCheckedChange={() => togglePermission(key, 'can_delete')} disabled={!perm.can_view || pendingRole === 'admin'} />
+                          <td className="px-4 py-2.5 text-center">
+                            <div className="flex justify-center">
+                              <BlueSwitch
+                                checked={perm.can_delete && perm.can_view}
+                                onCheckedChange={() => togglePermission(key, 'can_delete')}
+                                disabled={!perm.can_view || pendingRole === 'admin'}
+                              />
+                            </div>
                           </td>
                         </tr>
                       );
@@ -561,6 +710,7 @@ const PermissionsTab = () => {
                 </table>
               )}
             </div>
+
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => setSelectedUser(null)}>إلغاء</Button>
               <Button onClick={savePermissions} disabled={saving} className="gap-2 min-w-32">
