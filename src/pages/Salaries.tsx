@@ -56,10 +56,8 @@ interface SalaryRow {
   incentives: number;
   sickAllowance: number;
   violations: number;
-  walletHunger: number;
-  walletTuyo: number;
-  walletJahiz: number;
-  foodDamage: number;
+  // Dynamic deduction columns keyed by "appName___colKey"
+  customDeductions: Record<string, number>;
   transfer: number;
   advanceDeduction: number;
   advanceInstallmentIds: string[];
