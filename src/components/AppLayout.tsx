@@ -155,10 +155,6 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 h-9 px-2 rounded-xl hover:bg-muted transition-colors border border-border/60 hover:border-border ml-1">
-                  {/* Avatar */}
-                  <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold flex-shrink-0">
-                    {initials}
-                  </div>
                   {/* Name + role — hidden on small screens */}
                   <div className={`hidden md:flex flex-col items-${isRTL ? 'end' : 'start'} leading-none`}>
                     <span className="text-xs font-semibold text-foreground truncate max-w-[120px]">{displayName}</span>
@@ -173,9 +169,6 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                 {/* Profile header */}
                 <div className="px-3 py-2.5 border-b border-border/50">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0">
-                      {initials}
-                    </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
                       <p className="text-[11px] text-muted-foreground truncate">{displayEmail}</p>

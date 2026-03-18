@@ -168,9 +168,6 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
                   <tr key={row.id} className="ta-tr">
                     <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card`}>
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">
-                          {row.name.charAt(0)}
-                        </div>
                         <span className="font-medium text-foreground whitespace-nowrap">{row.name}</span>
                       </div>
                     </td>

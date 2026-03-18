@@ -778,7 +778,7 @@ const Employees = () => {
                               <div className="flex items-center gap-2.5">
                                 {emp.personal_photo_url
                                   ? <img src={emp.personal_photo_url} className="w-8 h-8 rounded-full object-cover flex-shrink-0" alt="" />
-                                  : <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">{emp.name.charAt(0)}</div>
+                                  : null
                                 }
                                 <button onClick={() => setSelectedEmployee(emp.id)} className="text-sm font-semibold text-foreground hover:text-primary transition-colors text-start">
                                   {emp.name}
