@@ -1093,9 +1093,9 @@ const Advances = () => {
                         <td className="px-2 py-3 text-center" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => { setEditAdvance(s.allAdvances[0]); }}
+                              onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName, nationalId: s.nationalId, totalDebt: s.totalDebt, totalPaid: s.totalPaid, remaining: s.remaining, isWrittenOff: s.isWrittenOff, allAdvances: s.allAdvances })}
                               className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                              title="تعديل السلفة"
+                              title="عرض وتعديل السلف"
                             >
                               <Edit2 size={13} />
                             </button>

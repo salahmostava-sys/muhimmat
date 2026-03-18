@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil, KeyRound, UserX } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Users as UsersIcon, Shield, Plus, Loader2, RefreshCw, User, ChevronRight, Check, Trash2, AlertTriangle, UserCheck, Pencil, KeyRound, UserX, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -74,6 +74,59 @@ const BlueSwitch = ({ checked, onCheckedChange, disabled }: { checked: boolean; 
   </button>
 );
 
+// ─── 3-dot Actions Menu ───────────────────────────────────────────────────────
+const DropdownMenuRoot = ({ u, openEdit, setDeleteTarget, handleReactivate, isReactivating }: {
+  u: Profile;
+  openEdit: (u: Profile) => void;
+  setDeleteTarget: (u: Profile) => void;
+  handleReactivate: (u: Profile) => void;
+  isReactivating: boolean;
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+      >
+        <MoreVertical size={15} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[140px]" dir="rtl">
+          <button
+            onClick={() => { openEdit(u); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/60 transition-colors text-foreground"
+          >
+            <Pencil size={13} className="text-primary" /> تعديل
+          </button>
+          {u.is_active ? (
+            <button
+              onClick={() => { setDeleteTarget(u); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/60 transition-colors text-warning"
+            >
+              <UserX size={13} /> تعطيل
+            </button>
+          ) : (
+            <button
+              disabled={isReactivating}
+              onClick={() => { handleReactivate(u); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/60 transition-colors text-success disabled:opacity-50"
+            >
+              <UserCheck size={13} /> تفعيل
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Users Tab ────────────────────────────────────────────────────────────────
 const UsersTab = () => {
   const { toast } = useToast();
@@ -135,11 +188,6 @@ const UsersTab = () => {
 
       // Update password via edge function if provided
       if (editPassword.trim().length > 0) {
-        if (editPassword.trim().length < 6) {
-          toast({ title: 'خطأ', description: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', variant: 'destructive' });
-          setEditSaving(false);
-          return;
-        }
         const { error: pwError } = await supabase.functions.invoke('admin-update-user', {
           body: { user_id: editTarget.id, password: editPassword.trim() },
         });
@@ -323,37 +371,8 @@ const UsersTab = () => {
                     </td>
 
                     <td className="p-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {/* Edit button */}
-                        <button
-                          onClick={() => openEdit(u)}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          title="تعديل بيانات المستخدم"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        {u.is_active ? (
-                          <button
-                            onClick={() => setDeleteTarget(u)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                            title="تعطيل المستخدم"
-                          >
-                            <UserX size={14} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleReactivate(u)}
-                            disabled={isReactivating}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-success bg-success/10 hover:bg-success/20 transition-colors border border-success/30 disabled:opacity-50"
-                            title="إعادة تفعيل الحساب"
-                          >
-                            {isReactivating
-                              ? <Loader2 size={12} className="animate-spin" />
-                              : <UserCheck size={13} />
-                            }
-                            تفعيل
-                          </button>
-                        )}
+                      <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+                        <DropdownMenuRoot u={u} openEdit={openEdit} setDeleteTarget={setDeleteTarget} handleReactivate={handleReactivate} isReactivating={reactivating === u.id} />
                       </div>
                     </td>
                   </tr>

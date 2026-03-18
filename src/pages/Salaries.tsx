@@ -2115,6 +2115,9 @@ const Salaries = () => {
                       </th>
                     );
                   })}
+                  <th className="px-2 py-2 text-xs font-semibold text-foreground whitespace-nowrap border border-border/30 bg-muted/30 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('totalPlatformOrders')}>
+                    إجمالي الطلبات <SortIcon field="totalPlatformOrders" sortField={sortField} sortDir={sortDir} />
+                  </th>
                   <th className={thBase}>الراتب الأساسي</th>
                   <th className={`${thBase} bg-success/5`}>حوافز</th>
                   <th className={`${thBase} bg-success/5`}>إجازة مرضية</th>
@@ -2223,6 +2226,9 @@ const Salaries = () => {
                           </td>
                         );
                       })}
+                      <td className={`${tdClass} text-center font-bold text-foreground border-l border-border/20`}>
+                        {Object.values(r.platformOrders).reduce((s, v) => s + v, 0) || <span className="text-muted-foreground/30">—</span>}
+                      </td>
                       <td className={`${tdClass} font-bold text-foreground border-l border-border/20`}>{c.totalPlatformSalary.toLocaleString()}</td>
                       <td className={tdClass}><EditableCell value={r.incentives} onChange={v => updateRow(r.id, { incentives: v })} className="text-foreground" /></td>
                       <td className={tdClass}><EditableCell value={r.sickAllowance} onChange={v => updateRow(r.id, { sickAllowance: v })} className="text-foreground" /></td>
@@ -2344,7 +2350,10 @@ const Salaries = () => {
                         </div>
                       </td>
                     );
-                  })}
+                   })}
+                   <td className={`${tfClass} text-center font-bold text-foreground border-l border-border/20`}>
+                     {filtered.reduce((s, r) => s + Object.values(r.platformOrders).reduce((a, v) => a + v, 0), 0).toLocaleString()}
+                   </td>
                    <td className={`${tfClass} text-foreground border-l border-border/30`}>{totals.platformSalaries.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.incentives.toLocaleString()}</td>
                   <td className={`${tfClass} text-foreground`}>{totals.sickAllowance.toLocaleString()}</td>
