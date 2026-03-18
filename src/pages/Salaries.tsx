@@ -884,7 +884,7 @@ const Salaries = () => {
         const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
         const bankAccount = emp.iban ? emp.iban.slice(-6) : '';
         const hasIban = !!emp.iban;
-        const empPlatformIncome = Object.values(platformSalaries).reduce((s, v) => s + v, 0);
+        // platformIncome is manual — not computed from anywhere
 
         return {
           id: `${emp.id}-${selectedMonth}`,
@@ -917,7 +917,7 @@ const Salaries = () => {
           phone: (emp as any).phone || null,
           workDays: attendanceDays,
           fuelCost: fuelCostMap[emp.id] || 0,
-          platformIncome: empPlatformIncome,
+          platformIncome: 0,
         };
       });
 
@@ -2161,11 +2161,9 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 216, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
                       <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 328, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
-                      {/* ── New info columns: income, work days, fuel ── */}
+                      {/* ── New info columns: income (manual), work days, fuel ── */}
                       <td className="px-2 py-2 text-xs text-center border border-info/20 bg-info/5 whitespace-nowrap">
-                        {r.platformIncome > 0
-                          ? <span className="font-semibold text-foreground">{r.platformIncome.toLocaleString()}</span>
-                          : <span className="text-muted-foreground/30">—</span>}
+                        <EditableCell value={r.platformIncome} onChange={v => updateRow(r.id, { platformIncome: v })} className="text-foreground" />
                       </td>
                       <td className="px-2 py-2 text-xs text-center border border-info/20 bg-info/5 whitespace-nowrap">
                         {r.workDays > 0
