@@ -2023,9 +2023,7 @@ const Salaries = () => {
                   <th className={`${thBase} bg-success/5`}>إجازة مرضية</th>
                   <th className={`${thBase} bg-success/5`}>إجمالي الإضافات</th>
                   <th className={`${thBase} bg-success/10 border-l-2 border-success/50`}>الإجمالي مع الراتب</th>
-                  <th className={`${thBase} bg-destructive/5`}>قسط سلفة</th>
-                  <th className={`${thBase} bg-destructive/5`}>رصيد السلف المتبقي</th>
-                  <th className={`${thBase} bg-destructive/5`}>استقطاعات خارجية</th>
+                  <th className={`${thBase} bg-destructive/5`}>سلف</th>
                   <th className={`${thBase} bg-destructive/5`}>مخالفات</th>
                   {allCustomCols.map(col => (
                     <th key={col.fullKey} className={`${thBase} bg-destructive/5`}>{col.label}</th>
