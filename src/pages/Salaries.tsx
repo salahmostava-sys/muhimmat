@@ -1684,12 +1684,66 @@ const Salaries = () => {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="stat-card">
-          <p className="text-xs text-muted-foreground">إجمالي الرواتب</p>
-          <p className="text-2xl font-bold text-primary mt-1">{totalNet.toLocaleString()} <span className="text-xs">ر.س</span></p>
+      {/* Summary cards — total + per-platform + admin */}
+      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(160px, 1fr))` }}>
+        {/* Total Grand Card */}
+        <div className="bg-card border-t-4 border-primary rounded-xl p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground leading-tight">إجمالي الرواتب</p>
+              <p className="text-[22px] font-semibold text-foreground leading-tight mt-1">{totalNet.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">ريال سعودي</p>
+            </div>
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <TrendingUp size={14} className="text-primary" />
+            </div>
+          </div>
         </div>
+
+        {/* Per-platform cards */}
+        {platforms.map(p => {
+          const pc = platformColors[p];
+          const platformTotal = filtered.reduce((s, r) => s + (r.platformSalaries[p] || 0), 0);
+          return (
+            <div key={p} className="bg-card rounded-xl p-4 shadow-sm border-t-4" style={{ borderTopColor: pc?.header || 'hsl(var(--primary))' }}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground leading-tight truncate">{p}</p>
+                  <p className="text-[22px] font-semibold text-foreground leading-tight mt-1">{platformTotal.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">ريال سعودي</p>
+                </div>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${pc?.header}20` }}>
+                  <Users size={14} style={{ color: pc?.header || 'hsl(var(--primary))' }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Admin salaries card */}
+        {(() => {
+          const adminTotal = filtered
+            .filter(r => r.jobTitle !== 'مندوب توصيل' && r.jobTitle !== 'Delivery Rider')
+            .reduce((s, r) => s + computeRow(r).netSalary, 0);
+          return (
+            <div className="bg-card border-t-4 border-muted-foreground/30 rounded-xl p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground leading-tight">الرواتب الإدارية</p>
+                  <p className="text-[22px] font-semibold text-foreground leading-tight mt-1">{adminTotal.toLocaleString()}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">ريال سعودي</p>
+                </div>
+                <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                  <Building2 size={14} className="text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      {/* Status mini-cards */}
+      <div className="grid grid-cols-3 gap-3">
         <div className="stat-card">
           <p className="text-xs text-muted-foreground">بانتظار الاعتماد</p>
           <p className="text-2xl font-bold text-warning mt-1">{pendingCount}</p>
