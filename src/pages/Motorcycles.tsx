@@ -24,6 +24,7 @@ type Vehicle = {
   model: string | null;
   year: number | null;
   status: VehicleStatus;
+  has_fuel_chip: boolean;
   insurance_expiry: string | null;
   registration_expiry: string | null;
   authorization_expiry: string | null;
@@ -36,19 +37,23 @@ type Vehicle = {
 const statusLabels: Record<string, string> = {
   active: 'نشطة',
   maintenance: 'صيانة',
-  breakdown: 'أعطال',
+  breakdown: 'خربان',
   rental: 'إيجار',
   ended: 'منتهي',
   inactive: 'غير نشطة',
 };
 
-const statusStyles: Record<string, string> = {
-  active: 'badge-success',
-  maintenance: 'badge-warning',
-  breakdown: 'badge-urgent',
-  rental: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  ended: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground',
-  inactive: 'px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground',
+// Smart status badge — considers current_rider for active vehicles
+const SmartStatusBadge = ({ status, rider }: { status: VehicleStatus; rider?: string | null }) => {
+  if (status === 'active') {
+    return rider
+      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary">🔑 متاح مع مندوب</span>
+      : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success">✅ متاح بدون مندوب</span>;
+  }
+  if (status === 'maintenance') return <span className="badge-warning">🔧 صيانة</span>;
+  if (status === 'breakdown') return <span className="badge-urgent">⚠️ خربان</span>;
+  if (status === 'rental') return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">🚙 إيجار</span>;
+  return <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground">{statusLabels[status] || status}</span>;
 };
 
 const typeLabels: Record<string, string> = { motorcycle: 'موتوسيكل', car: 'سيارة' };
