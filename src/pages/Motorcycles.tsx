@@ -536,6 +536,13 @@ const Motorcycles = () => {
                      <td className="px-3 py-2.5">
                        <SmartStatusBadge status={v.status} rider={v.current_rider} />
                      </td>
+                     {/* Fuel chip */}
+                     <td className="px-3 py-2.5 text-center">
+                       {v.has_fuel_chip
+                         ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-success/10 text-success">⛽ يوجد</span>
+                         : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground">لا يوجد</span>
+                       }
+                     </td>
                     <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(insDays)}`}>
                       {v.insurance_expiry ? (
                         <div>
