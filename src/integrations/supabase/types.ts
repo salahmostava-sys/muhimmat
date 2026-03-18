@@ -61,11 +61,14 @@ export type Database = {
           employee_id: string
           first_deduction_month: string
           id: string
+          is_written_off: boolean
           monthly_amount: number
           note: string | null
           status: Database["public"]["Enums"]["advance_status"]
           total_installments: number
           updated_at: string
+          written_off_at: string | null
+          written_off_reason: string | null
         }
         Insert: {
           amount: number
@@ -75,11 +78,14 @@ export type Database = {
           employee_id: string
           first_deduction_month: string
           id?: string
+          is_written_off?: boolean
           monthly_amount: number
           note?: string | null
           status?: Database["public"]["Enums"]["advance_status"]
           total_installments?: number
           updated_at?: string
+          written_off_at?: string | null
+          written_off_reason?: string | null
         }
         Update: {
           amount?: number
@@ -89,11 +95,14 @@ export type Database = {
           employee_id?: string
           first_deduction_month?: string
           id?: string
+          is_written_off?: boolean
           monthly_amount?: number
           note?: string | null
           status?: Database["public"]["Enums"]["advance_status"]
           total_installments?: number
           updated_at?: string
+          written_off_at?: string | null
+          written_off_reason?: string | null
         }
         Relationships: [
           {
@@ -137,6 +146,41 @@ export type Database = {
           type?: string
         }
         Relationships: []
+      }
+      app_targets: {
+        Row: {
+          app_id: string
+          created_at: string
+          id: string
+          month_year: string
+          target_orders: number
+          updated_at: string
+        }
+        Insert: {
+          app_id: string
+          created_at?: string
+          id?: string
+          month_year: string
+          target_orders?: number
+          updated_at?: string
+        }
+        Update: {
+          app_id?: string
+          created_at?: string
+          id?: string
+          month_year?: string
+          target_orders?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_targets_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       apps: {
         Row: {
