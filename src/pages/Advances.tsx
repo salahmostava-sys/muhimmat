@@ -1010,6 +1010,28 @@ const Advances = () => {
                     )}
                   </React.Fragment>
                 ))}
+                {/* Temporary row for new employee */}
+                {newEmpEntry && !filtered.some(s => s.employeeId === newEmpEntry.id) && (
+                  <React.Fragment key={`new-${newEmpEntry.id}`}>
+                    <tr className="border-b border-border/30 bg-primary/5">
+                      <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">—</td>
+                      <td className="px-3 py-3 text-right">
+                        <span className="font-semibold text-foreground text-sm">{newEmpEntry.name}</span>
+                        <span className="mr-2 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">جديد</span>
+                      </td>
+                      <td className="px-3 py-3 text-center text-xs text-muted-foreground">—</td>
+                      <td colSpan={3} className="px-3 py-3 text-center text-xs text-muted-foreground">لا توجد سلف بعد</td>
+                    </tr>
+                    {inlineRowEmpId === newEmpEntry.id && (
+                      <InlineRowEntry
+                        employeeId={newEmpEntry.id}
+                        allAdvances={advances}
+                        onSaved={() => { setInlineRowEmpId(null); setNewEmpEntry(null); fetchAll(); }}
+                        onCancel={() => { setInlineRowEmpId(null); setNewEmpEntry(null); }}
+                      />
+                    )}
+                  </React.Fragment>
+                )}
               </tbody>
               <tfoot>
                 <tr className="bg-muted/70 border-t-2 border-border/60">
