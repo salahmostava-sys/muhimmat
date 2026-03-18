@@ -578,6 +578,8 @@ const Salaries = () => {
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
   const [appsWithoutScheme, setAppsWithoutScheme] = useState<string[]>([]);
+  // appCustomColumns: appName → CustomColumn[]
+  const [appCustomColumns, setAppCustomColumns] = useState<Record<string, CustomColumn[]>>({});
 
   // ── Batch ZIP export state ────────────────────────────────────
   const [batchQueue, setBatchQueue] = useState<SalaryRow[]>([]);
@@ -586,11 +588,12 @@ const Salaries = () => {
   const [batchMonth, setBatchMonth] = useState('');
   const batchSlipRef = useRef<HTMLDivElement>(null);
 
-  // Sync platforms & colors from DB apps
+  // Sync platforms, colors, and custom columns from DB apps
   useEffect(() => {
     if (appColorsList.length === 0) return;
     const newColors: Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }> = {};
     const newPlatforms: string[] = [];
+    const newCustomCols: Record<string, CustomColumn[]> = {};
     appColorsList.filter(a => a.is_active).forEach(app => {
       newPlatforms.push(app.name);
       newColors[app.name] = {
@@ -600,11 +603,13 @@ const Salaries = () => {
         valueColor: app.brand_color,
         focusBorder: app.brand_color,
       };
+      newCustomCols[app.name] = app.custom_columns || [];
       // keep global in sync for legacy code paths
       PLATFORM_COLORS[app.name] = newColors[app.name];
     });
     setPlatforms(newPlatforms);
     setPlatformColors(newColors);
+    setAppCustomColumns(newCustomCols);
   }, [appColorsList]);
 
   // ─── Data fetching ─────────────────────────────────────────────
