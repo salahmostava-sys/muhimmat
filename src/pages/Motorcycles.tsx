@@ -18,6 +18,7 @@ type VehicleStatus = 'active' | 'maintenance' | 'breakdown' | 'rental' | 'ended'
 type Vehicle = {
   id: string;
   plate_number: string;
+  plate_number_en?: string | null;
   type: 'motorcycle' | 'car';
   brand: string | null;
   model: string | null;
@@ -26,6 +27,8 @@ type Vehicle = {
   insurance_expiry: string | null;
   registration_expiry: string | null;
   authorization_expiry: string | null;
+  chassis_number?: string | null;
+  serial_number?: string | null;
   notes: string | null;
 };
 
@@ -88,24 +91,29 @@ const VehicleFormModal = ({
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    plate_number: '', type: 'motorcycle' as 'motorcycle' | 'car',
+    plate_number: '', plate_number_en: '', type: 'motorcycle' as 'motorcycle' | 'car',
     brand: '', model: '', year: '', status: 'active' as VehicleStatus,
-    insurance_expiry: '', registration_expiry: '', authorization_expiry: '', notes: '',
+    insurance_expiry: '', registration_expiry: '', authorization_expiry: '',
+    chassis_number: '', serial_number: '', notes: '',
   });
 
   useEffect(() => {
     if (editVehicle) {
       setForm({
-        plate_number: editVehicle.plate_number, type: editVehicle.type,
+        plate_number: editVehicle.plate_number,
+        plate_number_en: editVehicle.plate_number_en || '',
+        type: editVehicle.type,
         brand: editVehicle.brand || '', model: editVehicle.model || '',
         year: editVehicle.year?.toString() || '', status: editVehicle.status,
         insurance_expiry: editVehicle.insurance_expiry || '',
         registration_expiry: editVehicle.registration_expiry || '',
         authorization_expiry: editVehicle.authorization_expiry || '',
+        chassis_number: editVehicle.chassis_number || '',
+        serial_number: editVehicle.serial_number || '',
         notes: editVehicle.notes || '',
       });
     } else {
-      setForm({ plate_number: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', insurance_expiry: '', registration_expiry: '', authorization_expiry: '', notes: '' });
+      setForm({ plate_number: '', plate_number_en: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', insurance_expiry: '', registration_expiry: '', authorization_expiry: '', chassis_number: '', serial_number: '', notes: '' });
     }
   }, [editVehicle, open]);
 
@@ -113,12 +121,16 @@ const VehicleFormModal = ({
     if (!form.plate_number.trim()) return toast({ title: 'يرجى إدخال رقم اللوحة', variant: 'destructive' });
     setSaving(true);
     const payload = {
-      plate_number: form.plate_number.trim(), type: form.type,
+      plate_number: form.plate_number.trim(),
+      plate_number_en: form.plate_number_en.trim() || null,
+      type: form.type,
       brand: form.brand || null, model: form.model || null,
       year: form.year ? parseInt(form.year) : null, status: form.status,
       insurance_expiry: form.insurance_expiry || null,
       registration_expiry: form.registration_expiry || null,
       authorization_expiry: form.authorization_expiry || null,
+      chassis_number: form.chassis_number.trim() || null,
+      serial_number: form.serial_number.trim() || null,
       notes: form.notes || null,
     };
     let error;
@@ -139,10 +151,14 @@ const VehicleFormModal = ({
         <DialogHeader>
           <DialogTitle>{editVehicle ? 'تعديل بيانات المركبة' : 'إضافة مركبة جديدة'}</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="text-sm font-medium mb-1 block">رقم اللوحة *</label>
+        <div className="grid grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1">
+          <div>
+            <label className="text-sm font-medium mb-1 block">رقم اللوحة (عربي) *</label>
             <Input value={form.plate_number} onChange={e => setForm(p => ({ ...p, plate_number: e.target.value }))} placeholder="مثال: أ ب ج 1234" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">رقم اللوحة (إنجليزي)</label>
+            <Input value={form.plate_number_en} onChange={e => setForm(p => ({ ...p, plate_number_en: e.target.value }))} placeholder="AD 2469" dir="ltr" />
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">النوع</label>
@@ -176,6 +192,14 @@ const VehicleFormModal = ({
             <Input type="number" value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} placeholder="2022" />
           </div>
           <div>
+            <label className="text-sm font-medium mb-1 block">الرقم التسلسلي</label>
+            <Input value={form.serial_number} onChange={e => setForm(p => ({ ...p, serial_number: e.target.value }))} placeholder="333974020" dir="ltr" />
+          </div>
+          <div className="col-span-2">
+            <label className="text-sm font-medium mb-1 block">رقم الهيكل</label>
+            <Input value={form.chassis_number} onChange={e => setForm(p => ({ ...p, chassis_number: e.target.value }))} placeholder="ME4KC20F1NA014818" dir="ltr" />
+          </div>
+          <div>
             <label className="text-sm font-medium mb-1 block">انتهاء التأمين</label>
             <Input type="date" value={form.insurance_expiry} onChange={e => setForm(p => ({ ...p, insurance_expiry: e.target.value }))} />
           </div>
@@ -204,7 +228,7 @@ const VehicleFormModal = ({
 // ─── Skeleton Row ─────────────────────────────────────────────────────────────
 const SkeletonRow = () => (
   <tr className="border-b border-border/30">
-    {Array.from({ length: 9 }).map((_, i) => (
+    {Array.from({ length: 12 }).map((_, i) => (
       <td key={i} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
     ))}
   </tr>
@@ -399,17 +423,20 @@ const Motorcycles = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full min-w-[1100px]">
             <thead className="ta-thead">
               <tr>
-                <th className="ta-th">رقم اللوحة</th>
+                <th className="ta-th">#</th>
+                <th className="ta-th">رقم اللوحة ar</th>
+                <th className="ta-th">رقم اللوحة en</th>
                 <th className="ta-th">النوع</th>
                 <th className="ta-th">الماركة / الموديل</th>
-                <th className="ta-th">السنة</th>
+                <th className="ta-th">الرقم التسلسلي</th>
+                <th className="ta-th">رقم الهيكل</th>
                 <th className="ta-th">الحالة</th>
                 <th className="ta-th">انتهاء التأمين</th>
+                <th className="ta-th">انتهاء التسجيل</th>
                 <th className="ta-th">انتهاء التفويض</th>
-                <th className="ta-th">حالة التفويض</th>
                 <th className="ta-th">إجراءات</th>
               </tr>
             </thead>
@@ -418,7 +445,7 @@ const Motorcycles = () => {
                 Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-16">
+                  <td colSpan={12} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Bike size={40} className="opacity-30" />
                       <p className="font-medium">لا توجد مركبات</p>
@@ -426,23 +453,29 @@ const Motorcycles = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map(v => {
+              ) : filtered.map((v, idx) => {
                 const authDays = getDaysLeft(v.authorization_expiry);
                 const insDays = getDaysLeft(v.insurance_expiry);
+                const regDays = getDaysLeft(v.registration_expiry);
                 return (
                   <tr key={v.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground">{idx + 1}</td>
                     <td className="px-3 py-2.5">
                       <span className="font-bold text-foreground font-mono whitespace-nowrap">{v.plate_number}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="text-sm text-muted-foreground">{v.type === 'motorcycle' ? '🏍️' : '🚗'} {typeLabels[v.type]}</span>
+                      <span className="text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{v.plate_number_en || '—'}</span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">{v.type === 'motorcycle' ? '🏍️' : '🚗'} {typeLabels[v.type]}</span>
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="text-sm font-medium text-foreground whitespace-nowrap">
-                        {v.brand || '—'} {v.model ? `— ${v.model}` : ''}
+                        {v.brand || '—'}{v.model ? ` — ${v.model}` : ''}{v.year ? ` (${v.year})` : ''}
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 text-sm text-muted-foreground">{v.year || '—'}</td>
+                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.serial_number || '—'}</td>
+                    <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap" dir="ltr">{v.chassis_number || '—'}</td>
                     <td className="px-3 py-2.5">
                       <span className={statusStyles[v.status] || 'badge-info'}>{statusLabels[v.status] || v.status}</span>
                     </td>
@@ -454,6 +487,14 @@ const Motorcycles = () => {
                         </div>
                       ) : '—'}
                     </td>
+                    <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(regDays)}`}>
+                      {v.registration_expiry ? (
+                        <div>
+                          <div>{format(parseISO(v.registration_expiry), 'yyyy/MM/dd')}</div>
+                          <div className="text-[10px]">{daysLabel(regDays)}</div>
+                        </div>
+                      ) : '—'}
+                    </td>
                     <td className={`px-3 py-2.5 text-xs whitespace-nowrap ${daysStyle(authDays)}`}>
                       {v.authorization_expiry ? (
                         <div>
@@ -462,7 +503,6 @@ const Motorcycles = () => {
                         </div>
                       ) : '—'}
                     </td>
-                    <td className="px-3 py-2.5">{authBadge(v.authorization_expiry)}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1">
                         {permissions.can_edit && (
