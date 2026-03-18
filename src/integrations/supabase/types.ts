@@ -418,6 +418,50 @@ export type Database = {
           },
         ]
       }
+      employee_tiers: {
+        Row: {
+          created_at: string
+          delivery_status: string
+          employee_id: string
+          id: string
+          notes: string | null
+          package_type: string
+          renewal_date: string
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_status?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          package_type?: string
+          renewal_date: string
+          start_date?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_status?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          package_type?: string
+          renewal_date?: string
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_tiers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           allowances: Json | null
