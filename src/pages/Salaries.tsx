@@ -1661,8 +1661,28 @@ const Salaries = () => {
   const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border/60 bg-muted/60";
   const stickyLeft = (offset: number) => ({ left: offset });
 
+  const [detailRow, setDetailRow] = useState<SalaryRow | null>(null);
+  const [detailOrders, setDetailOrders] = useState<{appName: string; orders: number; salary: number}[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openEmployeeDetail = async (row: SalaryRow) => {
+    setDetailRow(row);
+    setDetailLoading(true);
+    const c = computeRow(row);
+    // Build orders breakdown from row data
+    const orders = platforms
+      .filter(p => row.registeredApps.includes(p))
+      .map(p => ({
+        appName: p,
+        orders: row.platformOrders[p] || 0,
+        salary: row.platformSalaries[p] || 0,
+      }));
+    setDetailOrders(orders);
+    setDetailLoading(false);
+  };
+
   return (
-    <div className="space-y-4 h-full flex flex-col" dir="rtl">
+    <div className="space-y-4" dir="rtl">
       {/* Page header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
