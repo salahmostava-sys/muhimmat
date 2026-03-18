@@ -307,11 +307,11 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                   <tr key={emp.id} className="ta-tr">
                     {/* Name — always start-aligned per layout dir */}
                     <td className={`ta-td sticky ${isRTL ? 'right-0' : 'left-0'} bg-card`}>
-                      <div className={`flex items-center gap-3 ${isRTL ? 'flex-row' : 'flex-row'}`}>
+                      <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
                           {emp.name.charAt(0)}
                         </div>
-                        <div className="text-start">
+                        <div>
                           <p className="text-sm font-medium text-foreground whitespace-nowrap">{emp.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {emp.job_title || (emp.salary_type === 'orders'

@@ -110,7 +110,7 @@ const Attendance = () => {
       </div>
 
       {/* ── Tabs ── */}
-      <Tabs defaultValue="daily" className="space-y-3">
+      <Tabs defaultValue="daily" className="space-y-2">
         <TabsList className="bg-muted/50">
           <TabsTrigger value="daily" className="gap-2">
             <ClipboardCheck size={15} />
