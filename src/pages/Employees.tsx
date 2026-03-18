@@ -646,7 +646,7 @@ const Employees = () => {
       {/* Table */}
       <div className="ta-table-wrap">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full" ref={tableRef}>
             <thead>
               {/* Column headers — filter icon embedded beside label */}
               <tr className="ta-thead">
