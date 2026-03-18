@@ -1258,13 +1258,16 @@ export type Database = {
         Row: {
           authorization_expiry: string | null
           brand: string | null
+          chassis_number: string | null
           created_at: string
           id: string
           insurance_expiry: string | null
           model: string | null
           notes: string | null
           plate_number: string
+          plate_number_en: string | null
           registration_expiry: string | null
+          serial_number: string | null
           status: Database["public"]["Enums"]["vehicle_status"]
           type: Database["public"]["Enums"]["vehicle_type"]
           updated_at: string
@@ -1273,13 +1276,16 @@ export type Database = {
         Insert: {
           authorization_expiry?: string | null
           brand?: string | null
+          chassis_number?: string | null
           created_at?: string
           id?: string
           insurance_expiry?: string | null
           model?: string | null
           notes?: string | null
           plate_number: string
+          plate_number_en?: string | null
           registration_expiry?: string | null
+          serial_number?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           type?: Database["public"]["Enums"]["vehicle_type"]
           updated_at?: string
@@ -1288,13 +1294,16 @@ export type Database = {
         Update: {
           authorization_expiry?: string | null
           brand?: string | null
+          chassis_number?: string | null
           created_at?: string
           id?: string
           insurance_expiry?: string | null
           model?: string | null
           notes?: string | null
           plate_number?: string
+          plate_number_en?: string | null
           registration_expiry?: string | null
+          serial_number?: string | null
           status?: Database["public"]["Enums"]["vehicle_status"]
           type?: Database["public"]["Enums"]["vehicle_type"]
           updated_at?: string
