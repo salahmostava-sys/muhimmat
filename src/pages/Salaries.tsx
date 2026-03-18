@@ -2265,23 +2265,9 @@ const Salaries = () => {
                         )}
                       </td>
                       <td className={tdClass}>
-                        <div className="flex items-center gap-1 justify-center">
-                          <button onClick={() => setPayslipRow(r)} className="text-muted-foreground hover:text-primary transition-colors" title="فتح كشف الراتب">
-                            <Printer size={14} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              const mLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
-                              const html = generateEmployeePDF(r, mLabel);
-                              const win = window.open('', '_blank');
-                              if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
-                            }}
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                            title="تصدير PDF مباشر"
-                          >
-                            <FileText size={12} />
-                          </button>
-                        </div>
+                        <button onClick={() => setPayslipRow(r)} className="text-muted-foreground hover:text-primary transition-colors" title="فتح كشف الراتب">
+                          <Printer size={14} />
+                        </button>
                       </td>
                     </tr>
                   );
