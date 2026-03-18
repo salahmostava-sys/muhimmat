@@ -1798,6 +1798,14 @@ const Salaries = () => {
             </button>
           ))}
         </div>
+        <div className="flex gap-1">
+          {[{ v: 'all', l: '🌍 كل المدن' }, { v: 'makkah', l: '🕌 مكة' }, { v: 'jeddah', l: '🌊 جدة' }].map(c => (
+            <button key={c.v} onClick={() => setCityFilter(c.v)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${cityFilter === c.v ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}>
+              {c.l}
+            </button>
+          ))}
+        </div>
         <div className="flex gap-2 mr-auto items-center">
           <div className="flex rounded-lg border border-border overflow-hidden">
             <button
