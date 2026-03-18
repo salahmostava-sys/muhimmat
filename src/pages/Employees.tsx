@@ -248,6 +248,13 @@ const Employees = () => {
   // per-column filters
   const [colFilters, setColFilters] = useState<Record<string, string>>({});
 
+  // trade registers
+  const [tradeRegisters, setTradeRegisters] = useState<{ id: string; name: string; cr_number?: string | null }[]>([]);
+  // inline trade register assignment dialog
+  const [tradeAssignEmp, setTradeAssignEmp] = useState<Employee | null>(null);
+  const [tradeAssignVal, setTradeAssignVal] = useState<string>('');
+  const [tradeSaving, setTradeSaving] = useState(false);
+
   // modals
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [showAddModal, setShowAddModal]     = useState(false);
