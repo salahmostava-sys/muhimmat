@@ -714,6 +714,28 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
           </DialogContent>
         </Dialog>
       )}
+
+      {/* ── Confirm Delete Single Installment Row ── */}
+      {deleteInstallmentId && (
+        <Dialog open onOpenChange={v => !v && setDeleteInstallmentId(null)}>
+          <DialogContent className="max-w-sm" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle size={18} /> حذف صف من السجل
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              سيتم حذف هذا الصف من سجل العمليات نهائياً. هل تريد المتابعة؟
+            </p>
+            <DialogFooter className="gap-2 mt-2">
+              <Button variant="outline" onClick={() => setDeleteInstallmentId(null)}>إلغاء</Button>
+              <Button variant="destructive" onClick={handleDeleteInstallment} disabled={deletingInstallment}>
+                {deletingInstallment ? '...' : 'حذف الصف'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 };
