@@ -11,14 +11,10 @@ import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
-// Static label map — not data
+// Static label map — not data (only residency, insurance, authorization, probation)
 export const alertTypeLabels: Record<string, string> = {
   residency: 'إقامة',
   insurance: 'تأمين',
-  registration: 'تسجيل',
-  license: 'رخصة',
-  installment: 'قسط سلفة',
-  deduction: 'خصم شركة',
   authorization: 'تفويض',
   probation: 'فترة التجربة',
 };
@@ -37,9 +33,7 @@ const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning
 const severityLabels: Record<string, string> = { urgent: '🔴 عاجل', warning: '🟠 تحذير', info: '🔵 معلومات' };
 
 const typeIcons: Record<string, string> = {
-  residency: '🪪', insurance: '🛡️', registration: '📋',
-  license: '🪪', installment: '💳', deduction: '📄', authorization: '📜',
-  probation: '⏱️',
+  residency: '🪪', insurance: '🛡️', authorization: '📜', probation: '⏱️',
 };
 
 const Alerts = () => {

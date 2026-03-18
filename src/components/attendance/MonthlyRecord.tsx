@@ -150,7 +150,7 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="ta-tr">
-                    {Array.from({ length: 9 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j} className="ta-td">
                         <div className="h-4 bg-muted rounded animate-pulse" />
                       </td>
@@ -159,7 +159,7 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
                 ))
               ) : data.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-10 text-center text-muted-foreground">
+                  <td colSpan={8} className="p-10 text-center text-muted-foreground">
                     {t.noData}
                   </td>
                 </tr>
@@ -185,9 +185,6 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
                     <td className="ta-td-center text-muted-foreground">
                       {row.totalHours} {t.hoursUnit}
                     </td>
-                    <td className="ta-td-center font-semibold text-foreground">
-                      {row.earnedSalary.toLocaleString()} {t.sarUnit}
-                    </td>
                   </tr>
                 ))
               )}
@@ -206,9 +203,6 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
                   <td className="ta-td-center text-orange-600 dark:text-orange-400">{totals.lateDays}</td>
                   <td className="ta-td-center text-muted-foreground">
                     {totals.totalHours} {t.hoursUnit}
-                  </td>
-                  <td className="ta-td-center text-foreground">
-                    {totals.earnedSalary.toLocaleString()} {t.sarUnit}
                   </td>
                 </tr>
               </tfoot>
