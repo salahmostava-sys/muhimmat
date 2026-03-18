@@ -306,7 +306,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                 return (
                   <tr key={emp.id} className="ta-tr">
                     {/* Name — always start-aligned per layout dir */}
-                    <td className={`ta-td sticky ${isRTL ? 'right-0' : 'left-0'} bg-card`}>
+                    <td className="ta-td sticky [inset-inline-start:0] bg-card text-start">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
                           {emp.name.charAt(0)}
