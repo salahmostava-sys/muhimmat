@@ -453,6 +453,7 @@ const Motorcycles = () => {
                 <th className="ta-th">الماركة / الموديل</th>
                 <th className="ta-th">الرقم التسلسلي</th>
                 <th className="ta-th">رقم الهيكل</th>
+                <th className="ta-th">المندوب الحالي</th>
                 <th className="ta-th">الحالة</th>
                 <th className="ta-th">انتهاء التأمين</th>
                 <th className="ta-th">انتهاء التسجيل</th>
