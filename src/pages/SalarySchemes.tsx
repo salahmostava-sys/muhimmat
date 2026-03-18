@@ -427,7 +427,7 @@ const SalarySchemes = () => {
 
             {/* Fixed Monthly Amount */}
             {schemeType === 'fixed_monthly' && (
-              <div className="space-y-2 border border-blue-500/30 rounded-lg p-3 bg-blue-500/5">
+              <div className="space-y-2 border border-border rounded-lg p-3 bg-muted/30">
                 <Label>الراتب الشهري الكامل (ر.س)</Label>
                 <Input
                   type="number"
