@@ -814,7 +814,7 @@ const Advances = () => {
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportAdvances} />
           <Button variant="outline" size="sm" className="gap-2 h-8" onClick={handleExport}><Download size={14} /> تصدير</Button>
           <Button variant="outline" size="sm" className="gap-2 h-8" onClick={() => importRef.current?.click()}><Upload size={14} /> استيراد</Button>
-          {permissions.can_edit && (
+          {permissions.can_edit && !showWrittenOff && (
             <Button size="sm" className="gap-2 h-8" onClick={() => setShowAddEmployee(true)}>
               <UserPlus size={14} /> مندوب جديد
             </Button>
@@ -840,7 +840,7 @@ const Advances = () => {
       {/* Written-off summary */}
       {writtenOffTotals.count > 0 && (
         <button
-          onClick={() => setShowWrittenOff(v => !v)}
+          onClick={() => { setShowWrittenOff(v => !v); setNewEmpEntry(null); setInlineRowEmpId(null); }}
           className={`w-full flex items-center gap-3 rounded-xl border p-3 text-sm transition-colors ${showWrittenOff ? 'bg-destructive/10 border-destructive/30' : 'bg-muted/30 border-border/40 hover:bg-muted/50'}`}>
           <AlertTriangle size={16} className="text-destructive flex-shrink-0" />
           <span className="font-medium text-foreground">الديون المعدومة: {writtenOffTotals.count} مندوب</span>
@@ -1010,8 +1010,8 @@ const Advances = () => {
                     )}
                   </React.Fragment>
                 ))}
-                {/* Temporary row for new employee */}
-                {newEmpEntry && !filtered.some(s => s.employeeId === newEmpEntry.id) && (
+                {/* Temporary row for new employee — show only in normal view, not in written-off view */}
+                {!showWrittenOff && newEmpEntry && !filtered.some(s => s.employeeId === newEmpEntry.id) && (
                   <React.Fragment key={`new-${newEmpEntry.id}`}>
                     <tr className="border-b border-border/30 bg-primary/5">
                       <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">—</td>
