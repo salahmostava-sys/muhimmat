@@ -57,7 +57,7 @@ const AppSidebar = () => {
         { label: t('vehicles'), icon: Bike, path: '/motorcycles' },
         { label: t('vehicleAssignment'), icon: FileDown, path: '/vehicle-assignment' },
         { label: t('fuel'), icon: Fuel, path: '/fuel' },
-        { label: t('violationResolver'), icon: FileWarning, path: '/violation-resolver' },
+        { label: 'استعلام المخالفات', icon: FileWarning, path: '/violation-resolver' },
         { label: 'شرائح الشركة', icon: Layers, path: '/employee-tiers' },
       ],
     },
