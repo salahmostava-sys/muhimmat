@@ -14,21 +14,28 @@ interface Employee {
   phone?: string | null;
   email?: string | null;
   national_id?: string | null;
+  employee_code?: string | null;
   iban?: string | null;
   bank_account_number?: string | null;
   city?: string | null;
   join_date?: string | null;
   dob?: string | null;
+  birth_date?: string | null;
   residency_expiry?: string | null;
+  health_insurance_expiry?: string | null;
   license_expiry?: string | null;
   license_status?: string | null;
   sponsorship_status?: string | null;
+  probation_end_date?: string | null;
+  nationality?: string | null;
+  preferred_language?: string | null;
   id_photo_url?: string | null;
   license_photo_url?: string | null;
   personal_photo_url?: string | null;
   status: string;
   salary_type: string;
   base_salary: number;
+  trade_register?: { id: string; name: string } | null;
 }
 
 interface Advance {
