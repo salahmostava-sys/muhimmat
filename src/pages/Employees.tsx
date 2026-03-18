@@ -70,6 +70,7 @@ const ALL_COLUMNS = [
   { key: 'sponsorship_status',   label: 'حالة الكفالة',         sortable: true  },
   { key: 'join_date',            label: 'تاريخ الانضمام',       sortable: true  },
   { key: 'birth_date',           label: 'تاريخ الميلاد',        sortable: true  },
+  { key: 'probation_end_date',   label: 'انتهاء فترة التجربة',  sortable: true  },
   { key: 'residency_expiry',     label: 'انتهاء الإقامة',       sortable: true  },
   { key: 'days_residency',       label: 'المتبقي (يوم)',        sortable: true  },
   { key: 'residency_status',     label: 'حالة الإقامة',         sortable: false },
