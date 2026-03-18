@@ -21,6 +21,7 @@ export type Database = {
           deducted_at: string | null
           id: string
           month_year: string
+          notes: string | null
           status: Database["public"]["Enums"]["installment_status"]
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           deducted_at?: string | null
           id?: string
           month_year: string
+          notes?: string | null
           status?: Database["public"]["Enums"]["installment_status"]
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           deducted_at?: string | null
           id?: string
           month_year?: string
+          notes?: string | null
           status?: Database["public"]["Enums"]["installment_status"]
         }
         Relationships: [
