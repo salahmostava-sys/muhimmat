@@ -2173,11 +2173,10 @@ const Salaries = () => {
                         <select
                           value={r.city === 'مكة' ? 'makkah' : r.city === 'جدة' ? 'jeddah' : ''}
                           onChange={async e => {
-                            const newCityVal = e.target.value;
+                            const newCityVal = e.target.value as 'makkah' | 'jeddah';
                             const newCityLabel = newCityVal === 'makkah' ? 'مكة' : 'جدة';
                             updateRow(r.id, { city: newCityLabel });
-                            // Save to employees DB
-                            await supabase.from('employees').update({ city: newCityVal }).eq('id', r.employeeId);
+                            await (supabase as any).from('employees').update({ city: newCityVal }).eq('id', r.employeeId);
                           }}
                           className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.city === 'مكة' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400'}`}
                         >
