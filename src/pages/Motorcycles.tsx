@@ -99,6 +99,7 @@ const VehicleFormModal = ({
   const [form, setForm] = useState({
     plate_number: '', plate_number_en: '', type: 'motorcycle' as 'motorcycle' | 'car',
     brand: '', model: '', year: '', status: 'active' as VehicleStatus,
+    has_fuel_chip: false,
     insurance_expiry: '', registration_expiry: '', authorization_expiry: '',
     chassis_number: '', serial_number: '', notes: '',
   });
