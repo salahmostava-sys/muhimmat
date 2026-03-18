@@ -767,7 +767,6 @@ const Advances = () => {
                   <th className="px-3 py-3 text-center text-xs font-semibold text-destructive cursor-pointer hover:text-foreground select-none" onClick={() => handleSort('remaining')}>
                     المتبقي <SortIcon field="remaining" />
                   </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground">الحالة</th>
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground">إجراءات</th>
                 </tr>
               </thead>
@@ -783,9 +782,8 @@ const Advances = () => {
                       >
                         {s.employeeName}
                       </button>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{s.allAdvances.length} سلفة</p>
                     </td>
-                    <td className="px-3 py-3 text-center text-xs font-mono text-muted-foreground" dir="ltr">{s.nationalId}</td>
+                    <td className="px-3 py-3 text-center text-sm font-mono text-foreground" dir="ltr">{s.nationalId}</td>
                     <td className="px-3 py-3 text-center">
                       <span className="font-bold text-info text-sm">{s.totalDebt.toLocaleString()}</span>
                       <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
@@ -801,62 +799,49 @@ const Advances = () => {
                       <span className="text-[10px] text-muted-foreground mr-0.5">ر.س</span>
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <div className="flex flex-wrap gap-1 justify-center">
-                        {s.activeAdvances.length > 0 ? (
-                          <span className="badge-info text-[10px]">نشطة ({s.activeAdvances.length})</span>
-                        ) : s.remaining === 0 ? (
-                          <span className="badge-success text-[10px]">مكتملة</span>
-                        ) : (
-                          <span className="badge-warning text-[10px]">موقوفة</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <div className="flex items-center gap-1 justify-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs gap-1 px-2"
-                          onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName })}
-                        >
-                          <FileText size={11} /> العمليات
-                        </Button>
-                        {permissions.can_edit && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1 px-2"
-                            onClick={() => { setAddDefaultEmployee(s.employeeId); setAddOpen(true); }}
-                          >
-                            <Plus size={11} /> سلفة
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1 px-2.5">
+                            <Plus size={12} /> إجراء
                           </Button>
-                        )}
-                        {s.activeAdvances.length > 0 && permissions.can_edit && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-warning"
-                            title="تأجيل/تفعيل السلفة النشطة"
-                            onClick={() => {
-                              const adv = s.activeAdvances[0];
-                              handleTogglePauseById(adv.id, adv.status);
-                            }}
-                          >
-                            <Pause size={12} />
-                          </Button>
-                        )}
-                        {permissions.can_edit && s.allAdvances.length > 0 && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            title="تعديل آخر سلفة"
-                            onClick={() => setEditAdvance(s.allAdvances[0])}
-                          >
-                            <Edit2 size={12} />
-                          </Button>
-                        )}
-                      </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[180px]" dir="rtl">
+                          {/* عرض العمليات */}
+                          <DropdownMenuItem onClick={() => setTransactionsEmployee({ id: s.employeeId, name: s.employeeName })}>
+                            <FileText size={13} className="ml-2 text-muted-foreground" />
+                            عرض سجل العمليات
+                          </DropdownMenuItem>
+                          {permissions.can_edit && <DropdownMenuSeparator />}
+                          {/* إضافة سلفة */}
+                          {permissions.can_edit && (
+                            <DropdownMenuItem onClick={() => { setAddDefaultEmployee(s.employeeId); setAddDefaultType('advance'); setAddOpen(true); }}>
+                              <ArrowDownCircle size={13} className="ml-2 text-info" />
+                              تسجيل سلفة
+                            </DropdownMenuItem>
+                          )}
+                          {/* تسجيل سداد */}
+                          {permissions.can_edit && s.remaining > 0 && (
+                            <DropdownMenuItem onClick={() => { setAddDefaultEmployee(s.employeeId); setAddDefaultType('payment'); setAddOpen(true); }}>
+                              <ArrowUpCircle size={13} className="ml-2 text-success" />
+                              تسجيل سداد
+                            </DropdownMenuItem>
+                          )}
+                          {/* تأجيل / تفعيل */}
+                          {permissions.can_edit && s.activeAdvances.length > 0 && (
+                            <DropdownMenuItem onClick={() => handleTogglePauseById(s.activeAdvances[0].id, s.activeAdvances[0].status)}>
+                              <Pause size={13} className="ml-2 text-warning" />
+                              {s.activeAdvances[0].status === 'paused' ? 'تفعيل السلفة' : 'تأجيل السلفة'}
+                            </DropdownMenuItem>
+                          )}
+                          {/* تعديل */}
+                          {permissions.can_edit && s.allAdvances.length > 0 && (
+                            <DropdownMenuItem onClick={() => setEditAdvance(s.allAdvances[0])}>
+                              <Edit2 size={13} className="ml-2 text-muted-foreground" />
+                              تعديل السلفة
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 ))}
