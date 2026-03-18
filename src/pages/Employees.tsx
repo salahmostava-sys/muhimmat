@@ -668,6 +668,24 @@ const Employees = () => {
                         case 'birth_date':
                           return <td key="birth_date" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.birth_date ? format(parseISO(emp.birth_date), 'yyyy/MM/dd') : '—'}</td>;
 
+                        case 'probation_end_date': {
+                          const probDays = emp.probation_end_date ? differenceInDays(parseISO(emp.probation_end_date), new Date()) : null;
+                          return (
+                            <td key="probation_end_date" className="px-3 py-2.5 whitespace-nowrap">
+                              {emp.probation_end_date ? (
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-xs text-muted-foreground">{format(parseISO(emp.probation_end_date), 'yyyy/MM/dd')}</span>
+                                  {probDays !== null && (
+                                    <span className={`text-xs font-medium ${probDays < 0 ? 'text-muted-foreground' : probDays <= 7 ? 'text-destructive' : probDays <= 30 ? 'text-warning' : 'text-success'}`}>
+                                      {probDays < 0 ? 'انتهت' : `${probDays}ي متبقي`}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : <span className="text-muted-foreground/40">—</span>}
+                            </td>
+                          );
+                        }
+
                         case 'residency_expiry':
                           return <td key="residency_expiry" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.residency_expiry ? format(parseISO(emp.residency_expiry), 'yyyy/MM/dd') : '—'}</td>;
 
