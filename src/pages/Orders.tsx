@@ -413,7 +413,7 @@ const SpreadsheetGrid = () => {
                         return (
                           <td key={d}
                             className={`text-center p-0 border-l border-border/30 transition-colors
-                              ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/20' : ''}
+                              ${isToday ? 'bg-primary/10' : isWeekend ? 'bg-muted/20' : isThursday ? 'bg-muted/10' : ''}
                               ${isOpen ? 'ring-2 ring-inset ring-primary' : ''}
                               ${permissions.can_edit ? 'cursor-pointer hover:bg-primary/5' : ''}`}
                             style={{ minWidth: 42 }}
