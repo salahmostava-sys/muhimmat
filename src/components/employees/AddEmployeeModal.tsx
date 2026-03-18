@@ -38,6 +38,7 @@ interface Props {
   onClose: () => void;
   onSuccess?: () => void;
   editEmployee?: EmployeeData | null;
+  tradeRegisters?: { id: string; name: string; cr_number?: string | null }[];
 }
 
 const STEPS = ['البيانات الأساسية', 'الإقامة والوثائق', 'نوع الراتب', 'رفع المستندات'];
