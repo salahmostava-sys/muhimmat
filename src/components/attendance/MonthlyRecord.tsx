@@ -105,11 +105,9 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
     sick: lang === "ar" ? "مريض" : "Sick",
     late: lang === "ar" ? "متأخر" : "Late",
     hours: lang === "ar" ? "ساعات العمل" : "Work Hours",
-    earned: lang === "ar" ? "المستحق" : "Earned",
     total: lang === "ar" ? "الإجمالي" : "Total",
     noData: lang === "ar" ? "لا توجد بيانات لهذا الشهر" : "No data for this month",
     hoursUnit: lang === "ar" ? "س" : "h",
-    sarUnit: lang === "ar" ? "ر.س" : "SAR",
     monthPeriod: `${MONTHS[selectedMonth]} ${selectedYear}`,
   };
 
@@ -145,8 +143,7 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
                     {t.late}
                   </span>
                 </th>
-                <th className="ta-th-center">{t.hours}</th>
-                <th className="ta-th-center">{t.earned}</th>
+                <th className="ta-th-center">{lang === "ar" ? "ساعات العمل" : "Work Hours"}</th>
               </tr>
             </thead>
             <tbody>
