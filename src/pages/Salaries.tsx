@@ -917,7 +917,7 @@ const Salaries = () => {
           phone: (emp as any).phone || null,
           workDays: attendanceDays,
           fuelCost: fuelCostMap[emp.id] || 0,
-          platformIncome: empPlatformIncome,
+          platformIncome: 0,
         };
       });
 
