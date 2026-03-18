@@ -810,6 +810,41 @@ const Advances = () => {
       )}
 
       {/* Table */}
+      {/* 🚨 Absconded employees with active debt */}
+      {!showWrittenOff && abscondedWithDebt.length > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 space-y-2">
+          <div className="flex items-center gap-2 mb-1">
+            <AlertTriangle size={16} className="text-destructive flex-shrink-0" />
+            <span className="text-sm font-semibold text-destructive">
+              تنبيه: {abscondedWithDebt.length} مندوب هارب لديه ديون غير معدومة
+            </span>
+          </div>
+          <div className="space-y-2">
+            {abscondedWithDebt.map(emp => (
+              <div key={emp.id} className="flex items-center justify-between gap-3 bg-card rounded-lg px-3 py-2 border border-border/50">
+                <div className="flex items-center gap-2">
+                  <span className="badge-urgent text-xs">هارب</span>
+                  <span className="text-sm font-medium text-foreground">{emp.name}</span>
+                  <span className="text-xs text-destructive font-bold">{emp.remaining.toLocaleString()} ر.س</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setWriteOffEmployee({
+                    name: emp.name,
+                    remaining: emp.remaining,
+                    advanceIds: emp.activeIds,
+                  })}
+                >
+                  <AlertTriangle size={12} /> إعدام الديون
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="bg-card rounded-xl border border-border/50 p-8 text-center text-muted-foreground animate-pulse">جارٍ التحميل...</div>
       ) : filtered.length === 0 ? (
