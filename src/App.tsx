@@ -80,7 +80,7 @@ const App = () => (
                                     <Route path="/fuel" element={<FuelPage />} />
                                     <Route path="/apps" element={<Apps />} />
                                     <Route path="/alerts" element={<Alerts />} />
-                                    <Route path="/reports" element={<Reports />} />
+                                    <Route path="/reports" element={<Navigate to="/" replace />} />
                                     <Route path="/employee-tiers" element={<EmployeeTiers />} />
                                     <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
                                     <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
