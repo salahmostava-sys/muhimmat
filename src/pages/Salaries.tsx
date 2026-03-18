@@ -2161,6 +2161,22 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 216, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
                       <td className={`${tdClass} border-l border-border/30 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 328, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
+                      {/* ── New info columns: income, work days, fuel ── */}
+                      <td className="px-2 py-2 text-xs text-center border border-info/20 bg-info/5 whitespace-nowrap">
+                        {r.platformIncome > 0
+                          ? <span className="font-semibold text-foreground">{r.platformIncome.toLocaleString()}</span>
+                          : <span className="text-muted-foreground/30">—</span>}
+                      </td>
+                      <td className="px-2 py-2 text-xs text-center border border-info/20 bg-info/5 whitespace-nowrap">
+                        {r.workDays > 0
+                          ? <span className="font-semibold text-foreground">{r.workDays}</span>
+                          : <span className="text-muted-foreground/30">—</span>}
+                      </td>
+                      <td className="px-2 py-2 text-xs text-center border-l-2 border-info/30 bg-info/5 whitespace-nowrap">
+                        {r.fuelCost > 0
+                          ? <span className="font-semibold text-foreground">{r.fuelCost.toLocaleString()}</span>
+                          : <span className="text-muted-foreground/30">—</span>}
+                      </td>
                       {platforms.map(p => {
                         const pc = platformColors[p];
                         const orders = r.platformOrders[p] || 0;
