@@ -947,27 +947,36 @@ export type Database = {
           created_at: string
           from_orders: number
           id: string
+          incremental_price: number | null
+          incremental_threshold: number | null
           price_per_order: number
           scheme_id: string
           tier_order: number
+          tier_type: string
           to_orders: number | null
         }
         Insert: {
           created_at?: string
           from_orders?: number
           id?: string
+          incremental_price?: number | null
+          incremental_threshold?: number | null
           price_per_order: number
           scheme_id: string
           tier_order?: number
+          tier_type?: string
           to_orders?: number | null
         }
         Update: {
           created_at?: string
           from_orders?: number
           id?: string
+          incremental_price?: number | null
+          incremental_threshold?: number | null
           price_per_order?: number
           scheme_id?: string
           tier_order?: number
+          tier_type?: string
           to_orders?: number | null
         }
         Relationships: [
@@ -984,8 +993,10 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          monthly_amount: number | null
           name: string
           name_en: string | null
+          scheme_type: string
           status: Database["public"]["Enums"]["scheme_status"]
           target_bonus: number | null
           target_orders: number | null
@@ -994,8 +1005,10 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          monthly_amount?: number | null
           name: string
           name_en?: string | null
+          scheme_type?: string
           status?: Database["public"]["Enums"]["scheme_status"]
           target_bonus?: number | null
           target_orders?: number | null
@@ -1004,8 +1017,10 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          monthly_amount?: number | null
           name?: string
           name_en?: string | null
+          scheme_type?: string
           status?: Database["public"]["Enums"]["scheme_status"]
           target_bonus?: number | null
           target_orders?: number | null

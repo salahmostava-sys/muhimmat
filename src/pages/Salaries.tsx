@@ -79,9 +79,19 @@ interface SchemeData {
   name: string;
   name_en: string | null;
   status: string;
+  scheme_type?: 'order_based' | 'fixed_monthly';
+  monthly_amount?: number | null;
   target_orders: number | null;
   target_bonus: number | null;
-  salary_scheme_tiers?: { from_orders: number; to_orders: number | null; price_per_order: number; tier_order: number }[];
+  salary_scheme_tiers?: {
+    from_orders: number;
+    to_orders: number | null;
+    price_per_order: number;
+    tier_order: number;
+    tier_type?: 'total_multiplier' | 'fixed_amount' | 'base_plus_incremental';
+    incremental_threshold?: number | null;
+    incremental_price?: number | null;
+  }[];
   snapshot?: any;
   scheme_id?: string;
 }
@@ -496,25 +506,56 @@ const ImportModal = ({ onClose }: { onClose: () => void }) => {
 
 function calcSalaryFromTiers(
   orders: number,
-  tiers: { from_orders: number; to_orders: number | null; price_per_order: number; tier_order: number }[],
+  tiers: SchemeData['salary_scheme_tiers'],
   targetOrders: number | null,
   targetBonus: number | null
 ): number {
   if (!tiers || tiers.length === 0 || orders === 0) return 0;
   const sorted = [...tiers].sort((a, b) => a.tier_order - b.tier_order);
-  let total = 0;
+
+  // Find the matching tier for the total orders
+  let matchedTier = sorted[0];
   for (const tier of sorted) {
     const from = tier.from_orders;
     const to = tier.to_orders ?? Infinity;
-    if (orders < from) break;
-    const inTier = Math.min(orders, to) - from + 1;
-    if (inTier <= 0) continue;
-    total += inTier * tier.price_per_order;
+    if (orders >= from && orders <= to) { matchedTier = tier; break; }
+    if (orders > (tier.to_orders ?? Infinity)) matchedTier = tier;
   }
+
+  let total = 0;
+
+  // Check the tier type of the matching tier
+  const tierType = matchedTier?.tier_type || 'total_multiplier';
+
+  if (tierType === 'fixed_amount') {
+    // Fixed amount regardless of order count within range
+    total = matchedTier.price_per_order;
+  } else if (tierType === 'base_plus_incremental') {
+    const threshold = matchedTier.incremental_threshold ?? matchedTier.from_orders;
+    const incrPrice = matchedTier.incremental_price ?? 0;
+    const extra = Math.max(0, orders - threshold);
+    total = matchedTier.price_per_order + extra * incrPrice;
+  } else {
+    // Default: total_multiplier — all tiers accumulate progressively
+    for (const tier of sorted) {
+      const from = tier.from_orders;
+      const to = tier.to_orders ?? Infinity;
+      if (orders < from) break;
+      const inTier = Math.min(orders, to) - from + 1;
+      if (inTier <= 0) continue;
+      total += inTier * tier.price_per_order;
+    }
+  }
+
   if (targetOrders && targetBonus && orders >= targetOrders) {
     total += targetBonus;
   }
   return Math.round(total);
+}
+
+function calcFixedMonthlySalary(monthlyAmount: number, attendanceDays: number): number {
+  if (!monthlyAmount || monthlyAmount <= 0) return 0;
+  return Math.round((monthlyAmount / 30) * attendanceDays);
 }
 
 // ─── Salary breakdown tooltip ─────────────────────────────────────
@@ -632,7 +673,7 @@ const Salaries = () => {
       const startDate = `${selectedMonth}-01`;
       const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`;
 
-      const [empRes, extRes, ordersRes, appsWithSchemeRes] = await Promise.all([
+      const [empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes] = await Promise.all([
         supabase
           .from('employees')
           .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone')
@@ -651,11 +692,19 @@ const Salaries = () => {
           .gte('date', startDate)
           .lte('date', endDate),
 
-        // Fetch apps with their assigned scheme (scheme per platform)
+        // Fetch apps with their assigned scheme (scheme per platform) — include scheme_type & monthly_amount
         supabase
           .from('apps')
-          .select('id, name, scheme_id, salary_schemes(id, name, name_en, status, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order))')
+          .select('id, name, scheme_id, salary_schemes(id, name, name_en, status, scheme_type, monthly_amount, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order, tier_type, incremental_threshold, incremental_price))')
           .eq('is_active', true),
+
+        // Fetch attendance for this month (present/late = worked day)
+        supabase
+          .from('attendance')
+          .select('employee_id, status')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .in('status', ['present', 'late']),
       ]);
 
       // ── Fetch saved salary records for this month (to restore status) ──
@@ -724,6 +773,12 @@ const Salaries = () => {
 
       const employees = empRes.data || [];
 
+      // Build attendance days map: employeeId → count of present/late days
+      const attendanceDaysMap: Record<string, number> = {};
+      attendanceRes.data?.forEach(r => {
+        attendanceDaysMap[r.employee_id] = (attendanceDaysMap[r.employee_id] || 0) + 1;
+      });
+
       const extMap: Record<string, number> = {};
       extRes.data?.forEach(d => {
         extMap[d.employee_id] = (extMap[d.employee_id] || 0) + Number(d.amount);
@@ -760,6 +815,7 @@ const Salaries = () => {
 
       const newRows: SalaryRow[] = employees.map(emp => {
         const empOrders = ordMap[emp.id] || {};
+        const attendanceDays = attendanceDaysMap[emp.id] || 0;
         const registeredApps = Object.keys(empOrders).filter(k => empOrders[k] > 0);
 
         const platformOrders: Record<string, number> = {};
@@ -768,14 +824,24 @@ const Salaries = () => {
         platforms.forEach(p => {
           const orders = empOrders[p] || 0;
           platformOrders[p] = orders;
-          if (orders === 0) { platformSalaries[p] = 0; return; }
 
-          // Use the platform's assigned scheme; if no scheme → salary = 0 + warning
           const scheme = appSchemeMap[p];
-          if (scheme && scheme.salary_scheme_tiers) {
+          if (!scheme) { platformSalaries[p] = 0; return; }
+
+          if (scheme.scheme_type === 'fixed_monthly') {
+            // Fixed monthly: calculate once per employee, assign to first platform that has this scheme
+            // Only calculate if this is the first platform using this scheme for the employee
+            const alreadyCalcForScheme = platforms.some(prev => prev !== p && appSchemeMap[prev]?.id === scheme.id && platformSalaries[prev] !== undefined);
+            if (alreadyCalcForScheme) {
+              platformSalaries[p] = 0; // already counted
+            } else {
+              platformSalaries[p] = calcFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
+            }
+          } else if (orders === 0) {
+            platformSalaries[p] = 0;
+          } else if (scheme.salary_scheme_tiers) {
             platformSalaries[p] = calcSalaryFromTiers(orders, scheme.salary_scheme_tiers, scheme.target_orders, scheme.target_bonus);
           } else {
-            // Platform has no scheme assigned → 0 salary, show warning
             platformSalaries[p] = 0;
           }
         });
