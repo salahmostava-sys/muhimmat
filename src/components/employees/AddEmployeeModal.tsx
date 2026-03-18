@@ -267,6 +267,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee, tradeRegisters = [
         salary_type: form.salary_type,
         base_salary: form.salary_type === 'shift' ? parseFloat(form.base_salary) : 0,
         preferred_language: form.preferred_language,
+        trade_register_id: form.trade_register_id || null,
       };
 
       let empId: string;
