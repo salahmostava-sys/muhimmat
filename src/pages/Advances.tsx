@@ -639,10 +639,21 @@ const Advances = () => {
     setLoading(false);
   };
 
-  // Auto write-off when employee is absconded
-  useEffect(() => {
-    fetchAll();
-  }, []);
+  // Compute absconded employees with active debt
+  const abscondedWithDebt = useMemo(() => {
+    return employees
+      .filter(e => e.sponsorship_status === 'absconded')
+      .map(emp => {
+        const empAdvances = advances.filter(a => a.employee_id === emp.id && !a.is_written_off && a.status === 'active');
+        const remaining = empAdvances.reduce((sum, adv) => {
+          const paid = calcPaid(adv.advance_installments || []);
+          return sum + (adv.amount - paid);
+        }, 0);
+        const activeIds = empAdvances.map(a => a.id);
+        return remaining > 0 ? { ...emp, remaining, activeIds } : null;
+      })
+      .filter(Boolean) as { id: string; name: string; remaining: number; activeIds: string[] }[];
+  }, [employees, advances]);
 
   type EmployeeSummary = {
     employeeId: string;
