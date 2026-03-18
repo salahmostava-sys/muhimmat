@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { X, Check, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { X, Check, Trash2, ChevronRight, ChevronLeft, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { differenceInDays, parseISO } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
+
 
 interface EmployeeData {
   id: string;
