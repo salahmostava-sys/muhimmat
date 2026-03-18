@@ -406,6 +406,47 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
               <F label="تاريخ الميلاد">
                 <Input type="date" value={form.birth_date} onChange={e => setField('birth_date', e.target.value)} />
               </F>
+              {/* ─── فترة التجربة ─── */}
+              <div className="sm:col-span-2">
+                <SectionTitle title="── فترة التجربة (اختياري) ──" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <F label="تحديد المدة (بالأشهر)">
+                    <div className="flex gap-2 flex-wrap">
+                      {[1, 2, 3, 6].map(m => (
+                        <button
+                          key={m} type="button"
+                          onClick={() => {
+                            const base = form.join_date ? new Date(form.join_date) : new Date();
+                            base.setMonth(base.getMonth() + m);
+                            const iso = base.toISOString().split('T')[0];
+                            setField('probation_months', String(m));
+                            setField('probation_end_date', iso);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${form.probation_months === String(m) ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary/50'}`}
+                        >
+                          {m} {m === 1 ? 'شهر' : 'أشهر'}
+                        </button>
+                      ))}
+                    </div>
+                  </F>
+                  <F label="أو حدد تاريخ الانتهاء مباشرة">
+                    <Input
+                      type="date"
+                      value={form.probation_end_date}
+                      onChange={e => { setField('probation_end_date', e.target.value); setField('probation_months', ''); }}
+                    />
+                    {form.probation_end_date && (
+                      <button
+                        type="button"
+                        onClick={() => { setField('probation_end_date', ''); setField('probation_months', ''); }}
+                        className="text-xs text-destructive hover:underline mt-1"
+                      >
+                        × مسح فترة التجربة
+                      </button>
+                    )}
+                  </F>
+                </div>
+              </div>
               <F label="لغة كشف الراتب">
                 <div className="flex gap-2 mt-1">
                   {([
