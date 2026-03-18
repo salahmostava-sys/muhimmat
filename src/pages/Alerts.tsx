@@ -193,7 +193,7 @@ const Alerts = () => {
     XLSX.writeFile(wb, `التنبيهات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
-  const typeOptions = ['all', 'residency', 'insurance', 'registration', 'license', 'installment', 'deduction', 'authorization', 'probation'];
+  const typeOptions = ['all', 'residency', 'insurance', 'authorization', 'probation'];
   const urgentCount = filtered.filter(a => a.severity === 'urgent').length;
   const warningCount = filtered.filter(a => a.severity === 'warning').length;
   const infoCount = filtered.filter(a => a.severity === 'info').length;
