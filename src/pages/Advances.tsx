@@ -1082,10 +1082,14 @@ const Advances = () => {
               <DialogTitle className="flex items-center gap-2"><UserPlus size={16} /> إضافة مندوب جديد للسلف</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">اختر مندوباً من القائمة لإضافته وتسجيل سلفة مباشرة.</p>
+              <p className="text-xs text-muted-foreground">اختر مندوباً من القائمة لإضافة سلفة له مباشرة.</p>
               <Select onValueChange={(empId) => {
+                const emp = employees.find(e => e.id === empId);
+                if (emp) {
+                  setNewEmpEntry({ id: emp.id, name: emp.name });
+                  setInlineRowEmpId(emp.id);
+                }
                 setShowAddEmployee(false);
-                setInlineRowEmpId(empId);
               }}>
                 <SelectTrigger><SelectValue placeholder="اختر المندوب..." /></SelectTrigger>
                 <SelectContent>
@@ -1096,7 +1100,6 @@ const Advances = () => {
                     ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">* يظهر فقط المناديب الذين ليس لديهم سجل سلف مسبق.</p>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddEmployee(false)}>إلغاء</Button>
