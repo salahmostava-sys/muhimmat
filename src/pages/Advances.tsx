@@ -759,8 +759,24 @@ const Advances = () => {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [inlineRowEmpId, setInlineRowEmpId] = useState<string | null>(null);
+  const [deleteEmployeeAdvancesId, setDeleteEmployeeAdvancesId] = useState<string | null>(null);
+  const [deletingEmployeeAdvances, setDeletingEmployeeAdvances] = useState(false);
 
   const importRef = useRef<HTMLInputElement>(null);
+
+  const handleDeleteEmployeeAllAdvances = async () => {
+    if (!deleteEmployeeAdvancesId) return;
+    setDeletingEmployeeAdvances(true);
+    const empAdvIds = advances.filter(a => a.employee_id === deleteEmployeeAdvancesId).map(a => a.id);
+    if (empAdvIds.length > 0) {
+      await supabase.from('advance_installments').delete().in('advance_id', empAdvIds);
+      await supabase.from('advances').delete().in('id', empAdvIds);
+    }
+    setDeletingEmployeeAdvances(false);
+    toast({ title: '✅ تم حذف جميع سلف المندوب' });
+    setDeleteEmployeeAdvancesId(null);
+    fetchAll();
+  };
 
   const handleImportAdvances = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
