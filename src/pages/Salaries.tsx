@@ -2048,7 +2048,12 @@ const Salaries = () => {
                     <tr key={r.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                       <td className={`${tdClass} sticky font-medium whitespace-nowrap`} style={{ left: 0, zIndex: 10, background: 'hsl(var(--card))' }}>
                         <div className="flex items-center gap-1.5">
-                          <span className="whitespace-nowrap">{r.employeeName}</span>
+                          <button
+                            className="whitespace-nowrap text-primary hover:underline font-medium text-right"
+                            onClick={() => openEmployeeDetail(r)}
+                          >
+                            {r.employeeName}
+                          </button>
                           {r.isDirty && (
                             <span title="تم تعديل البيانات بعد الاعتماد — يرجى إعادة الاعتماد" className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/40 whitespace-nowrap cursor-help">
                               <AlertTriangle size={9} /> يحتاج إعادة اعتماد
