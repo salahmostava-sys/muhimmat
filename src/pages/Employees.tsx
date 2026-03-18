@@ -329,15 +329,40 @@ const Employees = () => {
   };
 
   // ── Inline save ──
-  const saveField = useCallback(async (id: string, field: string, value: string) => {
+  const saveField = useCallback(async (id: string, field: string, value: string, extraFields?: Record<string, any>) => {
     const prev = data.find(e => e.id === id);
-    setData(d => d.map(e => e.id === id ? { ...e, [field]: value } : e));
-    const { error } = await supabase.from('employees').update({ [field]: value }).eq('id', id);
+    setData(d => d.map(e => e.id === id ? { ...e, [field]: value, ...(extraFields || {}) } : e));
+    const { error } = await supabase.from('employees').update({ [field]: value, ...(extraFields || {}) }).eq('id', id);
     if (error) {
       setData(d => d.map(e => e.id === id ? { ...e, [field]: (prev as any)?.[field] } : e));
       toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
     }
   }, [data, toast]);
+
+  // ── Save status that requires a date ──
+  const handleSaveStatusWithDate = async () => {
+    if (!statusDateDialog) return;
+    setStatusDateSaving(true);
+    const extraFields: Record<string, any> = {};
+    if (statusDateDialog.newStatus === 'absconded') extraFields.probation_end_date = statusDate; // reuse or add dedicated field
+    // Store date in join_date as "end date" for terminated, or we just save the date as a note via toast
+    await saveField(
+      statusDateDialog.emp.id,
+      'sponsorship_status',
+      statusDateDialog.newStatus,
+      statusDateDialog.newStatus === 'absconded'
+        ? { probation_end_date: statusDate }
+        : statusDateDialog.newStatus === 'terminated'
+        ? { probation_end_date: statusDate }
+        : {},
+    );
+    toast({
+      title: `✅ تم تحديث الحالة إلى "${statusDateDialog.label}"`,
+      description: `التاريخ: ${statusDate}`,
+    });
+    setStatusDateSaving(false);
+    setStatusDateDialog(null);
+  };
 
   // ── Delete ──
   const handleDelete = useCallback(async () => {
