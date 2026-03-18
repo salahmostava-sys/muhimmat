@@ -55,6 +55,7 @@ type Employee = {
   base_salary: number;
   nationality?: string | null;
   preferred_language?: string | null;
+  trade_register_id?: string | null;
   trade_register?: { id: string; name: string } | null;
 };
 
