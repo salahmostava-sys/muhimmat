@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
-  Search, Plus, Download, Eye, Edit, Trash2,
+  Plus, Download, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
-  Columns, Filter, X
+  Columns, Filter, X, ChevronDown as FilterIcon
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useLanguage } from '@/context/LanguageContext';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
