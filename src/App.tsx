@@ -29,7 +29,6 @@ const Alerts = lazy(() => import("./pages/Alerts"));
 const SalarySchemes = lazy(() => import("./pages/SalarySchemes"));
 const UsersAndPermissions = lazy(() => import("./pages/UsersAndPermissions"));
 const GeneralSettings = lazy(() => import("./pages/GeneralSettings"));
-const Analytics = lazy(() => import("./pages/Analytics"));
 const ViolationResolver = lazy(() => import("./pages/ViolationResolver"));
 const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
