@@ -151,10 +151,14 @@ const VehicleFormModal = ({
         <DialogHeader>
           <DialogTitle>{editVehicle ? 'تعديل بيانات المركبة' : 'إضافة مركبة جديدة'}</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <label className="text-sm font-medium mb-1 block">رقم اللوحة *</label>
+        <div className="grid grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1">
+          <div>
+            <label className="text-sm font-medium mb-1 block">رقم اللوحة (عربي) *</label>
             <Input value={form.plate_number} onChange={e => setForm(p => ({ ...p, plate_number: e.target.value }))} placeholder="مثال: أ ب ج 1234" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">رقم اللوحة (إنجليزي)</label>
+            <Input value={form.plate_number_en} onChange={e => setForm(p => ({ ...p, plate_number_en: e.target.value }))} placeholder="AD 2469" dir="ltr" />
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">النوع</label>
@@ -186,6 +190,14 @@ const VehicleFormModal = ({
           <div>
             <label className="text-sm font-medium mb-1 block">سنة الصنع</label>
             <Input type="number" value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} placeholder="2022" />
+          </div>
+          <div>
+            <label className="text-sm font-medium mb-1 block">الرقم التسلسلي</label>
+            <Input value={form.serial_number} onChange={e => setForm(p => ({ ...p, serial_number: e.target.value }))} placeholder="333974020" dir="ltr" />
+          </div>
+          <div className="col-span-2">
+            <label className="text-sm font-medium mb-1 block">رقم الهيكل</label>
+            <Input value={form.chassis_number} onChange={e => setForm(p => ({ ...p, chassis_number: e.target.value }))} placeholder="ME4KC20F1NA014818" dir="ltr" />
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">انتهاء التأمين</label>
