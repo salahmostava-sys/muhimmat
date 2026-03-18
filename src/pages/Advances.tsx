@@ -1010,8 +1010,8 @@ const Advances = () => {
                     )}
                   </React.Fragment>
                 ))}
-                {/* Temporary row for new employee */}
-                {newEmpEntry && !filtered.some(s => s.employeeId === newEmpEntry.id) && (
+                {/* Temporary row for new employee — show only in normal view, not in written-off view */}
+                {!showWrittenOff && newEmpEntry && !filtered.some(s => s.employeeId === newEmpEntry.id) && (
                   <React.Fragment key={`new-${newEmpEntry.id}`}>
                     <tr className="border-b border-border/30 bg-primary/5">
                       <td className="px-3 py-3 text-center text-xs text-muted-foreground font-mono">—</td>
