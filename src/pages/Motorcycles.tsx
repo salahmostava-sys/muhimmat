@@ -112,6 +112,7 @@ const VehicleFormModal = ({
         type: editVehicle.type,
         brand: editVehicle.brand || '', model: editVehicle.model || '',
         year: editVehicle.year?.toString() || '', status: editVehicle.status,
+        has_fuel_chip: editVehicle.has_fuel_chip ?? false,
         insurance_expiry: editVehicle.insurance_expiry || '',
         registration_expiry: editVehicle.registration_expiry || '',
         authorization_expiry: editVehicle.authorization_expiry || '',
@@ -120,7 +121,7 @@ const VehicleFormModal = ({
         notes: editVehicle.notes || '',
       });
     } else {
-      setForm({ plate_number: '', plate_number_en: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', insurance_expiry: '', registration_expiry: '', authorization_expiry: '', chassis_number: '', serial_number: '', notes: '' });
+      setForm({ plate_number: '', plate_number_en: '', type: 'motorcycle', brand: '', model: '', year: '', status: 'active', has_fuel_chip: false, insurance_expiry: '', registration_expiry: '', authorization_expiry: '', chassis_number: '', serial_number: '', notes: '' });
     }
   }, [editVehicle, open]);
 
