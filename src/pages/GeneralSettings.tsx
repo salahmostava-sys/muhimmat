@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
@@ -307,7 +308,9 @@ export default function GeneralSettings() {
   const { projectName } = useSystemSettings();
   const { role } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const isRTL = lang === 'ar';
+  const initialTab = searchParams.get('tab') === 'activity' ? 'activity' : 'settings';
   const [loadingExcel, setLoadingExcel] = useState(false);
   const [loadingJson, setLoadingJson] = useState(false);
 
@@ -372,7 +375,7 @@ export default function GeneralSettings() {
         </div>
       </div>
 
-      <Tabs defaultValue="settings" dir={isRTL ? 'rtl' : 'ltr'}>
+      <Tabs defaultValue={initialTab} dir={isRTL ? 'rtl' : 'ltr'}>
         <TabsList className="mb-4">
           <TabsTrigger value="settings" className="gap-2">
             <Settings2 size={14} />

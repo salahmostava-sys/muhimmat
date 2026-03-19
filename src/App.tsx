@@ -35,7 +35,6 @@ const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
 
 const EmployeeTiers = lazy(() => import("./pages/EmployeeTiers"));
-const Reports = lazy(() => import("./pages/Reports"));
 const TradeRegisters = lazy(() => import("./pages/TradeRegisters"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -82,7 +81,7 @@ const App = () => (
                                     <Route path="/fuel" element={<FuelPage />} />
                                     <Route path="/apps" element={<Apps />} />
                                     <Route path="/alerts" element={<Alerts />} />
-                                    <Route path="/reports" element={<Reports />} />
+
                                     <Route path="/employee-tiers" element={<EmployeeTiers />} />
                                     <Route path="/settings" element={<Navigate to="/settings/schemes" replace />} />
                                     <Route path="/settings/permissions" element={<Navigate to="/settings/users" replace />} />
@@ -94,7 +93,8 @@ const App = () => (
                                     <Route path="/settings/general" element={<GeneralSettings />} />
                                     <Route path="/settings/trade-registers" element={<TradeRegisters />} />
                                     <Route path="/violation-resolver" element={<ViolationResolver />} />
-                                    <Route path="/activity-log" element={<Navigate to="/settings/general" replace />} />
+                                    <Route path="/activity-log" element={<Navigate to="/settings/general?tab=activity" replace />} />
+                                    <Route path="/reports" element={<Navigate to="/settings/general?tab=activity" replace />} />
                                     <Route path="*" element={<NotFound />} />
                                   </Routes>
                                 </Suspense>

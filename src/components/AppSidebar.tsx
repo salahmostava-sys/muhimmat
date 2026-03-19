@@ -19,7 +19,7 @@ const AppSidebar = () => {
   const { projectName, projectSubtitle, settings } = useSystemSettings();
   const { isOpen, close } = useMobileSidebar();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    hr: true, finance: false, operations: false, reports: false, settings: false,
+    hr: true, finance: false, operations: false, settings: false,
   });
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
@@ -70,14 +70,6 @@ const AppSidebar = () => {
       ],
     },
     {
-      key: 'reports',
-      sectionLabel: t('reports'),
-      items: [
-        { label: t('activityLog'), icon: Activity, path: '/activity-log' },
-        { label: isRTL ? 'مركز التقارير' : 'Reports Center', icon: FileDown, path: '/reports' },
-      ],
-    },
-    {
       key: 'settings',
       sectionLabel: t('settings'),
       items: [
@@ -85,6 +77,7 @@ const AppSidebar = () => {
         { label: t('users'), icon: Users, path: '/settings/users' },
         { label: t('generalSettings'), icon: Settings2, path: '/settings/general' },
         { label: isRTL ? 'السجلات التجارية' : 'Trade Registers', icon: Briefcase, path: '/settings/trade-registers' },
+        { label: t('activityLog'), icon: Activity, path: '/activity-log' },
       ],
     },
   ];
