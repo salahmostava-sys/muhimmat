@@ -493,6 +493,33 @@ const UsersTab = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Hard Delete confirmation dialog */}
+      <AlertDialog open={!!hardDeleteTarget} onOpenChange={open => !open && setHardDeleteTarget(null)}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 size={18} /> تأكيد الحذف النهائي
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف حساب <strong>{hardDeleteTarget?.name || hardDeleteTarget?.email}</strong> نهائياً؟
+              <br />
+              سيتم إزالة جميع الصلاحيات والبيانات. <span className="text-destructive font-semibold">لا يمكن التراجع عن هذا الإجراء.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleHardDelete}
+              disabled={hardDeleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-2"
+            >
+              {hardDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+              حذف نهائياً
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
