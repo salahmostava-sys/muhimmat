@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, Upload, Download, Edit2, Trash2,
   Fuel, TrendingUp, DollarSign, Package,
-  X, Check, Activity,
+  X, Check, Activity, Calendar, BarChart3,
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -12,20 +12,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from '@e965/xlsx';
-import { format, endOfMonth } from 'date-fns';
+import { format, endOfMonth, eachDayOfInterval, startOfMonth, parseISO } from 'date-fns';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type MileageRow = {
+type DailyRow = {
   id: string;
   employee_id: string;
-  month_year: string;
+  date: string;
   km_total: number;
   fuel_cost: number;
-  cost_per_km: number | null;
   notes: string | null;
   employee?: { name: string; personal_photo_url?: string | null };
-  orders_count?: number;
+};
+
+type MonthlyRow = {
+  employee_id: string;
+  employee_name: string;
+  personal_photo_url?: string | null;
+  km_total: number;
+  fuel_cost: number;
+  orders_count: number;
   vehicle?: { plate_number: string; type: string; brand?: string | null; model?: string | null } | null;
+  daily_count: number;
 };
 
 type Employee = { id: string; name: string; personal_photo_url?: string | null };
@@ -47,8 +55,10 @@ const MONTHS = [
   { v: '10', l: 'أكتوبر' }, { v: '11', l: 'نوفمبر' }, { v: '12', l: 'ديسمبر' },
 ];
 
+const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+
 const costPerKmColor = (v: number | null) => {
-  if (v === null) return 'text-muted-foreground';
+  if (v === null || v === 0) return 'text-muted-foreground';
   if (v < 0.20) return 'text-success font-semibold';
   if (v <= 0.35) return 'text-warning font-semibold';
   return 'text-destructive font-semibold';
@@ -72,42 +82,40 @@ const StatCard = ({ icon, label, value, sub }: { icon: React.ReactNode; label: s
   </div>
 );
 
-// ─── Manual Entry Modal — only fuel & km manual, employee & orders auto ────────
-const ManualEntryModal = ({
-  employees, defaultMonthYear, onClose, onSaved, editRow,
+// ─── Daily Entry Modal ────────────────────────────────────────────────────────
+const DailyEntryModal = ({
+  employees,
+  defaultDate,
+  onClose,
+  onSaved,
+  editRow,
 }: {
   employees: Employee[];
-  defaultMonthYear: string;
+  defaultDate: string;
   onClose: () => void;
   onSaved: () => void;
-  editRow?: MileageRow | null;
+  editRow?: DailyRow | null;
 }) => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     employee_id: editRow?.employee_id || '',
-    month_year: editRow?.month_year || defaultMonthYear,
+    date: editRow?.date || defaultDate,
     km_total: editRow?.km_total ? String(editRow.km_total) : '',
     fuel_cost: editRow?.fuel_cost ? String(editRow.fuel_cost) : '',
     notes: editRow?.notes || '',
   });
-  const [employeeOrders, setEmployeeOrders] = useState<number | null>(null);
+  const [dayOrders, setDayOrders] = useState<number | null>(null);
 
-  // Auto-fetch orders when employee or month changes
   useEffect(() => {
-    if (!form.employee_id || !form.month_year) { setEmployeeOrders(null); return; }
-    const [year, month] = form.month_year.split('-');
-    const start = `${form.month_year}-01`;
-    const end = format(endOfMonth(new Date(`${form.month_year}-01`)), 'yyyy-MM-dd');
+    if (!form.employee_id || !form.date) { setDayOrders(null); return; }
     supabase.from('daily_orders')
       .select('orders_count')
       .eq('employee_id', form.employee_id)
-      .gte('date', start).lte('date', end)
-      .then(({ data }) => {
-        const total = (data || []).reduce((s, r) => s + r.orders_count, 0);
-        setEmployeeOrders(total);
-      });
-  }, [form.employee_id, form.month_year]);
+      .eq('date', form.date)
+      .maybeSingle()
+      .then(({ data }) => setDayOrders(data?.orders_count ?? 0));
+  }, [form.employee_id, form.date]);
 
   const km = parseFloat(form.km_total) || 0;
   const fuel = parseFloat(form.fuel_cost) || 0;
@@ -115,19 +123,19 @@ const ManualEntryModal = ({
 
   const save = async () => {
     if (!form.employee_id) return toast({ title: 'اختر المندوب', variant: 'destructive' });
-    if (!km) return toast({ title: 'أدخل الكيلومترات', variant: 'destructive' });
-    if (!fuel) return toast({ title: 'أدخل تكلفة البنزين', variant: 'destructive' });
+    if (!form.date) return toast({ title: 'اختر التاريخ', variant: 'destructive' });
+    if (!km && !fuel) return toast({ title: 'أدخل الكيلومترات أو تكلفة البنزين', variant: 'destructive' });
     setSaving(true);
     const payload = {
       employee_id: form.employee_id,
-      month_year: form.month_year,
+      date: form.date,
       km_total: km,
       fuel_cost: fuel,
       notes: form.notes || null,
     };
     const { error } = editRow
-      ? await supabase.from('vehicle_mileage').update(payload).eq('id', editRow.id)
-      : await supabase.from('vehicle_mileage').upsert([payload], { onConflict: 'employee_id,month_year' });
+      ? await (supabase as any).from('vehicle_mileage_daily').update(payload).eq('id', editRow.id)
+      : await (supabase as any).from('vehicle_mileage_daily').upsert([payload], { onConflict: 'employee_id,date' });
     setSaving(false);
     if (error) return toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
     toast({ title: 'تم الحفظ بنجاح' });
@@ -138,11 +146,13 @@ const ManualEntryModal = ({
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-md border border-border/50">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-bold text-foreground">{editRow ? 'تعديل السجل' : 'إدخال بيانات استهلاك'}</h2>
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <Calendar size={18} className="text-primary" />
+            {editRow ? 'تعديل إدخال يومي' : 'إدخال يومي — وقود وكيلومترات'}
+          </h2>
           <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground"><X size={16} /></button>
         </div>
         <div className="p-6 space-y-4">
-          {/* Employee — auto from DB */}
           <div>
             <Label className="text-sm mb-1.5 block">المندوب <span className="text-destructive">*</span></Label>
             <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
@@ -153,33 +163,40 @@ const ManualEntryModal = ({
             </Select>
           </div>
 
-          {/* Month */}
           <div>
-            <Label className="text-sm mb-1.5 block">الشهر</Label>
-            <Input type="month" value={form.month_year} onChange={e => setForm(f => ({ ...f, month_year: e.target.value }))} />
+            <Label className="text-sm mb-1.5 block">التاريخ <span className="text-destructive">*</span></Label>
+            <Input
+              type="date"
+              value={form.date}
+              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+              className="text-sm"
+            />
+            {form.date && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {DAY_NAMES[new Date(form.date + 'T12:00:00').getDay()]}
+              </p>
+            )}
           </div>
 
-          {/* Orders — auto fetched, read-only */}
-          {form.employee_id && (
+          {form.employee_id && form.date && (
             <div className="bg-muted/40 rounded-lg px-4 py-3 flex items-center justify-between">
               <span className="text-sm text-muted-foreground flex items-center gap-2">
-                <Package size={14} /> عدد الطلبات (تلقائي من الطلبات)
+                <Package size={14} /> طلبات هذا اليوم (تلقائي)
               </span>
               <span className="font-bold text-primary">
-                {employeeOrders === null ? '...' : employeeOrders.toLocaleString()}
+                {dayOrders === null ? '...' : dayOrders.toLocaleString()}
               </span>
             </div>
           )}
 
-          {/* Manual: km & fuel only */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-sm mb-1.5 block">الكيلومترات <span className="text-destructive">*</span></Label>
-              <Input type="number" value={form.km_total} onChange={e => setForm(f => ({ ...f, km_total: e.target.value }))} placeholder="0" />
+              <Label className="text-sm mb-1.5 block">الكيلومترات</Label>
+              <Input type="number" value={form.km_total} onChange={e => setForm(f => ({ ...f, km_total: e.target.value }))} placeholder="0" min="0" step="0.1" />
             </div>
             <div>
-              <Label className="text-sm mb-1.5 block">تكلفة البنزين (ر.س) <span className="text-destructive">*</span></Label>
-              <Input type="number" value={form.fuel_cost} onChange={e => setForm(f => ({ ...f, fuel_cost: e.target.value }))} placeholder="0" />
+              <Label className="text-sm mb-1.5 block">تكلفة البنزين (ر.س)</Label>
+              <Input type="number" value={form.fuel_cost} onChange={e => setForm(f => ({ ...f, fuel_cost: e.target.value }))} placeholder="0" min="0" step="0.01" />
             </div>
           </div>
 
@@ -205,7 +222,7 @@ const ManualEntryModal = ({
   );
 };
 
-// ─── Import Modal ─────────────────────────────────────────────────────────────
+// ─── Import Modal (GPS monthly) ───────────────────────────────────────────────
 const ImportModal = ({
   employees, monthYear, onClose, onImported,
 }: {
@@ -282,7 +299,7 @@ const ImportModal = ({
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-border/50">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <h2 className="text-lg font-bold text-foreground">استيراد كيلومترات GPS</h2>
+          <h2 className="text-lg font-bold text-foreground">استيراد كيلومترات GPS (شهري)</h2>
           <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground"><X size={16} /></button>
         </div>
         <div className="flex items-center gap-2 px-6 py-3 border-b border-border/50 shrink-0">
@@ -397,109 +414,171 @@ const ImportModal = ({
 const FuelPage = () => {
   const { toast } = useToast();
   const now = new Date();
+  const [view, setView] = useState<'monthly' | 'daily'>('monthly');
   const [selectedMonth, setSelectedMonth] = useState(format(now, 'MM'));
   const [selectedYear, setSelectedYear] = useState(format(now, 'yyyy'));
   const [search, setSearch] = useState('');
-  const [rows, setRows] = useState<MileageRow[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+
+  // Monthly view state
+  const [monthlyRows, setMonthlyRows] = useState<MonthlyRow[]>([]);
+  // Daily view state
+  const [dailyRows, setDailyRows] = useState<DailyRow[]>([]);
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showManual, setShowManual] = useState(false);
+  const [showDailyEntry, setShowDailyEntry] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [editRow, setEditRow] = useState<MileageRow | null>(null);
+  const [editDailyRow, setEditDailyRow] = useState<DailyRow | null>(null);
 
   const monthYear = `${selectedYear}-${selectedMonth}`;
+  const monthStart = `${monthYear}-01`;
+  const monthEnd = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
 
-  // Fetch active employees from DB
+  // Today as default for new daily entry
+  const todayStr = format(now, 'yyyy-MM-dd');
+  // If today is in the selected month, use today; else use first of month
+  const defaultEntryDate = todayStr >= monthStart && todayStr <= monthEnd ? todayStr : monthStart;
+
   useEffect(() => {
     supabase.from('employees').select('id, name, personal_photo_url')
       .eq('status', 'active').order('name')
       .then(({ data }) => { if (data) setEmployees(data); });
   }, []);
 
-  const fetchData = useCallback(async () => {
+  // ─── Fetch monthly aggregated data from vehicle_mileage_daily ──────────────
+  const fetchMonthly = useCallback(async () => {
     setLoading(true);
-    const start = `${monthYear}-01`;
-    const end = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-
-    const [mileageRes, ordersRes, assignmentsRes] = await Promise.all([
-      supabase.from('vehicle_mileage').select('*, employee:employees(name, personal_photo_url)')
-        .eq('month_year', monthYear).order('employee(name)'),
+    const [dailyRes, ordersRes, assignmentsRes] = await Promise.all([
+      (supabase as any).from('vehicle_mileage_daily')
+        .select('employee_id, km_total, fuel_cost, employees(name, personal_photo_url)')
+        .gte('date', monthStart)
+        .lte('date', monthEnd),
       supabase.from('daily_orders').select('employee_id, orders_count')
-        .gte('date', start).lte('date', end),
-      // Fetch active vehicle assignments to show the assigned vehicle per employee
+        .gte('date', monthStart).lte('date', monthEnd),
       supabase.from('vehicle_assignments')
         .select('employee_id, vehicles(plate_number, type, brand, model)')
         .is('end_date', null)
         .order('start_date', { ascending: false }),
     ]);
 
-    if (mileageRes.data) {
-      const orderMap: Record<string, number> = {};
-      (ordersRes.data || []).forEach(o => {
-        orderMap[o.employee_id] = (orderMap[o.employee_id] || 0) + o.orders_count;
-      });
-      // Build vehicle map: first active assignment per employee
-      const vehicleMap: Record<string, { plate_number: string; type: string; brand?: string | null; model?: string | null }> = {};
-      (assignmentsRes.data || []).forEach((a: any) => {
-        if (!vehicleMap[a.employee_id] && a.vehicles) {
-          vehicleMap[a.employee_id] = a.vehicles;
-        }
-      });
-      setRows(mileageRes.data.map((r: any) => ({
-        ...r,
-        orders_count: orderMap[r.employee_id] || 0,
-        vehicle: vehicleMap[r.employee_id] || null,
-      })));
-    }
+    const orderMap: Record<string, number> = {};
+    (ordersRes.data || []).forEach((o: any) => {
+      orderMap[o.employee_id] = (orderMap[o.employee_id] || 0) + o.orders_count;
+    });
+
+    const vehicleMap: Record<string, any> = {};
+    (assignmentsRes.data || []).forEach((a: any) => {
+      if (!vehicleMap[a.employee_id] && a.vehicles) vehicleMap[a.employee_id] = a.vehicles;
+    });
+
+    // Aggregate daily entries per employee
+    const aggMap: Record<string, { km: number; fuel: number; count: number; name: string; photo?: string | null }> = {};
+    (dailyRes.data || []).forEach((r: any) => {
+      const emp = r.employees;
+      if (!aggMap[r.employee_id]) {
+        aggMap[r.employee_id] = { km: 0, fuel: 0, count: 0, name: emp?.name || '', photo: emp?.personal_photo_url };
+      }
+      aggMap[r.employee_id].km += r.km_total;
+      aggMap[r.employee_id].fuel += r.fuel_cost;
+      aggMap[r.employee_id].count += 1;
+    });
+
+    const rows: MonthlyRow[] = Object.entries(aggMap).map(([emp_id, agg]) => ({
+      employee_id: emp_id,
+      employee_name: agg.name,
+      personal_photo_url: agg.photo,
+      km_total: agg.km,
+      fuel_cost: agg.fuel,
+      orders_count: orderMap[emp_id] || 0,
+      vehicle: vehicleMap[emp_id] || null,
+      daily_count: agg.count,
+    })).sort((a, b) => a.employee_name.localeCompare(b.employee_name, 'ar'));
+
+    setMonthlyRows(rows);
     setLoading(false);
   }, [monthYear]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // ─── Fetch daily rows ──────────────────────────────────────────────────────
+  const fetchDaily = useCallback(async () => {
+    setLoading(true);
+    let q = (supabase as any).from('vehicle_mileage_daily')
+      .select('*, employees(name, personal_photo_url)')
+      .gte('date', monthStart)
+      .lte('date', monthEnd)
+      .order('date', { ascending: false });
 
-  const handleDelete = async (id: string) => {
+    if (selectedEmployee) q = q.eq('employee_id', selectedEmployee);
+
+    const { data, error } = await q;
+    if (error) toast({ title: 'خطأ في جلب البيانات', variant: 'destructive' });
+    setDailyRows((data || []).map((r: any) => ({ ...r, employee: r.employees })));
+    setLoading(false);
+  }, [monthYear, selectedEmployee]);
+
+  useEffect(() => {
+    if (view === 'monthly') fetchMonthly();
+    else fetchDaily();
+  }, [view, fetchMonthly, fetchDaily]);
+
+  const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
-    const { error } = await supabase.from('vehicle_mileage').delete().eq('id', id);
+    const { error } = await (supabase as any).from('vehicle_mileage_daily').delete().eq('id', id);
     if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     toast({ title: 'تم الحذف' });
-    fetchData();
+    fetchDaily();
   };
 
-  const filtered = rows.filter(r => !search || (r.employee?.name || '').toLowerCase().includes(search.toLowerCase()));
+  // ─── Filtered data ─────────────────────────────────────────────────────────
+  const filteredMonthly = monthlyRows.filter(r =>
+    !search || r.employee_name.toLowerCase().includes(search.toLowerCase())
+  );
+  const filteredDaily = dailyRows.filter(r =>
+    !search || (r.employee?.name || '').toLowerCase().includes(search.toLowerCase())
+  );
 
-  const totalKm = filtered.reduce((s, r) => s + r.km_total, 0);
-  const totalFuel = filtered.reduce((s, r) => s + r.fuel_cost, 0);
+  // ─── Stats (monthly) ───────────────────────────────────────────────────────
+  const totalKm = filteredMonthly.reduce((s, r) => s + r.km_total, 0);
+  const totalFuel = filteredMonthly.reduce((s, r) => s + r.fuel_cost, 0);
   const avgCostPerKm = totalKm > 0 ? totalFuel / totalKm : 0;
-  const totalOrders = filtered.reduce((s, r) => s + (r.orders_count || 0), 0);
+  const totalOrders = filteredMonthly.reduce((s, r) => s + r.orders_count, 0);
+
+  // ─── Stats (daily) ────────────────────────────────────────────────────────
+  const dailyTotalKm = filteredDaily.reduce((s, r) => s + r.km_total, 0);
+  const dailyTotalFuel = filteredDaily.reduce((s, r) => s + r.fuel_cost, 0);
 
   const tableRef = useRef<HTMLTableElement>(null);
+  const years = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - 2 + i));
 
-  const handlePrint = () => {
-    const table = tableRef.current;
-    if (!table) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>بيانات استهلاك الوقود</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>بيانات استهلاك الوقود</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>${table.outerHTML}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
-    printWindow.document.close();
+  const handleExportMonthly = () => {
+    const data = filteredMonthly.map(r => ({
+      'الاسم': r.employee_name,
+      'أيام مسجّلة': r.daily_count,
+      'الكيلومترات': r.km_total,
+      'تكلفة البنزين (ر.س)': r.fuel_cost,
+      'تكلفة/كم (ر.س)': r.km_total > 0 ? (r.fuel_cost / r.km_total).toFixed(3) : '',
+      'عدد الطلبات': r.orders_count,
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'ملخص شهري');
+    XLSX.writeFile(wb, `ملخص_الاستهلاك_${selectedMonth}_${selectedYear}.xlsx`);
   };
 
-  const handleExport = () => {
-    const data = filtered.map(r => ({
+  const handleExportDaily = () => {
+    const data = filteredDaily.map(r => ({
+      'التاريخ': r.date,
+      'اليوم': DAY_NAMES[new Date(r.date + 'T12:00:00').getDay()],
       'الاسم': r.employee?.name || '',
       'الكيلومترات': r.km_total,
       'تكلفة البنزين (ر.س)': r.fuel_cost,
-      'تكلفة/كم (ر.س)': r.cost_per_km ? r.cost_per_km.toFixed(3) : '',
-      'عدد الطلبات': r.orders_count || 0,
-      'تكلفة البنزين/طلب': r.orders_count ? (r.fuel_cost / r.orders_count).toFixed(2) : '',
-      'كم/طلب': r.orders_count ? (r.km_total / r.orders_count).toFixed(1) : '',
       'ملاحظات': r.notes || '',
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'الاستهلاك');
-    XLSX.writeFile(wb, `بيانات_الاستهلاك_${selectedMonth}_${selectedYear}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'إدخالات يومية');
+    XLSX.writeFile(wb, `إدخالات_يومية_${selectedMonth}_${selectedYear}.xlsx`);
   };
-
-  const years = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - 2 + i));
 
   return (
     <div className="space-y-6">
@@ -517,11 +596,29 @@ const FuelPage = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">بيانات الاستهلاك</h1>
-              <p className="text-sm text-muted-foreground">الوقود والكيلومترات حسب المندوب</p>
+              <p className="text-sm text-muted-foreground">الوقود والكيلومترات — يومي وشهري</p>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Controls: view toggle + month/year */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* View Toggle */}
+          <div className="flex items-center bg-muted rounded-lg p-1 gap-1">
+            <button
+              onClick={() => setView('monthly')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${view === 'monthly' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <BarChart3 size={13} /> عرض شهري
+            </button>
+            <button
+              onClick={() => setView('daily')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${view === 'daily' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Calendar size={13} /> عرض يومي
+            </button>
+          </div>
+
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
             <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -537,194 +634,314 @@ const FuelPage = () => {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={<TrendingUp size={22} />} label="إجمالي الكيلومترات" value={totalKm.toLocaleString()} sub="كم هذا الشهر" />
-        <StatCard icon={<Fuel size={22} />} label="إجمالي تكلفة البنزين" value={`${totalFuel.toLocaleString()} ر.س`} sub="هذا الشهر" />
-        <StatCard icon={<DollarSign size={22} />} label="متوسط تكلفة الكيلومتر" value={avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س` : '—'} sub="ر.س / كم" />
-        <StatCard icon={<Package size={22} />} label="إجمالي الطلبات" value={totalOrders.toLocaleString()} sub="من الطلبات اليومية" />
-      </div>
+      {/* ═══════════════════════════════════ MONTHLY VIEW ═══════════════════════════════════ */}
+      {view === 'monthly' && (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard icon={<TrendingUp size={22} />} label="إجمالي الكيلومترات" value={totalKm.toLocaleString()} sub="كم هذا الشهر" />
+            <StatCard icon={<Fuel size={22} />} label="إجمالي تكلفة البنزين" value={`${totalFuel.toLocaleString()} ر.س`} sub="هذا الشهر" />
+            <StatCard icon={<DollarSign size={22} />} label="متوسط تكلفة الكيلومتر" value={avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س` : '—'} sub="ر.س / كم" />
+            <StatCard icon={<Package size={22} />} label="إجمالي الطلبات" value={totalOrders.toLocaleString()} sub="من الطلبات اليومية" />
+          </div>
 
-      {/* Info banner */}
-      <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 flex items-start gap-3 text-sm">
-        <span className="text-primary mt-0.5">ℹ️</span>
-        <div>
-          <span className="font-semibold text-foreground">المناديب يُجلبون تلقائياً</span> من قاعدة الموظفين النشطين —{' '}
-          <span className="font-semibold text-foreground">عدد الطلبات يُحسب تلقائياً</span> من الطلبات اليومية —{' '}
-          أدخل <span className="font-semibold text-primary">الكيلومترات والبنزين</span> يدوياً فقط.
-        </div>
-      </div>
+          {/* Toolbar */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="بحث باسم المندوب..." className="ps-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <Button className="gap-2" onClick={() => { setEditDailyRow(null); setShowDailyEntry(true); }}>
+              <Plus size={15} /> إدخال يومي
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportMonthly}>📊 تصدير Excel (ملخص شهري)</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowImport(true)}>
+                  <Upload size={14} className="ml-2" /> استيراد GPS شهري
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  const headers = [['اسم المندوب', 'الكيلومترات', 'تكلفة البنزين (ر.س)', 'ملاحظات']];
+                  const ws = XLSX.utils.aoa_to_sheet(headers);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'قالب');
+                  XLSX.writeFile(wb, 'template_fuel.xlsx');
+                }}>📋 تحميل قالب الاستيراد</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap gap-2 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="بحث باسم المندوب..." className="ps-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Button className="gap-2" onClick={() => { setEditRow(null); setShowManual(true); }}>
-          <Plus size={15} /> إدخال يدوي
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setShowImport(true)}>
-              <Upload size={14} className="ml-2" /> استيراد GPS
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-              const headers = [['اسم المندوب', 'الكيلومترات', 'تكلفة البنزين (ر.س)', 'ملاحظات']];
-              const ws = XLSX.utils.aoa_to_sheet(headers);
-              const wb = XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(wb, ws, 'قالب');
-              XLSX.writeFile(wb, 'template_fuel.xlsx');
-            }}>📋 تحميل القالب</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Table */}
-      <div className="bg-card rounded-xl shadow-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table ref={tableRef} className="w-full min-w-[900px] text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">المندوب</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الكيلومترات</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة البنزين</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة/كم</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الدباب 🏍️</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">عدد الطلبات 📦</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">بنزين/طلب</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">كم/طلب</th>
-                <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">ملاحظات</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-border/30">
-                    {Array.from({ length: 9 }).map((_, j) => (
-                      <td key={j} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
-                    ))}
+          {/* Monthly Table */}
+          <div className="bg-card rounded-xl shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table ref={tableRef} className="w-full min-w-[800px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">المندوب</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">أيام مسجّلة</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الكيلومترات</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة البنزين</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة/كم</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الدباب 🏍️</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">عدد الطلبات 📦</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">بنزين/طلب</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">إجراءات</th>
                   </tr>
-                ))
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="text-center py-16">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <span className="text-4xl">⛽</span>
-                      <p className="font-medium">لا توجد بيانات لهذا الشهر</p>
-                      <p className="text-xs">استورد من GPS أو أدخل يدوياً</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                <>
-                  {filtered.map(row => {
-                    const costPerKm = row.cost_per_km;
-                    const orders = row.orders_count || 0;
-                    const fuelPerOrder = orders > 0 ? row.fuel_cost / orders : null;
-                    const kmPerOrder = orders > 0 ? row.km_total / orders : null;
-                    return (
-                      <tr key={row.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            {row.employee?.personal_photo_url
-                              ? <img src={row.employee.personal_photo_url} className="w-8 h-8 rounded-full object-cover" alt="" />
-                              : null
-                            }
-                            <span className="font-medium text-foreground">{row.employee?.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center font-medium text-primary">{row.km_total.toLocaleString()} كم</td>
-                        <td className="px-4 py-3 text-center font-medium" style={{ color: 'hsl(var(--warning))' }}>{row.fuel_cost.toLocaleString()} ر.س</td>
-                        <td className={`px-4 py-3 text-center ${costPerKmColor(costPerKm)}`}>
-                          {costPerKm !== null ? `${costPerKm.toFixed(3)} ر.س/كم` : '—'}
-                        </td>
-                        {/* Vehicle column */}
-                        <td className="px-4 py-3 text-center">
-                          {row.vehicle ? (
-                            <div className="flex flex-col items-center gap-0.5">
-                              <span className="text-xs font-semibold text-foreground">
-                                {row.vehicle.type === 'motorcycle' ? '🏍️' : '🚗'} {row.vehicle.plate_number}
-                              </span>
-                              {(row.vehicle.brand || row.vehicle.model) && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {[row.vehicle.brand, row.vehicle.model].filter(Boolean).join(' ')}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/40 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {orders > 0
-                            ? <span className="font-semibold text-foreground">{orders.toLocaleString()}</span>
-                            : <span className="text-muted-foreground/40">—</span>
-                          }
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="text-xs text-muted-foreground">{fuelPerOrder !== null ? `${fuelPerOrder.toFixed(2)} ر.س` : '—'}</span>
-                            {fuelPerOrderBadge(fuelPerOrder)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center text-muted-foreground text-xs">
-                          {kmPerOrder !== null ? `${kmPerOrder.toFixed(1)} كم` : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{row.notes || '—'}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-1 justify-center">
-                            <button onClick={() => { setEditRow(row); setShowManual(true); }} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="تعديل">
-                              <Edit2 size={14} />
-                            </button>
-                            <button onClick={() => handleDelete(row.id)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="حذف">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-b border-border/30">
+                        {Array.from({ length: 9 }).map((_, j) => (
+                          <td key={j} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
+                        ))}
                       </tr>
-                    );
-                  })}
-                  <tr className="border-t-2 border-border bg-muted/20 font-semibold text-sm">
-                    <td className="px-4 py-3 text-foreground">الإجمالي ({filtered.length} مندوب)</td>
-                    <td className="px-4 py-3 text-center text-primary">{totalKm.toLocaleString()} كم</td>
-                    <td className="px-4 py-3 text-center" style={{ color: 'hsl(var(--warning))' }}>{totalFuel.toLocaleString()} ر.س</td>
-                    <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
-                      {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">—</td>
-                    <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">
-                      {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">
-                      {totalOrders > 0 ? `${(totalKm / totalOrders).toFixed(1)} كم` : '—'}
-                    </td>
-                    <td colSpan={2} />
-                  </tr>
-                </>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    ))
+                  ) : filteredMonthly.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="text-center py-16">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <span className="text-4xl">⛽</span>
+                          <p className="font-medium">لا توجد بيانات لهذا الشهر</p>
+                          <p className="text-xs">أضف إدخالات يومية لتظهر هنا مجمّعة</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {filteredMonthly.map(row => {
+                        const costPerKm = row.km_total > 0 ? row.fuel_cost / row.km_total : null;
+                        const fuelPerOrder = row.orders_count > 0 ? row.fuel_cost / row.orders_count : null;
+                        return (
+                          <tr key={row.employee_id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {row.personal_photo_url && (
+                                  <img src={row.personal_photo_url} className="w-8 h-8 rounded-full object-cover" alt="" />
+                                )}
+                                <span className="font-medium text-foreground">{row.employee_name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{row.daily_count} يوم</span>
+                            </td>
+                            <td className="px-4 py-3 text-center font-medium text-primary">{row.km_total.toLocaleString()} كم</td>
+                            <td className="px-4 py-3 text-center font-medium" style={{ color: 'hsl(var(--warning))' }}>{row.fuel_cost.toLocaleString()} ر.س</td>
+                            <td className={`px-4 py-3 text-center ${costPerKmColor(costPerKm)}`}>
+                              {costPerKm !== null ? `${costPerKm.toFixed(3)} ر.س/كم` : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {row.vehicle ? (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <span className="text-xs font-semibold text-foreground">
+                                    {row.vehicle.type === 'motorcycle' ? '🏍️' : '🚗'} {row.vehicle.plate_number}
+                                  </span>
+                                  {(row.vehicle.brand || row.vehicle.model) && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      {[row.vehicle.brand, row.vehicle.model].filter(Boolean).join(' ')}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : <span className="text-muted-foreground/40 text-xs">—</span>}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {row.orders_count > 0
+                                ? <span className="font-semibold text-foreground">{row.orders_count.toLocaleString()}</span>
+                                : <span className="text-muted-foreground/40">—</span>}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex flex-col items-center gap-0.5">
+                                <span className="text-xs text-muted-foreground">{fuelPerOrder !== null ? `${fuelPerOrder.toFixed(2)} ر.س` : '—'}</span>
+                                {fuelPerOrderBadge(fuelPerOrder)}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => {
+                                  setSelectedEmployee(row.employee_id);
+                                  setView('daily');
+                                }}
+                                className="text-xs text-primary hover:underline"
+                              >
+                                الأيام ←
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="border-t-2 border-border bg-muted/20 font-semibold text-sm">
+                        <td className="px-4 py-3 text-foreground">الإجمالي ({filteredMonthly.length} مندوب)</td>
+                        <td className="px-4 py-3 text-center text-muted-foreground">—</td>
+                        <td className="px-4 py-3 text-center text-primary">{totalKm.toLocaleString()} كم</td>
+                        <td className="px-4 py-3 text-center" style={{ color: 'hsl(var(--warning))' }}>{totalFuel.toLocaleString()} ر.س</td>
+                        <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
+                          {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-center text-muted-foreground">—</td>
+                        <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-center text-muted-foreground">
+                          {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}
+                        </td>
+                        <td />
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
-      {/* Modals */}
-      {showManual && (
-        <ManualEntryModal
+      {/* ═══════════════════════════════════ DAILY VIEW ═══════════════════════════════════ */}
+      {view === 'daily' && (
+        <>
+          {/* Daily Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <StatCard icon={<Calendar size={22} />} label="إجمالي الإدخالات" value={String(filteredDaily.length)} sub="سجل في هذا الشهر" />
+            <StatCard icon={<TrendingUp size={22} />} label="إجمالي الكيلومترات" value={dailyTotalKm.toLocaleString()} sub="كم" />
+            <StatCard icon={<Fuel size={22} />} label="إجمالي تكلفة البنزين" value={`${dailyTotalFuel.toLocaleString()} ر.س`} sub="هذا الشهر" />
+          </div>
+
+          {/* Toolbar */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="بحث باسم المندوب..." className="ps-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            {/* Employee filter */}
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+              <SelectTrigger className="w-44 h-9 text-sm">
+                <SelectValue placeholder="كل المناديب" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                <SelectItem value="">كل المناديب</SelectItem>
+                {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button className="gap-2" onClick={() => { setEditDailyRow(null); setShowDailyEntry(true); }}>
+              <Plus size={15} /> إضافة يوم
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportDaily}>
+              <Download size={14} /> تصدير Excel
+            </Button>
+          </div>
+
+          {/* Daily Table */}
+          <div className="bg-card rounded-xl shadow-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">التاريخ</th>
+                    <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">اليوم</th>
+                    <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">المندوب</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">الكيلومترات</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة البنزين</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تكلفة/كم</th>
+                    <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">ملاحظات</th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i} className="border-b border-border/30">
+                        {Array.from({ length: 8 }).map((_, j) => (
+                          <td key={j} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : filteredDaily.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-16">
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <span className="text-4xl">📅</span>
+                          <p className="font-medium">لا توجد إدخالات يومية لهذا الشهر</p>
+                          <p className="text-xs">اضغط "إضافة يوم" لإدخال بيانات يوم محدد</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDaily.map(row => {
+                      const costPerKm = row.km_total > 0 ? row.fuel_cost / row.km_total : null;
+                      const dayName = DAY_NAMES[new Date(row.date + 'T12:00:00').getDay()];
+                      const isToday = row.date === todayStr;
+                      return (
+                        <tr key={row.id} className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${isToday ? 'bg-primary/5' : ''}`}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm font-medium text-foreground">{row.date}</span>
+                              {isToday && <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">اليوم</span>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{dayName}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {row.employee?.personal_photo_url && (
+                                <img src={row.employee.personal_photo_url} className="w-7 h-7 rounded-full object-cover" alt="" />
+                              )}
+                              <span className="font-medium text-foreground">{row.employee?.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center font-medium text-primary">
+                            {row.km_total > 0 ? `${row.km_total.toLocaleString()} كم` : <span className="text-muted-foreground/40">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-center font-medium" style={{ color: 'hsl(var(--warning))' }}>
+                            {row.fuel_cost > 0 ? `${row.fuel_cost.toLocaleString()} ر.س` : <span className="text-muted-foreground/40">—</span>}
+                          </td>
+                          <td className={`px-4 py-3 text-center ${costPerKmColor(costPerKm)}`}>
+                            {costPerKm !== null ? `${costPerKm.toFixed(3)}` : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs max-w-[140px] truncate">
+                            {row.notes || '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1 justify-center">
+                              <button
+                                onClick={() => { setEditDailyRow(row); setShowDailyEntry(true); }}
+                                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                title="تعديل"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDaily(row.id)}
+                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                title="حذف"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ─── Modals ─────────────────────────────────────────────────────────────── */}
+      {showDailyEntry && (
+        <DailyEntryModal
           employees={employees}
-          defaultMonthYear={monthYear}
-          editRow={editRow}
-          onClose={() => { setShowManual(false); setEditRow(null); }}
-          onSaved={() => { setShowManual(false); setEditRow(null); fetchData(); }}
+          defaultDate={defaultEntryDate}
+          editRow={editDailyRow}
+          onClose={() => { setShowDailyEntry(false); setEditDailyRow(null); }}
+          onSaved={() => {
+            setShowDailyEntry(false);
+            setEditDailyRow(null);
+            if (view === 'monthly') fetchMonthly();
+            else fetchDaily();
+          }}
         />
       )}
       {showImport && (
@@ -732,7 +949,7 @@ const FuelPage = () => {
           employees={employees}
           monthYear={monthYear}
           onClose={() => setShowImport(false)}
-          onImported={() => { setShowImport(false); fetchData(); }}
+          onImported={() => { setShowImport(false); fetchMonthly(); }}
         />
       )}
     </div>
