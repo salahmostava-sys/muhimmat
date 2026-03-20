@@ -43,11 +43,11 @@ CustomTooltip.displayName = 'CustomTooltip';
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 const Card = ({ title, subtitle, children, action }: { title: string; subtitle?: string; children: React.ReactNode; action?: React.ReactNode }) => (
-  <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-    <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
+  <div className="bg-card rounded-2xl shadow-card overflow-hidden">
+    <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid hsl(var(--border))' }}>
       <div>
-        <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-        {subtitle && <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>}
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        {subtitle && <p className="text-[11px] text-muted-foreground/80 mt-0.5">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -61,14 +61,14 @@ const KpiCard = ({ label, value, icon: Icon, color, bg, sub, trend, loading }: {
   color: string; bg: string; sub?: string;
   trend?: { value: number; positive: boolean }; loading?: boolean;
 }) => (
-  <div className="bg-white rounded-2xl p-4 shadow-card flex flex-col gap-3 hover:shadow-card-hover transition-shadow">
+  <div className="bg-card rounded-2xl p-4 shadow-card flex flex-col gap-3 hover:shadow-card-hover transition-shadow">
     {loading ? (
       <><div className="h-9 w-9 rounded-xl bg-muted/40 animate-pulse" /><div className="h-7 w-20 bg-muted/40 animate-pulse rounded-lg" /><div className="h-3 w-28 bg-muted/40 animate-pulse rounded" /></>
     ) : (
       <>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg}`}><Icon size={18} className={color} /></div>
         <div>
-          <p className="text-2xl font-black text-gray-900 leading-none">{value}</p>
+          <p className="text-2xl font-black text-foreground leading-none">{value}</p>
           {trend && (
             <div className={`flex items-center gap-0.5 mt-1 text-[11px] font-semibold ${trend.positive ? 'text-emerald-600' : 'text-rose-500'}`}>
               {trend.positive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}{Math.abs(trend.value).toFixed(1)}%
@@ -76,8 +76,8 @@ const KpiCard = ({ label, value, icon: Icon, color, bg, sub, trend, loading }: {
           )}
         </div>
         <div>
-          <p className="text-xs font-semibold text-gray-700">{label}</p>
-          {sub && <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>}
+          <p className="text-xs font-semibold text-foreground/75">{label}</p>
+          {sub && <p className="text-[10px] text-muted-foreground/80 mt-0.5">{sub}</p>}
         </div>
       </>
     )}
@@ -105,17 +105,17 @@ const Leaderboard = ({ entries, loading, max }: { entries: { name: string; order
         : entries.length === 0
           ? <p className="text-sm text-muted-foreground text-center py-8">لا توجد بيانات هذا الشهر</p>
           : entries.map((e, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-gray-50 transition-colors">
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${RANK_COLORS[i] || 'bg-gray-100 text-gray-500'}`}>{i + 1}</div>
+            <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-muted/40 transition-colors">
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${RANK_COLORS[i] || 'bg-muted text-muted-foreground'}`}>{i + 1}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-900 truncate">{e.name}</span>
-                  <span className="text-sm font-black text-gray-900 flex-shrink-0 ml-2">{e.orders.toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-foreground truncate">{e.name}</span>
+                  <span className="text-sm font-black text-foreground flex-shrink-0 ml-2">{e.orders.toLocaleString()}</span>
                 </div>
                 {e.app && (
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.appColor || '#888' }} />
-                    <div className="h-1.5 flex-1 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
                       <div className="h-full rounded-full transition-all" style={{ width: `${(e.orders / maxVal) * 100}%`, backgroundColor: e.appColor || '#888' }} />
                     </div>
                   </div>
@@ -134,7 +134,7 @@ const TargetBar = ({ name, actual, target, brandColor, textColor, riders }: {
   const pct = target > 0 ? Math.min(Math.round((actual / target) * 100), 100) : 0;
   const over = target > 0 && actual > target;
   return (
-    <div className="bg-white rounded-2xl p-4 shadow-card hover:shadow-card-hover transition-shadow">
+    <div className="bg-card rounded-2xl p-4 shadow-card hover:shadow-card-hover transition-shadow">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-bold px-2.5 py-1 rounded-lg" style={{ backgroundColor: brandColor, color: textColor }}>{name}</span>
         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${over ? 'bg-emerald-50 text-emerald-700' : pct >= 75 ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600'}`}>
@@ -142,13 +142,13 @@ const TargetBar = ({ name, actual, target, brandColor, textColor, riders }: {
         </span>
       </div>
       <div className="flex items-end justify-between mb-1.5">
-        <span className="text-2xl font-black text-gray-900">{actual.toLocaleString()}</span>
-        {target > 0 && <span className="text-xs text-gray-400">هدف: {target.toLocaleString()}</span>}
+        <span className="text-2xl font-black text-foreground">{actual.toLocaleString()}</span>
+        {target > 0 && <span className="text-xs text-muted-foreground/80">هدف: {target.toLocaleString()}</span>}
       </div>
-      <div className="h-2 rounded-full bg-gray-100 overflow-hidden mb-1">
+      <div className="h-2 rounded-full bg-muted overflow-hidden mb-1">
         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: brandColor }} />
       </div>
-      <p className="text-[10px] text-gray-400">{riders} مندوب</p>
+      <p className="text-[10px] text-muted-foreground/80">{riders} مندوب</p>
     </div>
   );
 };
@@ -278,18 +278,18 @@ const AnalyticsTab = () => {
             {projGrowth >= 0 ? '↑' : '↓'} {Math.abs(projGrowth)}% عن الشهر السابق
           </div>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-card">
-          <div className="flex items-center gap-2 mb-2 text-gray-400"><BarChart2 size={16} /><span className="text-xs font-semibold">متوسط الطلبات/مندوب</span></div>
-          <p className="text-3xl font-black text-gray-900">{overallAvg.toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-1">هذا الشهر</p>
-          <div className="mt-2 text-xs text-gray-500">{riderMetrics.filter(r => r.thisMonth >= overallAvg).length} مندوب فوق المتوسط</div>
+        <div className="bg-card rounded-2xl p-5 shadow-card">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground/80"><BarChart2 size={16} /><span className="text-xs font-semibold">متوسط الطلبات/مندوب</span></div>
+          <p className="text-3xl font-black text-foreground">{overallAvg.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground/80 mt-1">هذا الشهر</p>
+          <div className="mt-2 text-xs text-muted-foreground">{riderMetrics.filter(r => r.thisMonth >= overallAvg).length} مندوب فوق المتوسط</div>
         </div>
-        <div className="bg-white rounded-2xl p-5 shadow-card">
-          <div className="flex items-center gap-2 mb-2 text-gray-400"><Activity size={16} /><span className="text-xs font-semibold">حالة الأداء</span></div>
+        <div className="bg-card rounded-2xl p-5 shadow-card">
+          <div className="flex items-center gap-2 mb-2 text-muted-foreground/80"><Activity size={16} /><span className="text-xs font-semibold">حالة الأداء</span></div>
           <div className="space-y-2 mt-1">
-            <div className="flex justify-between items-center"><div className="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold"><ChevronUp size={13} />في تحسّن</div><span className="font-black text-gray-900">{improving.length}</span></div>
-            <div className="flex justify-between items-center"><div className="flex items-center gap-1.5 text-gray-400 text-xs font-semibold"><Minus size={13} />مستقر</div><span className="font-black text-gray-900">{stable}</span></div>
-            <div className="flex justify-between items-center"><div className="flex items-center gap-1.5 text-rose-500 text-xs font-semibold"><ChevronDown size={13} />يحتاج تحسين</div><span className="font-black text-gray-900">{riderMetrics.filter(r => r.trend === 'down').length}</span></div>
+            <div className="flex justify-between items-center"><div className="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold"><ChevronUp size={13} />في تحسّن</div><span className="font-black text-foreground">{improving.length}</span></div>
+            <div className="flex justify-between items-center"><div className="flex items-center gap-1.5 text-muted-foreground/80 text-xs font-semibold"><Minus size={13} />مستقر</div><span className="font-black text-foreground">{stable}</span></div>
+            <div className="flex justify-between items-center"><div className="flex items-center gap-1.5 text-rose-500 text-xs font-semibold"><ChevronDown size={13} />يحتاج تحسين</div><span className="font-black text-foreground">{riderMetrics.filter(r => r.trend === 'down').length}</span></div>
           </div>
         </div>
       </div>
@@ -298,11 +298,11 @@ const AnalyticsTab = () => {
       <Card title="اتجاه الطلبات والمتوسط — آخر 6 أشهر" subtitle="إجمالي الطلبات ومتوسط الطلبات لكل مندوب">
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={monthlyTrend} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="left" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: 12 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="left" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: 12, color: 'hsl(var(--card-foreground))' }} />
             <Bar yAxisId="left" dataKey="orders" name="إجمالي الطلبات" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} opacity={0.85} />
             <Line yAxisId="right" type="monotone" dataKey="avg" name="متوسط/مندوب" stroke="#f59e0b" strokeWidth={2.5} dot={{ fill: '#f59e0b', r: 3 }} />
             <Legend />
@@ -314,16 +314,16 @@ const AnalyticsTab = () => {
       <Card title="مقارنة أداء المنصات" subtitle="هذا الشهر مقارنة بالشهر السابق">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {appBreakdown.map(app => (
-            <div key={app.name} className="rounded-xl border border-gray-100 p-4">
+            <div key={app.name} className="rounded-xl border border-border/50 p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-bold text-gray-900">{app.name}</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${app.growth > 0 ? 'bg-emerald-50 text-emerald-700' : app.growth < 0 ? 'bg-rose-50 text-rose-600' : 'bg-gray-50 text-gray-500'}`}>
+                <span className="text-sm font-bold text-foreground">{app.name}</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${app.growth > 0 ? 'bg-emerald-50 text-emerald-700' : app.growth < 0 ? 'bg-rose-50 text-rose-600' : 'bg-muted/40 text-muted-foreground'}`}>
                   {app.growth > 0 ? '+' : ''}{app.growth}%
                 </span>
               </div>
-              <p className="text-2xl font-black text-gray-900">{app.thisMonth.toLocaleString()}</p>
-              <p className="text-[11px] text-gray-400 mt-1">الشهر السابق: {app.lastMonth.toLocaleString()}</p>
-              <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+              <p className="text-2xl font-black text-foreground">{app.thisMonth.toLocaleString()}</p>
+              <p className="text-[11px] text-muted-foreground/80 mt-1">الشهر السابق: {app.lastMonth.toLocaleString()}</p>
+              <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
                 <div className="h-full rounded-full" style={{ width: `${app.lastMonth > 0 ? Math.min((app.thisMonth / app.lastMonth) * 100, 150) : 0}%`, backgroundColor: app.brand_color }} />
               </div>
             </div>
@@ -341,9 +341,9 @@ const AnalyticsTab = () => {
               <div key={r.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-rose-50/50 hover:bg-rose-50 transition-colors">
                 <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{r.name}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-gray-400">الشهر الماضي: {r.lastMonth}</span>
+                    <span className="text-[10px] text-muted-foreground/80">الشهر الماضي: {r.lastMonth}</span>
                     <span className="text-[10px] text-rose-500 font-semibold">هذا الشهر: {r.thisMonth}</span>
                   </div>
                 </div>
@@ -364,9 +364,9 @@ const AnalyticsTab = () => {
               <div key={r.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 bg-emerald-50/50 hover:bg-emerald-50 transition-colors">
                 <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{r.name}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-gray-400">الشهر الماضي: {r.lastMonth}</span>
+                    <span className="text-[10px] text-muted-foreground/80">الشهر الماضي: {r.lastMonth}</span>
                     <span className="text-[10px] text-emerald-600 font-semibold">هذا الشهر: {r.thisMonth}</span>
                   </div>
                 </div>
@@ -394,13 +394,13 @@ const AnalyticsTab = () => {
                   <div key={r.id} className="flex items-center gap-3 rounded-xl px-3 py-2.5 border border-amber-100 bg-amber-50/30">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{r.name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
                         <span className="text-xs font-bold text-amber-700">{r.thisMonth} طلب</span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full rounded-full bg-amber-400 transition-all" style={{ width: `${pct}%` }} />
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{pct}% من المتوسط</p>
+                      <p className="text-[10px] text-muted-foreground/80 mt-0.5">{pct}% من المتوسط</p>
                     </div>
                   </div>
                 );
@@ -595,18 +595,18 @@ const Dashboard = () => {
       {/* ── Header & Tabs ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <nav className="flex items-center gap-1 text-xs text-gray-400 mb-1">
+          <nav className="flex items-center gap-1 text-xs text-muted-foreground/80 mb-1">
             <span>الرئيسية</span><span>/</span>
-            <span className="text-gray-600 font-medium">لوحة التحكم</span>
+            <span className="text-muted-foreground font-medium">لوحة التحكم</span>
           </nav>
-          <h1 className="text-xl font-black text-gray-900">لوحة التحكم</h1>
-          <p className="text-xs text-gray-400 mt-0.5">{format(new Date(), 'EEEE، d MMMM yyyy', { locale: ar })}</p>
+          <h1 className="text-xl font-black text-foreground">لوحة التحكم</h1>
+          <p className="text-xs text-muted-foreground/80 mt-0.5">{format(new Date(), 'EEEE، d MMMM yyyy', { locale: ar })}</p>
         </div>
-        <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-1">
+        <div className="flex items-center bg-muted rounded-xl p-1 gap-1">
           {(['overview', 'analytics'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={cn('px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-1.5',
-                activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                activeTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground/75'
               )}
             >
               {tab === 'analytics' && <TrendingUp size={13} />}
@@ -635,7 +635,7 @@ const Dashboard = () => {
               ── SECTION 1: تحليل الموظفين ────────────────────────────
               ════════════════════════════════════════════════════════ */}
           <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
               <Users size={14} /> تحليل الموظفين
             </h2>
             <div className="space-y-4">
@@ -643,31 +643,31 @@ const Dashboard = () => {
               {/* City + totals */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* Makkah breakdown */}
-                <div className="bg-white rounded-2xl shadow-card p-5">
+                <div className="bg-card rounded-2xl shadow-card p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center"><MapPin size={14} className="text-purple-600" /></div>
                       <div>
-                        <h3 className="text-sm font-bold text-gray-900">مكة المكرمة</h3>
-                        <p className="text-[10px] text-gray-400">{kpis.makkahCount} مندوب</p>
+                        <h3 className="text-sm font-bold text-foreground">مكة المكرمة</h3>
+                        <p className="text-[10px] text-muted-foreground/80">{kpis.makkahCount} مندوب</p>
                       </div>
                     </div>
-                    <span className="text-3xl font-black text-gray-900">{kpis.makkahCount}</span>
+                    <span className="text-3xl font-black text-foreground">{kpis.makkahCount}</span>
                   </div>
                   {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={i} h="h-10"/>)}</div> : (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">حالة الرخصة</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
                       <div className="grid grid-cols-3 gap-2">
                         <Chip label="لديه رخصة" value={crossFilter('makkah','has_license',null)} color="bg-emerald-50 text-emerald-700" />
                         <Chip label="قيد التقديم" value={crossFilter('makkah','applied',null)} color="bg-amber-50 text-amber-700" />
                         <Chip label="بدون رخصة" value={crossFilter('makkah','no_license',null)} color="bg-red-50 text-red-700" />
                       </div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">الكفالة</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
                       <div className="grid grid-cols-2 gap-2">
                         <Chip label="مكفول" value={crossFilter('makkah',null,'sponsored')} color="bg-blue-50 text-blue-700" />
-                        <Chip label="غير مكفول" value={crossFilter('makkah',null,'not_sponsored')} color="bg-gray-50 text-gray-700" />
+                        <Chip label="غير مكفول" value={crossFilter('makkah',null,'not_sponsored')} color="bg-muted/40 text-foreground/75" />
                       </div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">مكة + رخصة + كفالة</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">مكة + رخصة + كفالة</p>
                       <div className="grid grid-cols-2 gap-2">
                         <Chip label="رخصة + مكفول" value={crossFilter('makkah','has_license','sponsored')} color="bg-indigo-50 text-indigo-700" />
                         <Chip label="رخصة + غير مكفول" value={crossFilter('makkah','has_license','not_sponsored')} color="bg-sky-50 text-sky-700" />
@@ -677,31 +677,31 @@ const Dashboard = () => {
                 </div>
 
                 {/* Jeddah breakdown */}
-                <div className="bg-white rounded-2xl shadow-card p-5">
+                <div className="bg-card rounded-2xl shadow-card p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center"><MapPin size={14} className="text-blue-600" /></div>
                       <div>
-                        <h3 className="text-sm font-bold text-gray-900">جدة</h3>
-                        <p className="text-[10px] text-gray-400">{kpis.jeddahCount} مندوب</p>
+                        <h3 className="text-sm font-bold text-foreground">جدة</h3>
+                        <p className="text-[10px] text-muted-foreground/80">{kpis.jeddahCount} مندوب</p>
                       </div>
                     </div>
-                    <span className="text-3xl font-black text-gray-900">{kpis.jeddahCount}</span>
+                    <span className="text-3xl font-black text-foreground">{kpis.jeddahCount}</span>
                   </div>
                   {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={i} h="h-10"/>)}</div> : (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">حالة الرخصة</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
                       <div className="grid grid-cols-3 gap-2">
                         <Chip label="لديه رخصة" value={crossFilter('jeddah','has_license',null)} color="bg-emerald-50 text-emerald-700" />
                         <Chip label="قيد التقديم" value={crossFilter('jeddah','applied',null)} color="bg-amber-50 text-amber-700" />
                         <Chip label="بدون رخصة" value={crossFilter('jeddah','no_license',null)} color="bg-red-50 text-red-700" />
                       </div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">الكفالة</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
                       <div className="grid grid-cols-2 gap-2">
                         <Chip label="مكفول" value={crossFilter('jeddah',null,'sponsored')} color="bg-blue-50 text-blue-700" />
-                        <Chip label="غير مكفول" value={crossFilter('jeddah',null,'not_sponsored')} color="bg-gray-50 text-gray-700" />
+                        <Chip label="غير مكفول" value={crossFilter('jeddah',null,'not_sponsored')} color="bg-muted/40 text-foreground/75" />
                       </div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">جدة + رخصة + كفالة</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">جدة + رخصة + كفالة</p>
                       <div className="grid grid-cols-2 gap-2">
                         <Chip label="رخصة + مكفول" value={crossFilter('jeddah','has_license','sponsored')} color="bg-indigo-50 text-indigo-700" />
                         <Chip label="رخصة + غير مكفول" value={crossFilter('jeddah','has_license','not_sponsored')} color="bg-sky-50 text-sky-700" />
@@ -716,7 +716,7 @@ const Dashboard = () => {
                 {loading ? <div className="grid grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={i} h="h-14"/>)}</div> : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Chip label="مكفول" value={empDetails.filter(e=>e.sponsorship_status==='sponsored').length} color="bg-blue-50 text-blue-700" />
-                    <Chip label="غير مكفول" value={empDetails.filter(e=>e.sponsorship_status==='not_sponsored').length} color="bg-gray-50 text-gray-700" />
+                    <Chip label="غير مكفول" value={empDetails.filter(e=>e.sponsorship_status==='not_sponsored').length} color="bg-muted/40 text-foreground/75" />
                     <Chip label="هارب" value={empDetails.filter(e=>e.sponsorship_status==='absconded').length} color="bg-red-50 text-red-700" />
                     <Chip label="منهي الكفالة" value={empDetails.filter(e=>e.sponsorship_status==='terminated').length} color="bg-orange-50 text-orange-700" />
                   </div>
@@ -729,18 +729,18 @@ const Dashboard = () => {
               ── SECTION 2: الطلبات ───────────────────────────────────
               ════════════════════════════════════════════════════════ */}
           <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
               <Package size={14} /> الطلبات والأداء
             </h2>
             <div className="space-y-4">
 
               {/* Platform cards with target */}
               <div>
-                <p className="text-xs text-gray-400 mb-2">طلبات الشهر حسب المنصة — مع نسبة تحقيق الهدف</p>
+                <p className="text-xs text-muted-foreground/80 mb-2">طلبات الشهر حسب المنصة — مع نسبة تحقيق الهدف</p>
                 {loading ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={i} h="h-28"/>)}</div>
                 ) : ordersByApp.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-8">لا توجد بيانات طلبات لهذا الشهر</p>
+                  <p className="text-sm text-muted-foreground/80 text-center py-8">لا توجد بيانات طلبات لهذا الشهر</p>
                 ) : (
                   <div className={`grid gap-3 ${ordersByApp.length <= 2 ? 'grid-cols-2' : ordersByApp.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
                     {ordersByApp.map(a => (
@@ -758,13 +758,13 @@ const Dashboard = () => {
                     {ordersByCity.map(c => {
                       const pct = kpis.totalOrders > 0 ? Math.round((c.orders / kpis.totalOrders) * 100) : 0;
                       return (
-                        <div key={c.city} className="rounded-xl bg-gray-50 p-4">
-                          <p className="text-xs font-semibold text-gray-500 mb-1">{c.city}</p>
-                          <p className="text-2xl font-black text-gray-900">{c.orders.toLocaleString()}</p>
-                          <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                        <div key={c.city} className="rounded-xl bg-muted/40 p-4">
+                          <p className="text-xs font-semibold text-muted-foreground mb-1">{c.city}</p>
+                          <p className="text-2xl font-black text-foreground">{c.orders.toLocaleString()}</p>
+                          <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
                             <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-1">{pct}% من الإجمالي</p>
+                          <p className="text-[10px] text-muted-foreground/80 mt-1">{pct}% من الإجمالي</p>
                         </div>
                       );
                     })}
@@ -773,38 +773,38 @@ const Dashboard = () => {
               )}
 
               {/* Top N overall + per platform */}
-              <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
+              <div className="bg-card rounded-2xl shadow-card overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid hsl(var(--border))' }}>
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900">أفضل المناديب</h3>
-                    <p className="text-[11px] text-gray-400 mt-0.5">حسب إجمالي الطلبات هذا الشهر</p>
+                    <h3 className="text-sm font-bold text-foreground">أفضل المناديب</h3>
+                    <p className="text-[11px] text-muted-foreground/80 mt-0.5">حسب إجمالي الطلبات هذا الشهر</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Settings2 size={13} className="text-gray-400" />
-                    <span className="text-xs text-gray-400">عدد المناديب:</span>
+                    <Settings2 size={13} className="text-muted-foreground/80" />
+                    <span className="text-xs text-muted-foreground/80">عدد المناديب:</span>
                     <input
                       type="number" min={1} max={50} value={topNInput}
                       onChange={e => setTopNInput(e.target.value)}
                       onBlur={() => { const n = parseInt(topNInput); if (!isNaN(n) && n >= 1) setTopN(n); else setTopNInput(String(topN)); }}
-                      className="w-14 text-center border border-gray-200 rounded-lg text-sm font-bold py-1 focus:outline-none focus:border-primary"
+                      className="w-14 text-center border border-border rounded-lg text-sm font-bold py-1 bg-background text-foreground focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
                 <div className="p-5">
                   {/* Overall */}
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">الإجمالي</p>
+                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mb-3">الإجمالي</p>
                   <Leaderboard entries={topRidersOverall} loading={loading} max={maxOrderOverall} />
 
                   {/* Per platform */}
                   {!loading && topRidersPerApp.length > 0 && (
                     <div className="mt-6 space-y-5">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">حسب المنصة</p>
+                      <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حسب المنصة</p>
                       <div className={`grid grid-cols-1 ${topRidersPerApp.length >= 2 ? 'md:grid-cols-2' : ''} gap-5`}>
                         {topRidersPerApp.map(app => (
                           <div key={app.id}>
                             <div className="flex items-center gap-2 mb-2">
                               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: app.brand_color }} />
-                              <span className="text-xs font-bold text-gray-700">{app.name}</span>
+                              <span className="text-xs font-bold text-foreground/75">{app.name}</span>
                             </div>
                             <Leaderboard
                               entries={app.riders.map(r => ({ name: r.name, orders: r.orders, app: r.app, appColor: app.brand_color }))}
@@ -825,7 +825,7 @@ const Dashboard = () => {
               ── SECTION 3: الحضور والانصراف ──────────────────────────
               ════════════════════════════════════════════════════════ */}
           <div>
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
               <Clock size={14} /> الحضور والانصراف
             </h2>
             <div className="space-y-4">
@@ -865,13 +865,13 @@ const Dashboard = () => {
                 <div className="lg:col-span-2">
                   <Card title="الحضور — آخر 7 أيام" subtitle="حاضر / متأخر / غائب / إجازة / مريض">
                     {attendanceWeek.length === 0 ? (
-                      <div className="h-52 flex items-center justify-center text-gray-400 text-sm">لا توجد بيانات حضور</div>
+                      <div className="h-52 flex items-center justify-center text-muted-foreground/80 text-sm">لا توجد بيانات حضور</div>
                     ) : (
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={attendanceWeek} barGap={2} barCategoryGap="25%">
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                          <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={25} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={25} />
                           <Tooltip content={<CustomTooltip />} />
                           <Bar dataKey="present" name="حاضر" fill="#10b981" radius={[4, 4, 0, 0]} />
                           <Bar dataKey="late" name="متأخر" fill="#f97316" radius={[4, 4, 0, 0]} />
@@ -894,13 +894,13 @@ const Dashboard = () => {
             <Card title="آخر النشاطات" subtitle="آخر 6 إجراءات في النظام">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
                 {recentActivity.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors">
                     <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                       <item.icon size={14} className="text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-700 truncate">{item.text}</p>
-                      <p className="text-[10px] text-gray-400">{item.time}</p>
+                      <p className="text-xs font-medium text-foreground/75 truncate">{item.text}</p>
+                      <p className="text-[10px] text-muted-foreground/80">{item.time}</p>
                     </div>
                   </div>
                 ))}
