@@ -1,197 +1,300 @@
-import { useState, useEffect, useRef } from 'react';
-import { Bell, X, CheckCheck, AlertTriangle, Clock, FileWarning } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Bell, X, CheckCheck, FileWarning, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
-import { format, parseISO, isValid } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 
-interface Notification {
+/* ── Types ─────────────────────────────────────────────────── */
+
+type Severity = 'urgent' | 'warning' | 'info';
+
+interface AlertItem {
   id: string;
-  type: string;
-  entity_type: string | null;
-  entity_id: string | null;
-  due_date: string | null;
-  is_resolved: boolean;
-  created_at: string;
+  type: 'residency' | 'insurance' | 'authorization' | 'probation';
+  entityName: string;
+  dueDate: string;
+  daysLeft: number;
+  severity: Severity;
+  resolved: boolean;
 }
 
-const typeConfig: Record<string, { icon: React.ReactNode; color: string; labelAr: string; labelEn: string }> = {
-  residency_expiry: {
-    icon: <FileWarning size={15} />,
-    color: 'text-destructive bg-destructive/10',
+/* ── Config ─────────────────────────────────────────────────── */
+
+const TYPE_CONFIG: Record<string, {
+  icon: React.ReactNode;
+  colorClass: string;
+  labelAr: string;
+  labelEn: string;
+}> = {
+  residency: {
+    icon: <FileWarning size={14} />,
+    colorClass: 'text-destructive bg-destructive/10',
     labelAr: 'انتهاء إقامة',
     labelEn: 'Residency Expiry',
   },
-  license_expiry: {
-    icon: <AlertTriangle size={15} />,
-    color: 'text-warning bg-warning/10',
-    labelAr: 'انتهاء رخصة',
-    labelEn: 'License Expiry',
-  },
-  insurance_expiry: {
-    icon: <Clock size={15} />,
-    color: 'text-info bg-info/10',
+  insurance: {
+    icon: <ShieldAlert size={14} />,
+    colorClass: 'text-warning bg-warning/10',
     labelAr: 'انتهاء تأمين',
     labelEn: 'Insurance Expiry',
   },
+  authorization: {
+    icon: <AlertTriangle size={14} />,
+    colorClass: 'text-warning bg-warning/10',
+    labelAr: 'انتهاء تفويض',
+    labelEn: 'Authorization Expiry',
+  },
+  probation: {
+    icon: <Clock size={14} />,
+    colorClass: 'text-info bg-info/10',
+    labelAr: 'انتهاء فترة التجربة',
+    labelEn: 'Probation End',
+  },
 };
 
-const getConfig = (type: string) =>
-  typeConfig[type] ?? {
-    icon: <Bell size={15} />,
-    color: 'text-primary bg-primary/10',
-    labelAr: type,
-    labelEn: type,
-  };
+const SEVERITY_DOT: Record<Severity, string> = {
+  urgent:  'bg-destructive',
+  warning: 'bg-warning',
+  info:    'bg-info',
+};
+
+/* ── Helper ─────────────────────────────────────────────────── */
+
+function calcSeverity(daysLeft: number, type: string): Severity {
+  if (type === 'probation') return daysLeft < 0 ? 'info' : daysLeft <= 7 ? 'urgent' : 'warning';
+  return daysLeft < 0 ? 'urgent' : daysLeft <= 7 ? 'urgent' : daysLeft <= 14 ? 'warning' : 'info';
+}
+
+function daysLabel(days: number, isRTL: boolean): string {
+  if (days < 0) return isRTL ? `انتهت منذ ${Math.abs(days)} يوم` : `Expired ${Math.abs(days)}d ago`;
+  if (days === 0) return isRTL ? 'ينتهي اليوم' : 'Expires today';
+  return isRTL ? `يتبقى ${days} يوم` : `${days}d left`;
+}
+
+/* ── Main component ─────────────────────────────────────────── */
 
 export default function NotificationCenter() {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('nc_dismissed') || '[]')); }
+    catch { return new Set(); }
+  });
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { lang } = useLanguage();
   const isRTL = lang === 'ar';
 
-  const unreadCount = notifications.filter(n => !n.is_resolved).length;
-
-  const fetchNotifications = async () => {
+  /* ── Fetch alerts (same logic as Alerts.tsx) ─────────────── */
+  const fetchAlerts = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('alerts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(30);
-    if (data) setNotifications(data);
-    setLoading(false);
-  };
+    const today = new Date();
+    const threshold = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
 
-  useEffect(() => {
-    fetchNotifications();
+    const [empRes, vehRes] = await Promise.all([
+      supabase
+        .from('employees')
+        .select('id, name, residency_expiry, probation_end_date')
+        .eq('status', 'active')
+        .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
+      supabase
+        .from('vehicles')
+        .select('id, plate_number, insurance_expiry, authorization_expiry')
+        .in('status', ['active', 'maintenance', 'rental'])
+        .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
+    ]);
+
+    const generated: AlertItem[] = [];
+
+    empRes.data?.forEach(emp => {
+      if (emp.residency_expiry && emp.residency_expiry <= threshold) {
+        const d = differenceInDays(parseISO(emp.residency_expiry), today);
+        generated.push({ id: `res-${emp.id}`, type: 'residency', entityName: emp.name, dueDate: emp.residency_expiry, daysLeft: d, severity: calcSeverity(d, 'residency'), resolved: false });
+      }
+      if ((emp as any).probation_end_date && (emp as any).probation_end_date <= threshold) {
+        const d = differenceInDays(parseISO((emp as any).probation_end_date), today);
+        generated.push({ id: `prob-${emp.id}`, type: 'probation', entityName: emp.name, dueDate: (emp as any).probation_end_date, daysLeft: d, severity: calcSeverity(d, 'probation'), resolved: false });
+      }
+    });
+
+    vehRes.data?.forEach(v => {
+      if (v.insurance_expiry && v.insurance_expiry <= threshold) {
+        const d = differenceInDays(parseISO(v.insurance_expiry), today);
+        generated.push({ id: `ins-${v.id}`, type: 'insurance', entityName: `مركبة ${v.plate_number}`, dueDate: v.insurance_expiry, daysLeft: d, severity: calcSeverity(d, 'insurance'), resolved: false });
+      }
+      if (v.authorization_expiry && v.authorization_expiry <= threshold) {
+        const d = differenceInDays(parseISO(v.authorization_expiry), today);
+        generated.push({ id: `auth-${v.id}`, type: 'authorization', entityName: `مركبة ${v.plate_number}`, dueDate: v.authorization_expiry, daysLeft: d, severity: calcSeverity(d, 'authorization'), resolved: false });
+      }
+    });
+
+    generated.sort((a, b) => a.daysLeft - b.daysLeft);
+    setAlerts(generated);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
+
+  // Poll every 5 minutes
+  useEffect(() => {
+    const t = setInterval(fetchAlerts, 5 * 60_000);
+    return () => clearInterval(t);
+  }, [fetchAlerts]);
 
   // Close on outside click
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    const h = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const markResolved = async (id: string, e: React.MouseEvent) => {
+  /* ── Active (non-dismissed) alerts ──────────────────────── */
+  const active = alerts.filter(a => !dismissed.has(a.id));
+  const unread  = active.length;
+
+  const hasUrgent  = active.some(a => a.severity === 'urgent');
+  const hasWarning = !hasUrgent && active.some(a => a.severity === 'warning');
+
+  /* ── Dismiss one ─────────────────────────────────────────── */
+  const dismiss = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await supabase.from('alerts').update({ is_resolved: true, resolved_by: (await supabase.auth.getUser()).data.user?.id }).eq('id', id);
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_resolved: true } : n));
+    const next = new Set(dismissed).add(id);
+    setDismissed(next);
+    localStorage.setItem('nc_dismissed', JSON.stringify([...next]));
   };
 
-  const markAllResolved = async () => {
-    const unresolvedIds = notifications.filter(n => !n.is_resolved).map(n => n.id);
-    if (!unresolvedIds.length) return;
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-    await supabase.from('alerts').update({ is_resolved: true, resolved_by: userId }).in('id', unresolvedIds);
-    setNotifications(prev => prev.map(n => ({ ...n, is_resolved: true })));
+  /* ── Dismiss all ─────────────────────────────────────────── */
+  const dismissAll = () => {
+    const next = new Set([...dismissed, ...active.map(a => a.id)]);
+    setDismissed(next);
+    localStorage.setItem('nc_dismissed', JSON.stringify([...next]));
   };
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '';
-    try {
-      const d = parseISO(dateStr);
-      if (!isValid(d)) return '';
-      return format(d, 'dd/MM/yyyy');
-    } catch { return ''; }
-  };
+  /* ── Badge color ─────────────────────────────────────────── */
+  const badgeBg = hasUrgent
+    ? 'bg-destructive'
+    : hasWarning
+    ? 'bg-warning'
+    : 'bg-primary';
 
   return (
     <div className="relative" ref={dropdownRef}>
+
+      {/* ── Bell button ─────────────────────────────────────── */}
       <button
-        onClick={() => { setOpen(v => !v); if (!open) fetchNotifications(); }}
+        onClick={() => { setOpen(v => !v); if (!open) fetchAlerts(); }}
         className="relative h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
         title={isRTL ? 'الإشعارات' : 'Notifications'}
       >
-        <Bell size={16} />
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -end-0.5 h-4 w-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold">
-            {unreadCount > 9 ? '9+' : unreadCount}
+        <Bell size={16} className={cn(unread > 0 && 'text-foreground')} />
+
+        {/* Badge */}
+        {unread > 0 && (
+          <span
+            className={cn(
+              'absolute -top-1 -end-1 h-4 min-w-4 px-0.5 flex items-center justify-center rounded-full text-white text-[9px] font-bold leading-none',
+              badgeBg,
+              hasUrgent && 'animate-pulse',
+            )}
+          >
+            {unread > 9 ? '9+' : unread}
           </span>
         )}
       </button>
 
+      {/* ── Dropdown ─────────────────────────────────────────── */}
       {open && (
-        <div className={cn(
-          'absolute top-10 z-50 w-80 rounded-xl border border-border bg-card shadow-xl overflow-hidden',
-          isRTL ? 'left-0' : 'right-0'
-        )}>
+        <div
+          className={cn(
+            'absolute top-10 z-50 w-80 rounded-xl border border-border bg-card shadow-2xl overflow-hidden',
+            isRTL ? 'left-0' : 'right-0',
+          )}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <Bell size={15} className="text-primary" />
+              <Bell size={14} className="text-primary" />
               <span className="text-sm font-semibold text-foreground">
-                {isRTL ? 'الإشعارات' : 'Notifications'}
+                {isRTL ? 'التنبيهات' : 'Alerts'}
               </span>
-              {unreadCount > 0 && (
-                <span className="badge-urgent">{unreadCount}</span>
+              {unread > 0 && (
+                <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white', badgeBg)}>
+                  {unread}
+                </span>
               )}
             </div>
-            {unreadCount > 0 && (
+            {unread > 0 && (
               <button
-                onClick={markAllResolved}
+                onClick={dismissAll}
                 className="flex items-center gap-1 text-xs text-primary hover:underline"
               >
-                <CheckCheck size={12} />
-                {isRTL ? 'تعيين الكل كمقروء' : 'Mark all read'}
+                <CheckCheck size={11} />
+                {isRTL ? 'قراءة الكل' : 'Clear all'}
               </button>
             )}
           </div>
 
           {/* List */}
-          <div className="max-h-80 overflow-y-auto divide-y divide-border/50">
+          <div className="max-h-[340px] overflow-y-auto divide-y divide-border/40">
             {loading && (
               <div className="py-8 text-center text-sm text-muted-foreground">
                 {isRTL ? 'جاري التحميل...' : 'Loading...'}
               </div>
             )}
-            {!loading && notifications.length === 0 && (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                {isRTL ? 'لا توجد إشعارات' : 'No notifications'}
+
+            {!loading && active.length === 0 && (
+              <div className="py-10 flex flex-col items-center gap-2 text-muted-foreground">
+                <Bell size={28} className="opacity-20" />
+                <span className="text-sm">{isRTL ? 'لا توجد تنبيهات نشطة' : 'No active alerts'}</span>
               </div>
             )}
-            {!loading && notifications.map(n => {
-              const cfg = getConfig(n.type);
+
+            {!loading && active.map(a => {
+              const cfg = TYPE_CONFIG[a.type];
               return (
                 <div
-                  key={n.id}
-                  className={cn(
-                    'flex items-start gap-3 px-4 py-3 hover:bg-accent/40 transition-colors',
-                    !n.is_resolved && 'bg-primary/5'
-                  )}
+                  key={a.id}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-accent/30 transition-colors"
                 >
-                  <div className={cn('mt-0.5 flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center', cfg.color)}>
+                  {/* Severity dot */}
+                  <div className="mt-1 flex-shrink-0">
+                    <span className={cn('block h-2 w-2 rounded-full', SEVERITY_DOT[a.severity])} />
+                  </div>
+
+                  {/* Icon */}
+                  <div className={cn('mt-0.5 flex-shrink-0 h-7 w-7 rounded-full flex items-center justify-center', cfg.colorClass)}>
                     {cfg.icon}
                   </div>
+
+                  {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <p className={cn('text-xs font-medium text-foreground', n.is_resolved && 'text-muted-foreground')}>
+                    <p className="text-xs font-semibold text-foreground truncate">{a.entityName}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       {isRTL ? cfg.labelAr : cfg.labelEn}
                     </p>
-                    {n.due_date && (
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {isRTL ? 'التاريخ:' : 'Due:'} {formatDate(n.due_date)}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                      {formatDate(n.created_at)}
+                    <p
+                      className={cn(
+                        'text-[10px] font-medium mt-0.5',
+                        a.severity === 'urgent'  && 'text-destructive',
+                        a.severity === 'warning' && 'text-warning',
+                        a.severity === 'info'    && 'text-info',
+                      )}
+                    >
+                      {daysLabel(a.daysLeft, isRTL)}
                     </p>
                   </div>
-                  {!n.is_resolved && (
-                    <button
-                      onClick={(e) => markResolved(n.id, e)}
-                      className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center hover:bg-success/20 text-muted-foreground hover:text-success transition-colors mt-0.5"
-                      title={isRTL ? 'تعيين كمقروء' : 'Mark read'}
-                    >
-                      <X size={10} />
-                    </button>
-                  )}
+
+                  {/* Dismiss */}
+                  <button
+                    onClick={(e) => dismiss(a.id, e)}
+                    className="flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                    title={isRTL ? 'إخفاء' : 'Dismiss'}
+                  >
+                    <X size={10} />
+                  </button>
                 </div>
               );
             })}
@@ -199,7 +302,11 @@ export default function NotificationCenter() {
 
           {/* Footer */}
           <div className="border-t border-border px-4 py-2.5 bg-muted/30">
-            <a href="/alerts" className="text-xs text-primary hover:underline">
+            <a
+              href="/alerts"
+              onClick={() => setOpen(false)}
+              className="text-xs text-primary hover:underline"
+            >
               {isRTL ? 'عرض كل التنبيهات ←' : 'View all alerts →'}
             </a>
           </div>
