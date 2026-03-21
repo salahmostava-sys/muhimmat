@@ -33,6 +33,7 @@ const ViolationResolver = lazy(() => import("./pages/ViolationResolver"));
 const Motorcycles = lazy(() => import("./pages/Motorcycles"));
 const VehicleAssignment = lazy(() => import("./pages/VehicleAssignment"));
 const EmployeeTiers = lazy(() => import("./pages/EmployeeTiers"));
+const PlatformAccounts = lazy(() => import("./pages/PlatformAccounts"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageLoader = () => (
@@ -79,6 +80,7 @@ const App = () => (
                                     <Route path="/apps" element={<PageGuard pageKey="apps"><Apps /></PageGuard>} />
                                     <Route path="/alerts" element={<PageGuard pageKey="alerts"><Alerts /></PageGuard>} />
                                     <Route path="/employee-tiers" element={<PageGuard pageKey="employees"><EmployeeTiers /></PageGuard>} />
+                                    <Route path="/platform-accounts" element={<PageGuard pageKey="platform_accounts"><PlatformAccounts /></PageGuard>} />
 
                                     {/* ── Unified Settings Hub ── */}
                                     <Route path="/settings" element={<PageGuard pageKey="settings"><SettingsHub /></PageGuard>} />

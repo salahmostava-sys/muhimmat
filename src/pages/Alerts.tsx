@@ -12,12 +12,13 @@ import { escapeHtml } from '@/lib/security';
 import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
-// Static label map — not data (only residency, insurance, authorization, probation)
+// Static label map — not data (only residency, insurance, authorization, probation, platform_account)
 export const alertTypeLabels: Record<string, string> = {
   residency: 'إقامة',
   insurance: 'تأمين',
   authorization: 'تفويض',
   probation: 'فترة التجربة',
+  platform_account: 'حساب منصة',
 };
 
 export interface Alert {
@@ -34,7 +35,7 @@ const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning
 const severityLabels: Record<string, string> = { urgent: '🔴 عاجل', warning: '🟠 تحذير', info: '🔵 معلومات' };
 
 const typeIcons: Record<string, string> = {
-  residency: '🪪', insurance: '🛡️', authorization: '📜', probation: '⏱️',
+  residency: '🪪', insurance: '🛡️', authorization: '📜', probation: '⏱️', platform_account: '📱',
 };
 
 const Alerts = () => {
@@ -58,7 +59,7 @@ const Alerts = () => {
       const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
 
-      const [employeesRes, vehiclesRes] = await Promise.all([
+      const [employeesRes, vehiclesRes, platformAccountsRes] = await Promise.all([
         // Employees with expiring residency within current month
         supabase
           .from('employees')
@@ -72,6 +73,14 @@ const Alerts = () => {
           .select('id, plate_number, insurance_expiry, authorization_expiry')
           .in('status', ['active', 'maintenance', 'rental'])
           .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
+
+        // Platform accounts with expiring residency
+        supabase
+          .from('platform_accounts')
+          .select('id, account_name, residency_holder_name, residency_expiry, app_id, apps(name)')
+          .eq('status', 'active')
+          .not('residency_expiry', 'is', null)
+          .lte('residency_expiry', threshold),
       ]);
 
       const generatedAlerts: Alert[] = [];
@@ -130,6 +139,23 @@ const Alerts = () => {
             resolved: false,
           });
         }
+      });
+
+      // Platform account residency alerts
+      (platformAccountsRes.data ?? []).forEach((acc: any) => {
+        if (!acc.residency_expiry) return;
+        const days = differenceInDays(parseISO(acc.residency_expiry), today);
+        const appName = acc.apps?.name ?? 'منصة';
+        const holderName = acc.residency_holder_name ? ` (إقامة: ${acc.residency_holder_name})` : '';
+        generatedAlerts.push({
+          id: `pla-${acc.id}`,
+          type: 'platform_account',
+          entityName: `${acc.account_name} — ${appName}${holderName}`,
+          dueDate: acc.residency_expiry,
+          daysLeft: days,
+          severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : days <= 14 ? 'warning' : 'info',
+          resolved: false,
+        });
       });
 
       generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
@@ -203,7 +229,7 @@ const Alerts = () => {
     XLSX.writeFile(wb, `التنبيهات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
-  const typeOptions = ['all', 'residency', 'insurance', 'authorization', 'probation'];
+  const typeOptions = ['all', 'residency', 'insurance', 'authorization', 'probation', 'platform_account'];
   const urgentCount = filtered.filter(a => a.severity === 'urgent').length;
   const warningCount = filtered.filter(a => a.severity === 'warning').length;
   const infoCount = filtered.filter(a => a.severity === 'info').length;

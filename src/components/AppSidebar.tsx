@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
   Settings, ChevronDown, Fuel, Settings2, X, FileWarning, Activity,
-  Layers, ChevronsLeft, ChevronsRight,
+  Layers, ChevronsLeft, ChevronsRight, ShieldCheck,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -57,6 +57,7 @@ const AppSidebar = () => {
         { label: t('attendance'), icon: Clock, path: '/attendance' },
         { label: t('alerts'), icon: Bell, path: '/alerts' },
         { label: t('apps'), icon: Smartphone, path: '/apps' },
+        { label: 'حسابات المنصات', icon: ShieldCheck, path: '/platform-accounts' },
       ],
     },
     {
