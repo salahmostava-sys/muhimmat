@@ -238,6 +238,8 @@ const Alerts = () => {
                 XLSX.utils.book_append_sheet(wb, ws, 'قالب');
                 XLSX.writeFile(wb, 'template_alerts.xlsx');
               }}>📋 تحميل القالب</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

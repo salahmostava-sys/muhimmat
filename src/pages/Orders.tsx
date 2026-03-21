@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Search, Save, Package, Upload, Download, ChevronLeft, ChevronRight, Loader2, ChevronDown, ChevronUp, X, Check, Target, TrendingUp } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
@@ -131,6 +132,7 @@ const SpreadsheetGrid = () => {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [search, setSearch] = useState('');
   const importRef = useRef<HTMLInputElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [apps, setApps] = useState<App[]>([]);
@@ -262,6 +264,25 @@ const SpreadsheetGrid = () => {
     e.target.value = '';
   };
 
+  // ── Template ──
+  const handleTemplate = () => {
+    const headers = [['الاسم', ...dayArr.map(String), 'المجموع']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'قالب الطلبات');
+    XLSX.writeFile(wb, 'template_orders.xlsx');
+  };
+
+  // ── Print ──
+  const handlePrint = () => {
+    const table = tableRef.current;
+    if (!table) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>طلبات ${month}/${year}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:14px}p.sub{text-align:center;color:#666;font-size:10px;margin-bottom:10px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:5px 6px;text-align:right;font-size:9px;white-space:nowrap}td{padding:4px 6px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>طلبات شهر ${month}/${year}</h2><p class="sub">المجموع: ${filteredEmployees.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>${table.outerHTML}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.close();
+  };
+
   // ── Save ──
   const handleSave = async () => {
     setSaving(true);
@@ -304,13 +325,20 @@ const SpreadsheetGrid = () => {
           <Input placeholder="بحث بالاسم..." className="pr-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="mr-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={exportExcel}>
-            <Download size={14} /> تصدير
-          </Button>
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => importRef.current?.click()}>
-            <Upload size={14} /> استيراد
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={exportExcel}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => importRef.current?.click()}><Upload size={14} className="ml-1" /> استيراد Excel</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل القالب</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {permissions.can_edit && (
             <Button size="sm" className="gap-1.5 h-9" onClick={handleSave} disabled={saving}>
               {saving ? <><Loader2 size={14} className="animate-spin" /> جاري الحفظ...</> : <><Save size={14} /> حفظ</>}
@@ -333,7 +361,7 @@ const SpreadsheetGrid = () => {
             <Loader2 size={20} className="animate-spin" /> جاري التحميل...
           </div>
         ) : (
-          <table className="border-collapse text-xs" style={{ minWidth: `${220 + days * 44 + 80}px`, width: '100%' }}>
+          <table ref={tableRef} className="border-collapse text-xs" style={{ minWidth: `${220 + days * 44 + 80}px`, width: '100%' }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-muted/90 border-b-2 border-border">
                 <th className="sticky right-0 z-30 bg-muted/95 text-right px-3 py-2.5 font-semibold text-foreground border-l-2 border-border"

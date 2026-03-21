@@ -88,9 +88,9 @@ const Attendance = () => {
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs">
-                <Download size={13} />
-                {lang === 'ar' ? 'تحميل ▾' : 'Export ▾'}
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <Download size={14} />
+                {lang === 'ar' ? 'البيانات ▾' : 'Data ▾'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -104,6 +104,15 @@ const Attendance = () => {
               <DropdownMenuItem onClick={handleAttendanceTemplate}>
                 📋 {lang === 'ar' ? 'تحميل القالب' : 'Download Template'}
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => {
+                const table = document.querySelector('table');
+                if (!table) return;
+                const win = window.open('', '_blank');
+                if (!win) return;
+                win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>${lang === 'ar' ? 'الحضور' : 'Attendance'}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:12px;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>${lang === 'ar' ? 'سجل الحضور' : 'Attendance Record'}</h2>${table.outerHTML}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+                win.document.close();
+              }}>🖨️ {lang === 'ar' ? 'طباعة الجدول' : 'Print Table'}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit, Trash2, Wrench, Download, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Plus, Search, Edit, Trash2, Wrench, Download, Loader2, Upload } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -186,6 +187,8 @@ const MaintenanceLogs = () => {
   const canEdit = permissions.can_edit;
   const canDelete = permissions.can_delete;
 
+  const tableRef = useRef<HTMLTableElement>(null);
+
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,6 +261,25 @@ const MaintenanceLogs = () => {
     XLSX.writeFile(wb, `maintenance_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
+  const handleTemplate = () => {
+    const headers = [['رقم المركبة', 'نوع الصيانة', 'التكلفة (ر.س)', 'تاريخ الصيانة (YYYY-MM-DD)', 'الدفع بواسطة', 'ملاحظات']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'قالب الصيانة');
+    XLSX.writeFile(wb, 'template_maintenance.xlsx');
+  };
+
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const handlePrint = () => {
+    const table = tableRef.current;
+    if (!table) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>سجل الصيانة</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>سجل الصيانة</h2><p class="sub">المجموع: ${filtered.length} سجل — ${new Date().toLocaleDateString('ar-SA')}</p>${table.outerHTML}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.close();
+  };
+
   return (
     <div className="space-y-5 animate-fade-in" dir="rtl">
       {/* Header */}
@@ -271,9 +293,19 @@ const MaintenanceLogs = () => {
           <h1 className="page-title">سجل الصيانة</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExport} className="gap-2">
-            <Download size={15} /> تصدير Excel
-          </Button>
+          <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل القالب</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handlePrint}>🖨️ طباعة الجدول</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {canEdit && (
             <Button onClick={() => { setEditLog(null); setShowForm(true); }} className="gap-2 shadow-brand-sm">
               <Plus size={15} /> تسجيل صيانة
@@ -343,7 +375,7 @@ const MaintenanceLogs = () => {
       {/* Table */}
       <div className="bg-card border border-border/50 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table ref={tableRef} className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">
                 <th className="ta-th w-10">#</th>

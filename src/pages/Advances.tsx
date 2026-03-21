@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Search, Plus, CreditCard, Download, Upload, Edit2, FileText, ArrowDownCircle, ArrowUpCircle, Printer, AlertTriangle, Check, X, ChevronDown, ChevronUp, RotateCcw, UserPlus, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -772,6 +773,7 @@ const Advances = () => {
   const [deletingEmployeeAdvances, setDeletingEmployeeAdvances] = useState(false);
 
   const importRef = useRef<HTMLInputElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
 
   const handleDeleteEmployeeAllAdvances = async () => {
     if (!deleteEmployeeAdvancesId) return;
@@ -934,6 +936,23 @@ const Advances = () => {
     XLSX.writeFile(wb, `السلف_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
+  const handleTemplate = () => {
+    const headers = [['اسم المندوب', 'رقم الإقامة', 'مبلغ السلفة (ر.س)', 'تاريخ الاستحقاق (YYYY-MM-DD)', 'الأقساط', 'ملاحظات']];
+    const ws = XLSX.utils.aoa_to_sheet(headers);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'قالب السلف');
+    XLSX.writeFile(wb, 'template_advances.xlsx');
+  };
+
+  const handlePrintTable = () => {
+    const table = tableRef.current;
+    if (!table) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير السلف</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير السلف والأقساط</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>${table.outerHTML}<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.close();
+  };
+
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
     return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
@@ -953,8 +972,19 @@ const Advances = () => {
         </div>
         <div className="flex gap-2">
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportAdvances} />
-          <Button variant="outline" size="sm" className="gap-2 h-8" onClick={handleExport}><Download size={14} /> تصدير</Button>
-          <Button variant="outline" size="sm" className="gap-2 h-8" onClick={() => importRef.current?.click()}><Upload size={14} /> استيراد</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9"><Download size={14} /> البيانات ▾</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExport}>📊 تصدير Excel</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => importRef.current?.click()}><Upload size={14} className="ml-1" /> استيراد Excel</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleTemplate}>📋 تحميل القالب</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handlePrintTable}>🖨️ طباعة الجدول</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {permissions.can_edit && !showWrittenOff && (
             <Button size="sm" className="gap-2 h-8" onClick={() => setShowAddEmployee(true)}>
               <UserPlus size={14} /> مندوب جديد
@@ -1051,7 +1081,7 @@ const Advances = () => {
       ) : (
         <div className="bg-card rounded-xl shadow-card overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table ref={tableRef} className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b border-border/60">
                   <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground w-12">#</th>
