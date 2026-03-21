@@ -14,7 +14,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  if (!user) return <>{children}</>;
+  if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 };
 
