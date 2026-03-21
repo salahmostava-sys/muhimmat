@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Plus, Edit, Trash2, Search, ChevronDown, ChevronRight,
-  UserPlus, CalendarDays, Loader2, X, Users, Activity,
+  Plus, Edit, Search, UserPlus, Loader2, X,
+  ShieldCheck, History, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,16 +11,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 
@@ -36,16 +32,16 @@ interface App {
 interface Employee {
   id: string;
   name: string;
-  residency_expiry?: string | null;
 }
 
-interface Session {
+interface Assignment {
   id: string;
-  platform_account_id: string;
-  worker_employee_id: string;
-  worker_name?: string;
+  account_id: string;
+  employee_id: string;
+  employee_name?: string;
   start_date: string;
   end_date: string | null;
+  month_year: string;
   notes: string | null;
   created_at: string;
 }
@@ -56,61 +52,45 @@ interface PlatformAccount {
   app_name?: string;
   app_color?: string;
   app_text_color?: string;
-  account_name: string;
-  account_external_id: string | null;
-  residency_employee_id: string | null;
-  residency_holder_name: string | null;
-  residency_expiry: string | null;
+  account_username: string;
+  account_id_on_platform: string | null;
+  iqama_number: string | null;
+  iqama_expiry_date: string | null;
   status: 'active' | 'inactive';
   notes: string | null;
   created_at: string;
-  sessions?: Session[];
+  current_employee?: Employee | null;
+  assignments?: Assignment[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const residencyBadge = (expiry: string | null) => {
+const iqamaBadge = (expiry: string | null, alertDays: number) => {
   if (!expiry) return null;
   const days = differenceInDays(parseISO(expiry), new Date());
-  if (days < 0) return { label: `انتهت منذ ${Math.abs(days)} يوم`, cls: 'bg-destructive/10 text-destructive border-destructive/20' };
-  if (days <= 14) return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-orange-100 text-orange-700 border-orange-200' };
-  if (days <= 30) return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+  if (days < 0)
+    return { label: `انتهت منذ ${Math.abs(days)} يوم`, cls: 'bg-destructive/10 text-destructive border-destructive/20' };
+  if (days <= 14)
+    return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-orange-100 text-orange-700 border-orange-200' };
+  if (days <= alertDays)
+    return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
   return { label: `تنتهي ${format(parseISO(expiry), 'dd/MM/yyyy')}`, cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
 };
-
-const emptyAccount = (): Partial<PlatformAccount> => ({
-  app_id: '',
-  account_name: '',
-  account_external_id: '',
-  residency_employee_id: null,
-  residency_holder_name: '',
-  residency_expiry: '',
-  status: 'active',
-  notes: '',
-});
-
-const emptySession = () => ({
-  worker_employee_id: '',
-  start_date: format(new Date(), 'yyyy-MM-dd'),
-  end_date: '',
-  notes: '',
-});
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const PlatformAccounts = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { canEdit, canDelete } = usePermissions('platform_accounts');
+  const { permissions: perms } = usePermissions('platform_accounts');
+  const { settings } = useSystemSettings();
+  const alertDays = settings?.iqama_alert_days ?? 90;
 
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [apps, setApps] = useState<App[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [sessionsLoading, setSessionsLoading] = useState<Set<string>>(new Set());
 
-  // Filters
   const [search, setSearch] = useState('');
   const [filterApp, setFilterApp] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -118,42 +98,50 @@ const PlatformAccounts = () => {
   // Account dialog
   const [accountDialog, setAccountDialog] = useState(false);
   const [editingAccount, setEditingAccount] = useState<PlatformAccount | null>(null);
-  const [accountForm, setAccountForm] = useState(emptyAccount());
+  const [accountForm, setAccountForm] = useState<Partial<PlatformAccount>>({});
   const [savingAccount, setSavingAccount] = useState(false);
 
-  // Session dialog
-  const [sessionDialog, setSessionDialog] = useState(false);
-  const [sessionTargetAccount, setSessionTargetAccount] = useState<PlatformAccount | null>(null);
-  const [editingSession, setEditingSession] = useState<Session | null>(null);
-  const [sessionForm, setSessionForm] = useState(emptySession());
-  const [savingSession, setSavingSession] = useState(false);
+  // Assign dialog
+  const [assignDialog, setAssignDialog] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<PlatformAccount | null>(null);
+  const [assignForm, setAssignForm] = useState({ employee_id: '', start_date: format(new Date(), 'yyyy-MM-dd'), notes: '' });
+  const [savingAssign, setSavingAssign] = useState(false);
 
-  // Delete dialogs
-  const [deleteAccountDialog, setDeleteAccountDialog] = useState<PlatformAccount | null>(null);
-  const [deleteSessionDialog, setDeleteSessionDialog] = useState<{ session: Session; accountId: string } | null>(null);
+  // History dialog
+  const [historyDialog, setHistoryDialog] = useState(false);
+  const [historyAccount, setHistoryAccount] = useState<PlatformAccount | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [appsRes, empRes, accRes] = await Promise.all([
+
+    const [appsRes, empRes, accRes, assignRes] = await Promise.all([
       supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
-      supabase.from('employees').select('id, name, residency_expiry').eq('status', 'active').order('name'),
+      supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
       supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
+      supabase.from('account_assignments').select('*').is('end_date', null),
     ]);
 
     const appsData: App[] = (appsRes.data ?? []) as App[];
     const empData: Employee[] = (empRes.data ?? []) as Employee[];
     const rawAccounts = (accRes.data ?? []) as any[];
+    const activeAssignments = (assignRes.data ?? []) as any[];
 
     const appMap = Object.fromEntries(appsData.map(a => [a.id, a]));
+    const empMap = Object.fromEntries(empData.map(e => [e.id, e]));
 
-    const enriched: PlatformAccount[] = rawAccounts.map(a => ({
-      ...a,
-      app_name: appMap[a.app_id]?.name ?? '—',
-      app_color: appMap[a.app_id]?.brand_color ?? '#6366f1',
-      app_text_color: appMap[a.app_id]?.text_color ?? '#ffffff',
-    }));
+    const enriched: PlatformAccount[] = rawAccounts.map(a => {
+      const active = activeAssignments.find(x => x.account_id === a.id);
+      return {
+        ...a,
+        app_name: appMap[a.app_id]?.name ?? '—',
+        app_color: appMap[a.app_id]?.brand_color ?? '#6366f1',
+        app_text_color: appMap[a.app_id]?.text_color ?? '#ffffff',
+        current_employee: active ? empMap[active.employee_id] ?? null : null,
+      };
+    });
 
     setApps(appsData);
     setEmployees(empData);
@@ -163,45 +151,11 @@ const PlatformAccounts = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const fetchSessions = useCallback(async (accountId: string) => {
-    setSessionsLoading(prev => new Set(prev).add(accountId));
-    const { data } = await supabase
-      .from('platform_account_sessions')
-      .select('*')
-      .eq('platform_account_id', accountId)
-      .order('start_date', { ascending: false });
-
-    const empMap = Object.fromEntries(employees.map(e => [e.id, e.name]));
-    const sessions: Session[] = ((data ?? []) as any[]).map(s => ({
-      ...s,
-      worker_name: empMap[s.worker_employee_id] ?? 'مندوب غير معروف',
-    }));
-
-    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, sessions } : a));
-    setSessionsLoading(prev => { const n = new Set(prev); n.delete(accountId); return n; });
-  }, [employees]);
-
-  // ── Expand / collapse ──────────────────────────────────────────────────────
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-        const account = accounts.find(a => a.id === id);
-        if (!account?.sessions) fetchSessions(id);
-      }
-      return next;
-    });
-  };
-
   // ── Account CRUD ───────────────────────────────────────────────────────────
 
   const openAddAccount = () => {
     setEditingAccount(null);
-    setAccountForm(emptyAccount());
+    setAccountForm({ app_id: '', account_username: '', account_id_on_platform: '', iqama_number: '', iqama_expiry_date: '', status: 'active', notes: '' });
     setAccountDialog(true);
   };
 
@@ -212,7 +166,7 @@ const PlatformAccounts = () => {
   };
 
   const saveAccount = async () => {
-    if (!accountForm.app_id || !accountForm.account_name?.trim()) {
+    if (!accountForm.app_id || !accountForm.account_username?.trim()) {
       toast({ title: 'خطأ', description: 'اختر المنصة وأدخل اسم الحساب', variant: 'destructive' });
       return;
     }
@@ -220,11 +174,10 @@ const PlatformAccounts = () => {
 
     const payload: any = {
       app_id: accountForm.app_id,
-      account_name: accountForm.account_name!.trim(),
-      account_external_id: accountForm.account_external_id?.trim() || null,
-      residency_employee_id: accountForm.residency_employee_id || null,
-      residency_holder_name: accountForm.residency_holder_name?.trim() || null,
-      residency_expiry: accountForm.residency_expiry || null,
+      account_username: accountForm.account_username!.trim(),
+      account_id_on_platform: accountForm.account_id_on_platform?.trim() || null,
+      iqama_number: accountForm.iqama_number?.trim() || null,
+      iqama_expiry_date: accountForm.iqama_expiry_date || null,
       status: accountForm.status ?? 'active',
       notes: accountForm.notes?.trim() || null,
     };
@@ -237,113 +190,106 @@ const PlatformAccounts = () => {
     }
 
     setSavingAccount(false);
-    if (error) {
-      toast({ title: 'خطأ', description: error.message, variant: 'destructive' });
-      return;
-    }
-    toast({ title: editingAccount ? 'تم التعديل' : 'تم الإضافة', description: `حساب "${payload.account_name}"` });
+    if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: editingAccount ? 'تم التعديل' : 'تم الإضافة', description: `حساب "${payload.account_username}"` });
     setAccountDialog(false);
     fetchData();
   };
 
-  const deleteAccount = async () => {
-    if (!deleteAccountDialog) return;
-    const { error } = await supabase.from('platform_accounts').delete().eq('id', deleteAccountDialog.id);
-    if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: 'تم الحذف', description: `حساب "${deleteAccountDialog.account_name}"` });
-    setDeleteAccountDialog(null);
-    fetchData();
+  // ── Assign rider ───────────────────────────────────────────────────────────
+
+  const openAssign = (account: PlatformAccount) => {
+    setAssignTarget(account);
+    setAssignForm({ employee_id: '', start_date: format(new Date(), 'yyyy-MM-dd'), notes: '' });
+    setAssignDialog(true);
   };
 
-  // ── Session CRUD ───────────────────────────────────────────────────────────
-
-  const openAddSession = (account: PlatformAccount) => {
-    setSessionTargetAccount(account);
-    setEditingSession(null);
-    setSessionForm(emptySession());
-    setSessionDialog(true);
-  };
-
-  const openEditSession = (session: Session, account: PlatformAccount) => {
-    setSessionTargetAccount(account);
-    setEditingSession(session);
-    setSessionForm({
-      worker_employee_id: session.worker_employee_id,
-      start_date: session.start_date,
-      end_date: session.end_date ?? '',
-      notes: session.notes ?? '',
-    });
-    setSessionDialog(true);
-  };
-
-  const saveSession = async () => {
-    if (!sessionForm.worker_employee_id || !sessionForm.start_date) {
+  const saveAssign = async () => {
+    if (!assignForm.employee_id || !assignForm.start_date) {
       toast({ title: 'خطأ', description: 'اختر المندوب وتاريخ البداية', variant: 'destructive' });
       return;
     }
-    setSavingSession(true);
+    setSavingAssign(true);
 
-    const payload: any = {
-      platform_account_id: sessionTargetAccount!.id,
-      worker_employee_id: sessionForm.worker_employee_id,
-      start_date: sessionForm.start_date,
-      end_date: sessionForm.end_date || null,
-      notes: sessionForm.notes?.trim() || null,
-      created_by: user?.id ?? null,
-    };
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const monthYear = assignForm.start_date.slice(0, 7);
 
-    let error;
-    if (editingSession) {
-      ({ error } = await supabase.from('platform_account_sessions').update(payload).eq('id', editingSession.id));
-    } else {
-      ({ error } = await supabase.from('platform_account_sessions').insert(payload));
+    // 1. Close any open assignment for this account
+    const { data: open } = await supabase
+      .from('account_assignments')
+      .select('id')
+      .eq('account_id', assignTarget!.id)
+      .is('end_date', null);
+
+    if (open && open.length > 0) {
+      await supabase
+        .from('account_assignments')
+        .update({ end_date: today })
+        .in('id', open.map((x: any) => x.id));
     }
 
-    setSavingSession(false);
+    // 2. Insert new assignment
+    const { error } = await supabase.from('account_assignments').insert({
+      account_id: assignTarget!.id,
+      employee_id: assignForm.employee_id,
+      start_date: assignForm.start_date,
+      end_date: null,
+      month_year: monthYear,
+      notes: assignForm.notes?.trim() || null,
+      created_by: user?.id ?? null,
+    });
+
+    setSavingAssign(false);
     if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: editingSession ? 'تم التعديل' : 'تم الإضافة', description: 'تم حفظ الجلسة' });
-    setSessionDialog(false);
-    fetchSessions(sessionTargetAccount!.id);
+    toast({ title: 'تم التعيين', description: 'تم تعيين المندوب بنجاح' });
+    setAssignDialog(false);
+    fetchData();
   };
 
-  const deleteSession = async () => {
-    if (!deleteSessionDialog) return;
-    const { error } = await supabase.from('platform_account_sessions').delete().eq('id', deleteSessionDialog.session.id);
-    if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: 'تم الحذف', description: 'تم حذف الجلسة' });
-    const accId = deleteSessionDialog.accountId;
-    setDeleteSessionDialog(null);
-    fetchSessions(accId);
-  };
+  // ── History ────────────────────────────────────────────────────────────────
 
-  // ── Auto-fill residency from employee ─────────────────────────────────────
+  const openHistory = async (account: PlatformAccount) => {
+    setHistoryAccount(account);
+    setHistoryDialog(true);
+    setHistoryLoading(true);
 
-  const handleResidencyEmployeeChange = (empId: string) => {
-    const emp = employees.find(e => e.id === empId);
-    setAccountForm(prev => ({
-      ...prev,
-      residency_employee_id: empId === 'manual' ? null : empId,
-      residency_holder_name: emp ? emp.name : prev.residency_holder_name,
-      residency_expiry: emp?.residency_expiry ?? prev.residency_expiry,
+    const { data } = await supabase
+      .from('account_assignments')
+      .select('*')
+      .eq('account_id', account.id)
+      .order('start_date', { ascending: false });
+
+    const empMap = Object.fromEntries(employees.map(e => [e.id, e.name]));
+    const assignments: Assignment[] = ((data ?? []) as any[]).map(r => ({
+      ...r,
+      employee_name: empMap[r.employee_id] ?? 'مندوب غير معروف',
     }));
+
+    setHistoryAccount(prev => prev ? { ...prev, assignments } : null);
+    setHistoryLoading(false);
   };
 
-  // ── Filtered accounts ──────────────────────────────────────────────────────
+  // ── Filter ─────────────────────────────────────────────────────────────────
 
   const filtered = accounts.filter(a => {
-    const matchSearch = !search || a.account_name.includes(search) || (a.account_external_id ?? '').includes(search) || (a.residency_holder_name ?? '').includes(search);
+    const q = search.toLowerCase();
+    const matchSearch = !search
+      || a.account_username.toLowerCase().includes(q)
+      || (a.account_id_on_platform ?? '').toLowerCase().includes(q)
+      || (a.iqama_number ?? '').includes(search)
+      || (a.current_employee?.name ?? '').includes(q);
     const matchApp = filterApp === 'all' || a.app_id === filterApp;
     const matchStatus = filterStatus === 'all' || a.status === filterStatus;
     return matchSearch && matchApp && matchStatus;
   });
 
   const activeCount = accounts.filter(a => a.status === 'active').length;
-  const urgentCount = accounts.filter(a => {
-    if (!a.residency_expiry) return false;
-    return differenceInDays(parseISO(a.residency_expiry), new Date()) <= 14;
+  const warnCount = accounts.filter(a => {
+    if (!a.iqama_expiry_date) return false;
+    return differenceInDays(parseISO(a.iqama_expiry_date), new Date()) <= alertDays;
   }).length;
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
@@ -357,14 +303,14 @@ const PlatformAccounts = () => {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="page-title flex items-center gap-2">
-              <Users size={20} /> حسابات المنصات
+              <ShieldCheck size={20} /> حسابات المنصات
             </h1>
             <p className="page-subtitle">
               {loading ? 'جارٍ التحميل...' : `${accounts.length} حساب — ${activeCount} نشط`}
-              {urgentCount > 0 && <span className="text-destructive mr-2 font-semibold">· {urgentCount} إقامة قريبة الانتهاء</span>}
+              {warnCount > 0 && <span className="text-destructive mr-2 font-semibold">· {warnCount} إقامة تحتاج متابعة</span>}
             </p>
           </div>
-          {canEdit && (
+          {perms.can_edit && (
             <Button size="sm" className="gap-2" onClick={openAddAccount}>
               <Plus size={15} /> إضافة حساب
             </Button>
@@ -382,10 +328,10 @@ const PlatformAccounts = () => {
           <p className="text-sm text-muted-foreground">نشطة</p>
           <p className="text-3xl font-bold text-emerald-600 mt-1">{activeCount}</p>
         </div>
-        <div className="stat-card border-r-4 border-r-destructive">
+        <div className="stat-card border-r-4 border-r-yellow-500">
           <p className="text-sm text-muted-foreground">إقامات قريبة الانتهاء</p>
-          <p className="text-3xl font-bold text-destructive mt-1">{urgentCount}</p>
-          <p className="text-xs text-muted-foreground mt-1">خلال 14 يوم</p>
+          <p className="text-3xl font-bold text-yellow-600 mt-1">{warnCount}</p>
+          <p className="text-xs text-muted-foreground mt-1">خلال {alertDays} يوم</p>
         </div>
         <div className="stat-card">
           <p className="text-sm text-muted-foreground">عدد المنصات</p>
@@ -398,7 +344,7 @@ const PlatformAccounts = () => {
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="بحث باسم الحساب، ID، أو صاحب الإقامة..."
+            placeholder="بحث باسم الحساب، رقم الإقامة، أو المندوب..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pr-9 h-9 text-sm"
@@ -426,271 +372,164 @@ const PlatformAccounts = () => {
         {(search || filterApp !== 'all' || filterStatus !== 'all') && (
           <Button variant="ghost" size="sm" className="gap-1 h-9 text-muted-foreground"
             onClick={() => { setSearch(''); setFilterApp('all'); setFilterStatus('all'); }}>
-            <X size={13} /> مسح الفلاتر
+            <X size={13} /> مسح
           </Button>
         )}
       </div>
 
-      {/* Accounts list */}
+      {/* Table */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 size={28} className="animate-spin text-primary" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="ds-card p-12 text-center text-muted-foreground">
-          <Users size={40} className="mx-auto mb-3 opacity-30" />
+          <ShieldCheck size={40} className="mx-auto mb-3 opacity-30" />
           <p className="font-medium">لا توجد حسابات</p>
           <p className="text-sm mt-1">أضف حسابات المنصات من زر "إضافة حساب"</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(account => {
-            const expanded = expandedIds.has(account.id);
-            const badge = residencyBadge(account.residency_expiry);
-            const isSessionsLoading = sessionsLoading.has(account.id);
-
-            return (
-              <div key={account.id} className="ds-card overflow-hidden">
-                {/* Account row */}
-                <div
-                  className="flex items-center gap-3 p-4 cursor-pointer hover:bg-[var(--ds-surface-low)] transition-colors"
-                  onClick={() => toggleExpand(account.id)}
-                >
-                  {/* Platform badge */}
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm"
-                    style={{ background: account.app_color ?? '#6366f1', color: account.app_text_color ?? '#fff' }}
-                  >
-                    {account.app_name?.charAt(0) ?? '?'}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-sm">{account.account_name}</span>
-                      {account.account_external_id && (
-                        <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
-                          {account.account_external_id}
-                        </span>
-                      )}
-                      <span
-                        className="text-[11px] px-2 py-0.5 rounded-full"
-                        style={{ background: account.app_color + '22', color: account.app_color }}
-                      >
-                        {account.app_name}
-                      </span>
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full border ${account.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-muted text-muted-foreground border-border'}`}>
-                        {account.status === 'active' ? 'نشط' : 'غير نشط'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      {account.residency_holder_name && (
-                        <span className="text-xs text-muted-foreground">
-                          الإقامة: <span className="font-medium text-foreground">{account.residency_holder_name}</span>
-                        </span>
-                      )}
-                      {badge && (
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge.cls}`}>
-                          {badge.label}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
-                    {canEdit && (
-                      <>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-primary"
-                          title="إضافة جلسة" onClick={() => openAddSession(account)}>
-                          <UserPlus size={14} />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7"
-                          title="تعديل" onClick={() => openEditAccount(account)}>
-                          <Edit size={14} />
-                        </Button>
-                      </>
-                    )}
-                    {canDelete && (
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                        title="حذف" onClick={() => setDeleteAccountDialog(account)}>
-                        <Trash2 size={14} />
-                      </Button>
-                    )}
-                    {expanded ? <ChevronDown size={16} className="text-muted-foreground ml-1" /> : <ChevronRight size={16} className="text-muted-foreground ml-1" />}
-                  </div>
-                </div>
-
-                {/* Sessions section */}
-                {expanded && (
-                  <div className="border-t border-[var(--ds-surface-container)] bg-[var(--ds-surface-low)] p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold flex items-center gap-2">
-                        <Activity size={14} className="text-primary" />
-                        سجل الجلسات (من شغّل الحساب)
-                      </h3>
-                      {canEdit && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1"
-                          onClick={() => openAddSession(account)}>
-                          <Plus size={12} /> إضافة جلسة
-                        </Button>
-                      )}
-                    </div>
-
-                    {isSessionsLoading ? (
-                      <div className="flex items-center justify-center py-6">
-                        <Loader2 size={20} className="animate-spin text-primary" />
-                      </div>
-                    ) : !account.sessions || account.sessions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        لا توجد جلسات مسجّلة لهذا الحساب بعد
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {account.sessions.map(session => (
-                          <div key={session.id} className="ds-card bg-white p-3 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs font-bold text-primary">
-                                {session.worker_name?.charAt(0) ?? '?'}
-                              </span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium">{session.worker_name}</p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                                <span className="flex items-center gap-1">
-                                  <CalendarDays size={11} />
-                                  من {format(parseISO(session.start_date), 'dd/MM/yyyy')}
-                                  {session.end_date
-                                    ? ` — إلى ${format(parseISO(session.end_date), 'dd/MM/yyyy')}`
-                                    : ' — حتى الآن'
-                                  }
-                                </span>
-                                {session.end_date && session.start_date && (
-                                  <span className="text-primary font-medium">
-                                    ({differenceInDays(parseISO(session.end_date), parseISO(session.start_date))} يوم)
-                                  </span>
-                                )}
-                              </div>
-                              {session.notes && (
-                                <p className="text-xs text-muted-foreground mt-1">{session.notes}</p>
-                              )}
-                            </div>
-                            {session.end_date === null && (
-                              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 flex-shrink-0">
-                                جارٍ الآن
-                              </span>
-                            )}
-                            {canEdit && (
-                              <div className="flex gap-1 flex-shrink-0">
-                                <Button size="icon" variant="ghost" className="h-7 w-7"
-                                  onClick={() => openEditSession(session, account)}>
-                                  <Edit size={13} />
-                                </Button>
-                                {canDelete && (
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                                    onClick={() => setDeleteSessionDialog({ session, accountId: account.id })}>
-                                    <Trash2 size={13} />
-                                  </Button>
-                                )}
-                              </div>
-                            )}
+        <div className="ds-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="text-right font-semibold px-4 py-3">المنصة</th>
+                  <th className="text-right font-semibold px-4 py-3">اسم الحساب</th>
+                  <th className="text-right font-semibold px-4 py-3">رقم الحساب</th>
+                  <th className="text-right font-semibold px-4 py-3">رقم الإقامة</th>
+                  <th className="text-right font-semibold px-4 py-3">انتهاء الإقامة</th>
+                  <th className="text-right font-semibold px-4 py-3">المندوب الحالي</th>
+                  <th className="text-right font-semibold px-4 py-3">الحالة</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map(acc => {
+                  const badge = iqamaBadge(acc.iqama_expiry_date, alertDays);
+                  return (
+                    <tr key={acc.id} className="hover:bg-muted/30 transition-colors">
+                      {/* Platform */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                            style={{ background: acc.app_color, color: acc.app_text_color }}
+                          >
+                            {acc.app_name?.charAt(0)}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                          <span className="font-medium text-xs">{acc.app_name}</span>
+                        </div>
+                      </td>
+                      {/* Account username */}
+                      <td className="px-4 py-3 font-semibold">{acc.account_username}</td>
+                      {/* Account ID */}
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        {acc.account_id_on_platform ?? '—'}
+                      </td>
+                      {/* Iqama number */}
+                      <td className="px-4 py-3 font-mono text-xs">{acc.iqama_number ?? '—'}</td>
+                      {/* Iqama expiry */}
+                      <td className="px-4 py-3">
+                        {badge ? (
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      {/* Current rider */}
+                      <td className="px-4 py-3">
+                        {acc.current_employee ? (
+                          <span className="text-xs font-medium text-foreground">
+                            {acc.current_employee.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">لا يوجد</span>
+                        )}
+                      </td>
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${acc.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-muted text-muted-foreground border-border'}`}>
+                          {acc.status === 'active' ? 'نشط' : 'غير نشط'}
+                        </span>
+                      </td>
+                      {/* Actions */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Button
+                            size="sm" variant="ghost" className="h-7 px-2 gap-1 text-xs text-primary"
+                            onClick={() => openHistory(acc)}
+                            title="السجل التاريخي"
+                          >
+                            <History size={13} /> السجل
+                          </Button>
+                          {perms.can_edit && (
+                            <>
+                              <Button
+                                size="sm" variant="ghost" className="h-7 px-2 gap-1 text-xs"
+                                onClick={() => openAssign(acc)}
+                                title="تعيين مندوب"
+                              >
+                                <UserPlus size={13} /> تعيين
+                              </Button>
+                              <Button
+                                size="sm" variant="ghost" className="h-7 px-2 gap-1 text-xs"
+                                onClick={() => openEditAccount(acc)}
+                              >
+                                <Edit size={13} /> تعديل
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* ── Account Dialog ────────────────────────────────────────────────────── */}
+      {/* ── Add/Edit Account Dialog ──────────────────────────────────────────── */}
       <Dialog open={accountDialog} onOpenChange={setAccountDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="max-w-lg" dir="rtl">
           <DialogHeader>
-            <DialogTitle>{editingAccount ? 'تعديل حساب' : 'إضافة حساب منصة'}</DialogTitle>
+            <DialogTitle>{editingAccount ? 'تعديل الحساب' : 'إضافة حساب جديد'}</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 py-2">
-            {/* Platform */}
             <div className="space-y-1.5">
-              <Label>المنصة <span className="text-destructive">*</span></Label>
-              <Select value={accountForm.app_id} onValueChange={v => setAccountForm(p => ({ ...p, app_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="اختر المنصة..." /></SelectTrigger>
+              <Label>المنصة</Label>
+              <Select value={accountForm.app_id ?? ''} onValueChange={v => setAccountForm(p => ({ ...p, app_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="اختر المنصة" /></SelectTrigger>
                 <SelectContent>
                   {apps.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Account name */}
-            <div className="space-y-1.5">
-              <Label>اسم الحساب على المنصة <span className="text-destructive">*</span></Label>
-              <Input
-                placeholder="مثال: صلاح هنقر"
-                value={accountForm.account_name ?? ''}
-                onChange={e => setAccountForm(p => ({ ...p, account_name: e.target.value }))}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>اسم الحساب على المنصة</Label>
+                <Input value={accountForm.account_username ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_username: e.target.value }))} placeholder="اسم المستخدم" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>رقم الحساب (ID)</Label>
+                <Input value={accountForm.account_id_on_platform ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_id_on_platform: e.target.value }))} placeholder="رقم الحساب" dir="ltr" />
+              </div>
             </div>
-
-            {/* External ID */}
-            <div className="space-y-1.5">
-              <Label>معرّف الحساب (ID)</Label>
-              <Input
-                placeholder="الرقم أو المعرّف على المنصة"
-                value={accountForm.account_external_id ?? ''}
-                onChange={e => setAccountForm(p => ({ ...p, account_external_id: e.target.value }))}
-                dir="ltr"
-                className="text-left"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>رقم الإقامة</Label>
+                <Input value={accountForm.iqama_number ?? ''} onChange={e => setAccountForm(p => ({ ...p, iqama_number: e.target.value }))} placeholder="1xxxxxxxxx" dir="ltr" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>تاريخ انتهاء الإقامة</Label>
+                <Input type="date" value={accountForm.iqama_expiry_date ?? ''} onChange={e => setAccountForm(p => ({ ...p, iqama_expiry_date: e.target.value }))} />
+              </div>
             </div>
-
-            {/* Residency — link to employee or manual */}
             <div className="space-y-1.5">
-              <Label>صاحب الإقامة (مرتبط بمندوب)</Label>
-              <Select
-                value={accountForm.residency_employee_id ?? 'manual'}
-                onValueChange={handleResidencyEmployeeChange}
-              >
-                <SelectTrigger><SelectValue placeholder="اختر مندوباً أو أدخل يدوياً..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">إدخال يدوي</SelectItem>
-                  {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Residency holder name (manual) */}
-            <div className="space-y-1.5">
-              <Label>اسم صاحب الإقامة</Label>
-              <Input
-                placeholder="الاسم (لو غير مرتبط بمندوب في النظام)"
-                value={accountForm.residency_holder_name ?? ''}
-                onChange={e => setAccountForm(p => ({ ...p, residency_holder_name: e.target.value }))}
-              />
-            </div>
-
-            {/* Residency expiry */}
-            <div className="space-y-1.5">
-              <Label>تاريخ انتهاء الإقامة</Label>
-              <Input
-                type="date"
-                value={accountForm.residency_expiry ?? ''}
-                onChange={e => setAccountForm(p => ({ ...p, residency_expiry: e.target.value }))}
-              />
-              {accountForm.residency_expiry && residencyBadge(accountForm.residency_expiry) && (
-                <p className={`text-xs px-2 py-1 rounded ${residencyBadge(accountForm.residency_expiry)!.cls}`}>
-                  {residencyBadge(accountForm.residency_expiry)!.label}
-                </p>
-              )}
-            </div>
-
-            {/* Status */}
-            <div className="space-y-1.5">
-              <Label>حالة الحساب</Label>
-              <Select value={accountForm.status} onValueChange={v => setAccountForm(p => ({ ...p, status: v as 'active' | 'inactive' }))}>
+              <Label>الحالة</Label>
+              <Select value={accountForm.status ?? 'active'} onValueChange={v => setAccountForm(p => ({ ...p, status: v as 'active' | 'inactive' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">نشط</SelectItem>
@@ -698,145 +537,111 @@ const PlatformAccounts = () => {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Notes */}
             <div className="space-y-1.5">
               <Label>ملاحظات</Label>
-              <Textarea
-                placeholder="أي ملاحظات إضافية..."
-                rows={2}
-                value={accountForm.notes ?? ''}
-                onChange={e => setAccountForm(p => ({ ...p, notes: e.target.value }))}
-              />
+              <Textarea value={accountForm.notes ?? ''} onChange={e => setAccountForm(p => ({ ...p, notes: e.target.value }))} placeholder="ملاحظات اختيارية..." rows={2} />
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setAccountDialog(false)}>إلغاء</Button>
-            <Button onClick={saveAccount} disabled={savingAccount}>
-              {savingAccount && <Loader2 size={14} className="animate-spin ml-2" />}
-              {editingAccount ? 'حفظ التعديلات' : 'إضافة'}
+            <Button onClick={saveAccount} disabled={savingAccount} className="gap-2">
+              {savingAccount && <Loader2 size={14} className="animate-spin" />}
+              {editingAccount ? 'حفظ التعديلات' : 'إضافة الحساب'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Session Dialog ────────────────────────────────────────────────────── */}
-      <Dialog open={sessionDialog} onOpenChange={setSessionDialog}>
+      {/* ── Assign Rider Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={assignDialog} onOpenChange={setAssignDialog}>
         <DialogContent className="max-w-md" dir="rtl">
           <DialogHeader>
-            <DialogTitle>
-              {editingSession ? 'تعديل جلسة' : 'إضافة جلسة'}
-              {sessionTargetAccount && (
-                <span className="text-muted-foreground font-normal text-sm mr-2">
-                  — {sessionTargetAccount.account_name}
-                </span>
-              )}
-            </DialogTitle>
+            <DialogTitle>تعيين مندوب — {assignTarget?.account_username}</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 py-2">
-            {/* Worker */}
+            {assignTarget?.current_employee && (
+              <div className="flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg p-3 text-sm">
+                <span className="font-medium">المندوب الحالي:</span>
+                <span>{assignTarget.current_employee.name}</span>
+                <span className="text-amber-600 text-xs mr-auto">سيتم إغلاق تعيينه تلقائياً</span>
+              </div>
+            )}
             <div className="space-y-1.5">
-              <Label>المندوب الشغّال على الحساب <span className="text-destructive">*</span></Label>
-              <Select
-                value={sessionForm.worker_employee_id}
-                onValueChange={v => setSessionForm(p => ({ ...p, worker_employee_id: v }))}
-              >
-                <SelectTrigger><SelectValue placeholder="اختر المندوب..." /></SelectTrigger>
+              <Label>المندوب الجديد</Label>
+              <Select value={assignForm.employee_id} onValueChange={v => setAssignForm(p => ({ ...p, employee_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="اختر المندوب" /></SelectTrigger>
                 <SelectContent>
                   {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Start date */}
             <div className="space-y-1.5">
-              <Label>تاريخ البداية <span className="text-destructive">*</span></Label>
-              <Input
-                type="date"
-                value={sessionForm.start_date}
-                onChange={e => setSessionForm(p => ({ ...p, start_date: e.target.value }))}
-              />
+              <Label>تاريخ البداية</Label>
+              <Input type="date" value={assignForm.start_date} onChange={e => setAssignForm(p => ({ ...p, start_date: e.target.value }))} />
             </div>
-
-            {/* End date */}
-            <div className="space-y-1.5">
-              <Label>تاريخ النهاية (اتركه فارغاً لو لسه شغّال)</Label>
-              <Input
-                type="date"
-                value={sessionForm.end_date}
-                onChange={e => setSessionForm(p => ({ ...p, end_date: e.target.value }))}
-              />
-            </div>
-
-            {/* Duration preview */}
-            {sessionForm.start_date && sessionForm.end_date && (
-              <p className="text-sm text-primary font-medium">
-                المدة: {differenceInDays(parseISO(sessionForm.end_date), parseISO(sessionForm.start_date))} يوم
-              </p>
-            )}
-
-            {/* Notes */}
             <div className="space-y-1.5">
               <Label>ملاحظات</Label>
-              <Textarea
-                placeholder="ملاحظات عن الجلسة..."
-                rows={2}
-                value={sessionForm.notes}
-                onChange={e => setSessionForm(p => ({ ...p, notes: e.target.value }))}
-              />
+              <Textarea value={assignForm.notes} onChange={e => setAssignForm(p => ({ ...p, notes: e.target.value }))} placeholder="ملاحظات اختيارية..." rows={2} />
             </div>
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSessionDialog(false)}>إلغاء</Button>
-            <Button onClick={saveSession} disabled={savingSession}>
-              {savingSession && <Loader2 size={14} className="animate-spin ml-2" />}
-              {editingSession ? 'حفظ التعديلات' : 'إضافة الجلسة'}
+            <Button variant="outline" onClick={() => setAssignDialog(false)}>إلغاء</Button>
+            <Button onClick={saveAssign} disabled={savingAssign} className="gap-2">
+              {savingAssign && <Loader2 size={14} className="animate-spin" />}
+              تعيين المندوب
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete Account Confirm ────────────────────────────────────────────── */}
-      <AlertDialog open={!!deleteAccountDialog} onOpenChange={o => !o && setDeleteAccountDialog(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-            <AlertDialogDescription>
-              هل تريد حذف حساب "{deleteAccountDialog?.account_name}"؟ سيتم حذف جميع الجلسات المرتبطة به.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteAccount} className="bg-destructive hover:bg-destructive/90">
-              حذف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* ── Delete Session Confirm ────────────────────────────────────────────── */}
-      <AlertDialog open={!!deleteSessionDialog} onOpenChange={o => !o && setDeleteSessionDialog(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
-            <AlertDialogDescription>
-              هل تريد حذف هذه الجلسة؟
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={deleteSession}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              حذف
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* ── History Dialog ───────────────────────────────────────────────────── */}
+      <Dialog open={historyDialog} onOpenChange={setHistoryDialog}>
+        <DialogContent className="max-w-2xl" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History size={16} />
+              السجل التاريخي — {historyAccount?.account_username}
+              <span className="text-sm text-muted-foreground font-normal">({historyAccount?.app_name})</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 size={24} className="animate-spin text-primary" />
+              </div>
+            ) : !historyAccount?.assignments?.length ? (
+              <div className="text-center py-10 text-muted-foreground">
+                <History size={32} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">لا يوجد سجل تعيينات بعد</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {historyAccount.assignments!.map((a, idx) => (
+                  <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg border ${!a.end_date ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
+                    <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${!a.end_date ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm">{a.employee_name}</span>
+                        {!a.end_date && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            شاغل حالياً
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        من: <span className="font-medium text-foreground">{a.start_date}</span>
+                        {a.end_date && <> — إلى: <span className="font-medium text-foreground">{a.end_date}</span></>}
+                        <span className="mr-3 text-muted-foreground">({a.month_year})</span>
+                      </p>
+                      {a.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{a.notes}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

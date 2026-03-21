@@ -11,6 +11,7 @@ interface SystemSettings {
   logo_url: string | null;
   default_language: string;
   theme: string;
+  iqama_alert_days: number;
 }
 
 interface SystemSettingsContextType {
@@ -30,6 +31,7 @@ const defaults: SystemSettings = {
   logo_url: null,
   default_language: 'ar',
   theme: 'light',
+  iqama_alert_days: 90,
 };
 
 const SystemSettingsContext = createContext<SystemSettingsContextType>({

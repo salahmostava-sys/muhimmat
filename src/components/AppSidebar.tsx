@@ -57,7 +57,6 @@ const AppSidebar = () => {
         { label: t('attendance'), icon: Clock, path: '/attendance' },
         { label: t('alerts'), icon: Bell, path: '/alerts' },
         { label: t('apps'), icon: Smartphone, path: '/apps' },
-        { label: 'حسابات المنصات', icon: ShieldCheck, path: '/platform-accounts' },
       ],
     },
     {
@@ -78,6 +77,7 @@ const AppSidebar = () => {
         { label: t('fuel'), icon: Fuel, path: '/fuel' },
         { label: t('violationResolver'), icon: FileWarning, path: '/violation-resolver' },
         { label: 'شرائح الشركة', icon: Layers, path: '/employee-tiers' },
+        { label: 'حسابات المنصات', icon: ShieldCheck, path: '/platform-accounts' },
       ],
     },
     {

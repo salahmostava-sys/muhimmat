@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Globe, Palette, Building2, Upload, X, Download, Database, CheckCircle } from 'lucide-react';
+import { Loader2, Save, Globe, Palette, Building2, Upload, X, Download, Database, CheckCircle, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
@@ -32,6 +32,7 @@ export default function ProjectSettings() {
   const [defaultLang, setDefaultLang] = useState('ar');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [iqamaAlertDays, setIqamaAlertDays] = useState(90);
   const [saving, setSaving] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
 
@@ -43,6 +44,7 @@ export default function ProjectSettings() {
       setSubtitleEn(settings.project_subtitle_en);
       setDefaultLang(settings.default_language);
       setLogoPreview(settings.logo_url);
+      setIqamaAlertDays(settings.iqama_alert_days ?? 90);
     }
   }, [settings]);
 
@@ -88,6 +90,7 @@ export default function ProjectSettings() {
         project_subtitle_en: subtitleEn,
         default_language: defaultLang,
         logo_url,
+        iqama_alert_days: iqamaAlertDays,
       };
 
       if (settings?.id) {
@@ -311,6 +314,32 @@ export default function ProjectSettings() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Alert Settings ── */}
+      <div className="bg-card rounded-xl border border-border/50 p-5 shadow-sm">
+        <SectionHeader icon={<Bell size={14} />} title={isRTL ? 'إعدادات التنبيهات' : 'Alert Settings'} />
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <Label className="text-xs font-medium text-muted-foreground">
+              {isRTL ? 'التنبيه بانتهاء الإقامة (حسابات المنصات) قبل' : 'Iqama expiry alert (platform accounts) before'}
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {isRTL ? 'سيظهر تنبيه تلقائي عند اقتراب انتهاء إقامة حساب المنصة بهذا العدد من الأيام أو أقل.' : 'An automatic alert shows when a platform account iqama expires within this many days.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Input
+              type="number"
+              min={1}
+              max={365}
+              value={iqamaAlertDays}
+              onChange={e => setIqamaAlertDays(Math.max(1, parseInt(e.target.value) || 90))}
+              className="w-24 text-center"
+            />
+            <span className="text-sm text-muted-foreground">{isRTL ? 'يوم' : 'days'}</span>
           </div>
         </div>
       </div>

@@ -8,9 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { escapeHtml } from '@/lib/security';
 import * as XLSX from '@e965/xlsx';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { format, differenceInDays, parseISO, addDays } from 'date-fns';
 
 // Static label map — not data (only residency, insurance, authorization, probation, platform_account)
 export const alertTypeLabels: Record<string, string> = {
@@ -49,38 +50,39 @@ const Alerts = () => {
   const [deferDays, setDeferDays] = useState('7');
   const [resolveNote, setResolveNote] = useState('');
   const { toast } = useToast();
+  const { settings } = useSystemSettings();
+  const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
 
   useEffect(() => {
     const fetchAlerts = async () => {
       setLoading(true);
       const today = new Date();
-      const todayStr = format(today, 'yyyy-MM-dd');
-      // Show anything expiring by end of current month
+      // Threshold for employees/vehicles: end of current month
       const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
+      // Threshold for platform account iqama: configurable days from settings
+      const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
 
       const [employeesRes, vehiclesRes, platformAccountsRes] = await Promise.all([
-        // Employees with expiring residency within current month
         supabase
           .from('employees')
           .select('id, name, residency_expiry, probation_end_date')
           .eq('status', 'active')
           .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
 
-        // Vehicles with expiring insurance or authorization within current month
         supabase
           .from('vehicles')
           .select('id, plate_number, insurance_expiry, authorization_expiry')
           .in('status', ['active', 'maintenance', 'rental'])
           .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
 
-        // Platform accounts with expiring residency
+        // Platform accounts with iqama expiring within configurable days
         supabase
           .from('platform_accounts')
-          .select('id, account_name, residency_holder_name, residency_expiry, app_id, apps(name)')
+          .select('id, account_username, iqama_expiry_date, app_id, apps(name)')
           .eq('status', 'active')
-          .not('residency_expiry', 'is', null)
-          .lte('residency_expiry', threshold),
+          .not('iqama_expiry_date', 'is', null)
+          .lte('iqama_expiry_date', iqamaThreshold),
       ]);
 
       const generatedAlerts: Alert[] = [];
@@ -141,17 +143,17 @@ const Alerts = () => {
         }
       });
 
-      // Platform account residency alerts
+      // Platform account iqama alerts
       (platformAccountsRes.data ?? []).forEach((acc: any) => {
-        if (!acc.residency_expiry) return;
-        const days = differenceInDays(parseISO(acc.residency_expiry), today);
+        if (!acc.iqama_expiry_date) return;
+        const days = differenceInDays(parseISO(acc.iqama_expiry_date), today);
         const appName = acc.apps?.name ?? 'منصة';
-        const holderName = acc.residency_holder_name ? ` (إقامة: ${acc.residency_holder_name})` : '';
+        const expiryFormatted = format(parseISO(acc.iqama_expiry_date), 'dd/MM/yyyy');
         generatedAlerts.push({
           id: `pla-${acc.id}`,
           type: 'platform_account',
-          entityName: `${acc.account_name} — ${appName}${holderName}`,
-          dueDate: acc.residency_expiry,
+          entityName: `إقامة الحساب ${acc.account_username} على منصة ${appName} ستنتهي في ${expiryFormatted}، قد يتوقف الحساب.`,
+          dueDate: acc.iqama_expiry_date,
           daysLeft: days,
           severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : days <= 14 ? 'warning' : 'info',
           resolved: false,
@@ -164,10 +166,9 @@ const Alerts = () => {
     };
 
     fetchAlerts();
-    // Live polling every 60 seconds
     const interval = setInterval(fetchAlerts, 60_000);
     return () => clearInterval(interval);
-  }, []);
+  }, [iqamaAlertDays]);
 
   const filtered = localAlerts.filter(a => {
     const matchType = typeFilter === 'all' || a.type === typeFilter;

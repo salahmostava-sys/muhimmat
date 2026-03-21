@@ -120,6 +120,7 @@ src/
 | `/employee-tiers` | Employee tiers |
 | `/violation-resolver` | Violation resolver |
 | `/activity-log` | Activity log |
+| `/platform-accounts` | Platform accounts management |
 | `/settings/schemes` | Salary schemes |
 | `/settings/users` | Users & permissions |
 | `/settings/general` | General settings |
