@@ -1074,6 +1074,7 @@ export type Database = {
           created_at: string
           default_language: string
           id: string
+          iqama_alert_days: number
           logo_url: string | null
           project_name_ar: string
           project_name_en: string
@@ -1086,6 +1087,7 @@ export type Database = {
           created_at?: string
           default_language?: string
           id?: string
+          iqama_alert_days?: number
           logo_url?: string | null
           project_name_ar?: string
           project_name_en?: string
@@ -1098,6 +1100,7 @@ export type Database = {
           created_at?: string
           default_language?: string
           id?: string
+          iqama_alert_days?: number
           logo_url?: string | null
           project_name_ar?: string
           project_name_en?: string
@@ -1337,6 +1340,114 @@ export type Database = {
           year?: number | null
         }
         Relationships: []
+      }
+      account_assignments: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          end_date: string | null
+          id: string
+          month_year: string
+          notes: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          end_date?: string | null
+          id?: string
+          month_year: string
+          notes?: string | null
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          end_date?: string | null
+          id?: string
+          month_year?: string
+          notes?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_assignments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "platform_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_accounts: {
+        Row: {
+          account_id_on_platform: string | null
+          account_username: string
+          app_id: string
+          created_at: string
+          id: string
+          iqama_expiry_date: string | null
+          iqama_number: string | null
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id_on_platform?: string | null
+          account_username: string
+          app_id: string
+          created_at?: string
+          id?: string
+          iqama_expiry_date?: string | null
+          iqama_number?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id_on_platform?: string | null
+          account_username?: string
+          app_id?: string
+          created_at?: string
+          id?: string
+          iqama_expiry_date?: string | null
+          iqama_number?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_accounts_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

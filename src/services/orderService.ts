@@ -103,4 +103,29 @@ export const orderService = {
       .single();
     return { data, error };
   },
+
+  getMonthRaw: async (year: number, month: number) => {
+    const from = `${year}-${String(month).padStart(2, '0')}-01`;
+    const to = new Date(year, month, 0).toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('daily_orders')
+      .select('employee_id, app_id, date, orders_count')
+      .gte('date', from)
+      .lte('date', to);
+    return { data, error };
+  },
+
+  bulkUpsert: async (rows: { employee_id: string; app_id: string; date: string; orders_count: number }[], chunkSize = 200) => {
+    let saved = 0;
+    const failed: string[] = [];
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      const { error } = await supabase
+        .from('daily_orders')
+        .upsert(chunk, { onConflict: 'employee_id,app_id,date' });
+      if (error) failed.push(...chunk.map(r => r.date));
+      else saved += chunk.length;
+    }
+    return { saved, failed };
+  },
 };

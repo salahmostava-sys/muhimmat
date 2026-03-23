@@ -71,10 +71,10 @@ const iqamaBadge = (expiry: string | null, alertDays: number) => {
   if (days < 0)
     return { label: `انتهت منذ ${Math.abs(days)} يوم`, cls: 'bg-destructive/10 text-destructive border-destructive/20' };
   if (days <= 14)
-    return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-orange-100 text-orange-700 border-orange-200' };
+    return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-destructive/15 text-destructive border-destructive/20' };
   if (days <= alertDays)
-    return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
-  return { label: `تنتهي ${format(parseISO(expiry), 'dd/MM/yyyy')}`, cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+    return { label: `تنتهي خلال ${days} يوم`, cls: 'bg-warning/15 text-warning border-warning/20' };
+  return { label: `تنتهي ${format(parseISO(expiry), 'dd/MM/yyyy')}`, cls: 'bg-success/10 text-success border-success/20' };
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -326,11 +326,11 @@ const PlatformAccounts = () => {
         </div>
         <div className="stat-card">
           <p className="text-sm text-muted-foreground">نشطة</p>
-          <p className="text-3xl font-bold text-emerald-600 mt-1">{activeCount}</p>
+          <p className="text-3xl font-bold text-success mt-1">{activeCount}</p>
         </div>
-        <div className="stat-card border-r-4 border-r-yellow-500">
+        <div className="stat-card border-r-4 border-r-warning">
           <p className="text-sm text-muted-foreground">إقامات قريبة الانتهاء</p>
-          <p className="text-3xl font-bold text-yellow-600 mt-1">{warnCount}</p>
+          <p className="text-3xl font-bold text-warning mt-1">{warnCount}</p>
           <p className="text-xs text-muted-foreground mt-1">خلال {alertDays} يوم</p>
         </div>
         <div className="stat-card">
@@ -449,7 +449,7 @@ const PlatformAccounts = () => {
                       </td>
                       {/* Status */}
                       <td className="px-4 py-3">
-                        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${acc.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-muted text-muted-foreground border-border'}`}>
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${acc.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground border-border'}`}>
                           {acc.status === 'active' ? 'نشط' : 'غير نشط'}
                         </span>
                       </td>
@@ -618,12 +618,12 @@ const PlatformAccounts = () => {
               <div className="space-y-2">
                 {historyAccount.assignments!.map((a, idx) => (
                   <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg border ${!a.end_date ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
-                    <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${!a.end_date ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                    <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${!a.end_date ? 'bg-success' : 'bg-muted-foreground/40'}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-sm">{a.employee_name}</span>
                         {!a.end_date && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
                             شاغل حالياً
                           </span>
                         )}

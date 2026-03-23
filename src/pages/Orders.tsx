@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import { orderService } from '@/services/orderService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
@@ -157,22 +158,16 @@ const SpreadsheetGrid = () => {
   }, []);
 
   useEffect(() => {
-    const days = getDaysInMonth(year, month);
-    const from = dateStr(year, month, 1);
-    const to = dateStr(year, month, days);
     setLoading(true);
-    supabase.from('daily_orders')
-      .select('employee_id, app_id, date, orders_count')
-      .gte('date', from).lte('date', to)
-      .then(({ data: rows }) => {
-        const d: DailyData = {};
-        rows?.forEach(r => {
-          const day = new Date(r.date + 'T00:00:00').getDate();
-          d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
-        });
-        setData(d);
-        setLoading(false);
+    orderService.getMonthRaw(year, month).then(({ data: rows }) => {
+      const d: DailyData = {};
+      rows?.forEach(r => {
+        const day = new Date(r.date + 'T00:00:00').getDate();
+        d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
       });
+      setData(d);
+      setLoading(false);
+    });
   }, [year, month]);
 
   const filteredEmployees = employees.filter(emp => emp.name.includes(search));
@@ -293,15 +288,7 @@ const SpreadsheetGrid = () => {
       if (!isNaN(day) && day >= 1 && day <= days)
         rows.push({ employee_id: empId, app_id: appId, date: dateStr(year, month, day), orders_count: count });
     });
-    const CHUNK = 200;
-    let saved = 0;
-    const failed: string[] = [];
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const chunk = rows.slice(i, i + CHUNK);
-      const { error } = await supabase.from('daily_orders').upsert(chunk, { onConflict: 'employee_id,app_id,date' });
-      if (error) failed.push(...chunk.map(r => r.date));
-      else saved += chunk.length;
-    }
+    const { saved, failed } = await orderService.bulkUpsert(rows);
     setSaving(false);
     if (failed.length > 0) {
       toast({ title: `فشل في حفظ ${failed.length} إدخال`, description: `تم حفظ ${saved} بنجاح`, variant: 'destructive' });
