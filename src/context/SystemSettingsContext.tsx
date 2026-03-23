@@ -51,7 +51,7 @@ export const SystemSettingsProvider = ({ children }: { children: ReactNode }) =>
       .select('*')
       .limit(1)
       .maybeSingle();
-    setSettings((data as SystemSettings) ?? defaults);
+    setSettings((data as unknown as SystemSettings) ?? defaults);
     setLoading(false);
   }, []);
 

@@ -72,7 +72,7 @@ export const advanceService = {
   },
 
   createInstallments: async (installments: Record<string, unknown>[]) => {
-    const { error } = await supabase.from('advance_installments').insert(installments);
+    const { error } = await supabase.from('advance_installments').insert(installments as any);
     return { error };
   },
 
