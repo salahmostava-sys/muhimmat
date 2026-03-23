@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
+import { useAuth } from '@/context/AuthContext';
 import { escapeHtml } from '@/lib/security';
 import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO, addDays } from 'date-fns';
@@ -20,6 +21,8 @@ export const alertTypeLabels: Record<string, string> = {
   authorization: 'تفويض',
   probation: 'فترة التجربة',
   platform_account: 'حساب منصة',
+  employee_absconded: 'مندوب هارب',
+  employee_terminated: 'مندوب منتهي',
 };
 
 export interface Alert {
@@ -36,7 +39,13 @@ const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning
 const severityLabels: Record<string, string> = { urgent: '🔴 عاجل', warning: '🟠 تحذير', info: '🔵 معلومات' };
 
 const typeIcons: Record<string, string> = {
-  residency: '🪪', insurance: '🛡️', authorization: '📜', probation: '⏱️', platform_account: '📱',
+  residency: '🪪',
+  insurance: '🛡️',
+  authorization: '📜',
+  probation: '⏱️',
+  platform_account: '📱',
+  employee_absconded: '🚨',
+  employee_terminated: '🧾',
 };
 
 const Alerts = () => {
@@ -51,6 +60,7 @@ const Alerts = () => {
   const [resolveNote, setResolveNote] = useState('');
   const { toast } = useToast();
   const { settings } = useSystemSettings();
+  const { user } = useAuth();
   const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
 
   useEffect(() => {
@@ -63,7 +73,7 @@ const Alerts = () => {
       // Threshold for platform account iqama: configurable days from settings
       const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
 
-      const [employeesRes, vehiclesRes, platformAccountsRes] = await Promise.all([
+      const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await Promise.all([
         supabase
           .from('employees')
           .select('id, name, residency_expiry, probation_end_date')
@@ -83,6 +93,11 @@ const Alerts = () => {
           .eq('status', 'active')
           .not('iqama_expiry_date', 'is', null)
           .lte('iqama_expiry_date', iqamaThreshold),
+        supabase
+          .from('alerts')
+          .select('id, type, due_date, is_resolved, message, details')
+          .order('created_at', { ascending: false })
+          .limit(500),
       ]);
 
       const generatedAlerts: Alert[] = [];
@@ -160,6 +175,30 @@ const Alerts = () => {
         });
       });
 
+      // Persisted alerts from `public.alerts` table (e.g. absconded/terminated employees)
+      (dbAlertsRes.data ?? []).forEach((a: any) => {
+        const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
+        const daysLeft = differenceInDays(parseISO(dueDate), today);
+        const severity =
+          daysLeft < 0 ? 'urgent'
+            : daysLeft <= 7 ? 'urgent'
+              : daysLeft <= 14 ? 'warning'
+                : 'info';
+
+        const details = a.details ?? {};
+        const entityName = details.employee_name ?? a.message ?? '—';
+
+        generatedAlerts.push({
+          id: a.id,
+          type: a.type,
+          entityName,
+          dueDate,
+          daysLeft,
+          severity,
+          resolved: !!a.is_resolved,
+        });
+      });
+
       generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
       setLocalAlerts(generatedAlerts);
       setLoading(false);
@@ -179,15 +218,27 @@ const Alerts = () => {
 
   const resolved = localAlerts.filter(a => a.resolved);
 
-  const handleResolve = () => {
+  const handleResolve = async () => {
     if (!resolveDialog) return;
     setLocalAlerts(prev => prev.map(a => a.id === resolveDialog.id ? { ...a, resolved: true } : a));
     toast({ title: 'تم الحسم', description: `تم حسم تنبيه: ${resolveDialog.entityName}` });
+
+    // Persist DB-backed employee alerts
+    if (resolveDialog.type === 'employee_absconded' || resolveDialog.type === 'employee_terminated') {
+      const { error } = await supabase
+        .from('alerts')
+        .update({ is_resolved: true, resolved_by: user?.id ?? null })
+        .eq('id', resolveDialog.id);
+      if (error) {
+        toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      }
+    }
+
     setResolveDialog(null);
     setResolveNote('');
   };
 
-  const handleDefer = () => {
+  const handleDefer = async () => {
     if (!deferDialog) return;
     const days = parseInt(deferDays) || 7;
     const newDate = new Date(deferDialog.dueDate);
@@ -198,6 +249,19 @@ const Alerts = () => {
         : a
     ));
     toast({ title: 'تم التأجيل', description: `تم تأجيل التنبيه ${days} يوم` });
+
+    // Persist DB-backed employee alerts
+    if (deferDialog.type === 'employee_absconded' || deferDialog.type === 'employee_terminated') {
+      const due = newDate.toISOString().split('T')[0];
+      const { error } = await supabase
+        .from('alerts')
+        .update({ due_date: due })
+        .eq('id', deferDialog.id);
+      if (error) {
+        toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      }
+    }
+
     setDeferDialog(null);
     setDeferDays('7');
   };
@@ -230,7 +294,7 @@ const Alerts = () => {
     XLSX.writeFile(wb, `التنبيهات_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
   };
 
-  const typeOptions = ['all', 'residency', 'insurance', 'authorization', 'probation', 'platform_account'];
+  const typeOptions = ['all', 'residency', 'insurance', 'authorization', 'probation', 'platform_account', 'employee_absconded', 'employee_terminated'];
   const urgentCount = filtered.filter(a => a.severity === 'urgent').length;
   const warningCount = filtered.filter(a => a.severity === 'warning').length;
   const infoCount = filtered.filter(a => a.severity === 'info').length;

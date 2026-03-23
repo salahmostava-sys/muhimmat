@@ -176,6 +176,7 @@ const EmployeeTiers = () => {
 
   // Absconded alert
   const [abscondedAlert, setAbscondedAlert] = useState<{ name: string; simNumber: string; vehiclePlate: string } | null>(null);
+  const processedAbscondedRef = useRef<Set<string>>(new Set());
 
   /* ── Fetch ── */
   const fetchAll = async () => {
@@ -207,6 +208,7 @@ const EmployeeTiers = () => {
 
       if (abscondedEmpIds.length === 0) return;
 
+      const newlyAbsconded = abscondedEmpIds.filter(id => !processedAbscondedRef.current.has(id));
       // Find tiers linked to absconded employees that are still "delivered"
       const affectedTiers = tiers.filter(
         t => abscondedEmpIds.includes(t.employee_id) && t.delivery_status === STATUS_DELIVERED
@@ -220,22 +222,24 @@ const EmployeeTiers = () => {
           .update({ delivery_status: STATUS_NOT_DELIVERED })
           .eq('id', tier.id);
 
-        // Get vehicle plate
-        const emp = employees.find(e => e.id === tier.employee_id);
-        const { data: assignments } = await supabase
-          .from('vehicle_assignments')
-          .select('vehicle_id, vehicles(plate_number)')
-          .eq('employee_id', tier.employee_id)
-          .is('end_date', null)
-          .limit(1);
+        // Show alert dialog only once per employee per session
+        if (newlyAbsconded.includes(tier.employee_id)) {
+          const emp = employees.find(e => e.id === tier.employee_id);
+          const { data: assignments } = await supabase
+            .from('vehicle_assignments')
+            .select('vehicle_id, vehicles(plate_number)')
+            .eq('employee_id', tier.employee_id)
+            .is('end_date', null)
+            .limit(1);
 
-        const plate = (assignments?.[0] as any)?.vehicles?.plate_number || 'غير مسجلة';
-
-        setAbscondedAlert({
-          name: emp?.name || '—',
-          simNumber: tier.sim_number || '—',
-          vehiclePlate: plate,
-        });
+          const plate = (assignments?.[0] as any)?.vehicles?.plate_number || 'غير مسجلة';
+          setAbscondedAlert({
+            name: emp?.name || '—',
+            simNumber: tier.sim_number || '—',
+            vehiclePlate: plate,
+          });
+          processedAbscondedRef.current.add(tier.employee_id);
+        }
       }
 
       fetchAll();

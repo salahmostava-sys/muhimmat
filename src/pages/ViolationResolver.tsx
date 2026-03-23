@@ -286,11 +286,11 @@ const ViolationResolver = () => {
 
   // ── Assign violation ──────────────────────────────────────────────────────
   const handleAssign = async (row: ResultRow) => {
-    const amt = parseFloat(form.amount);
+    const amt = row.amount;
     if (!amt || amt <= 0) return toast({ title: 'أدخل مبلغ المخالفة', variant: 'destructive' });
     if (row.status === 'recorded' && row.external_deduction_id) return;
     setAssigningEmployeeId(row.employee_id);
-    const violationDate = form.use_time ? form.violation_datetime.split('T')[0] : form.violation_date_only;
+    const violationDate = row.violation_date;
     const noteText = [
       'مخالفة مرورية',
       row.violation_details,
@@ -389,6 +389,24 @@ const ViolationResolver = () => {
 
     const details = (v.violation_details || '').replace(/^مخالفة مرورية\\s*[-–—:]*\\s*/u, '').trim() || '—';
     const noteText = `مخالفة مرورية — ${details} — بتاريخ ${violationDate} — تم الخصم بتاريخ ${today}`;
+
+    // Guard against converting the same fine multiple times
+    const amountMin = v.amount - 0.01;
+    const amountMax = v.amount + 0.01;
+    const { data: existingAdv } = await supabase
+      .from('advances')
+      .select('id')
+      .eq('employee_id', v.employee_id)
+      .eq('status', 'active')
+      .eq('first_deduction_month', v.apply_month)
+      .gte('monthly_amount', amountMin)
+      .lte('monthly_amount', amountMax)
+      .limit(1);
+
+    if (existingAdv && existingAdv.length > 0) {
+      toast({ title: 'تم التحويل مسبقاً', description: 'يوجد سلفة نشطة مطابقة لهذه المخالفة.' });
+      return;
+    }
 
     setConvertingId(v.id);
     const { data: advInserted, error: advErr } = await supabase
