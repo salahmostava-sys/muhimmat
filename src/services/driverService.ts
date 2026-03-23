@@ -19,7 +19,7 @@ export const driverService = {
       .order('name', { ascending: true });
 
     if (filters.status) query = query.eq('status', filters.status);
-    if (filters.city) query = query.eq('city', filters.city);
+    if (filters.city) query = query.eq('city', filters.city as any);
     if (filters.search) {
       query = query.or(
         `name.ilike.%${filters.search}%,name_en.ilike.%${filters.search}%,phone.ilike.%${filters.search}%,national_id.ilike.%${filters.search}%`
