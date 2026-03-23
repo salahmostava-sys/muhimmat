@@ -2,11 +2,12 @@ import { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ClipboardCheck, CalendarDays, FolderOpen, Upload, BarChart2 } from 'lucide-react';
+import { ClipboardCheck, CalendarDays, FolderOpen, Upload, BarChart2, Archive } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import DailyAttendance from '@/components/attendance/DailyAttendance';
 import MonthlyRecord from '@/components/attendance/MonthlyRecord';
 import AttendanceStats from '@/components/attendance/AttendanceStats';
+import ArchiveAttendance from '@/components/attendance/ArchiveAttendance';
 import { useLanguage } from '@/context/LanguageContext';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from '@e965/xlsx';
@@ -132,6 +133,10 @@ const Attendance = () => {
             <BarChart2 size={15} />
             الإحصائيات
           </TabsTrigger>
+          <TabsTrigger value="archive" className="gap-2">
+            <Archive size={15} />
+            أرشيف
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="daily">
@@ -144,6 +149,10 @@ const Attendance = () => {
 
         <TabsContent value="stats">
           <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
+        </TabsContent>
+
+        <TabsContent value="archive">
+          <ArchiveAttendance />
         </TabsContent>
       </Tabs>
     </div>

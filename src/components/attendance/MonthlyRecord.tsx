@@ -60,6 +60,7 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
           .from("employees")
           .select("id, name, national_id, salary_type, base_salary")
           .eq("status", "active")
+          .not("sponsorship_status", "in", '("absconded","terminated")')
           .order("name"),
         supabase.from("attendance").select("employee_id, status").gte("date", startDate).lte("date", endDate),
       ]);

@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   Plus, FolderOpen, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
-  Columns, Filter, X, ChevronDown as FilterIcon, CalendarDays
+  Columns, Filter, X, ChevronDown as FilterIcon, CalendarDays,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -36,12 +37,14 @@ import { usePermissions } from '@/hooks/usePermissions';
 type Employee = {
   id: string;
   name: string;
+  name_en?: string | null;
   job_title?: string | null;
   phone?: string | null;
   email?: string | null;
   national_id?: string | null;
   employee_code?: string | null;
   bank_account_number?: string | null;
+  iban?: string | null;
   city?: string | null;
   join_date?: string | null;
   birth_date?: string | null;
@@ -49,6 +52,7 @@ type Employee = {
   health_insurance_expiry?: string | null;
   probation_end_date?: string | null;
   license_status?: string | null;
+  license_expiry?: string | null;
   sponsorship_status?: string | null;
   id_photo_url?: string | null;
   license_photo_url?: string | null;
@@ -67,11 +71,14 @@ type SortDir = 'asc' | 'desc' | null;
 const ALL_COLUMNS = [
   { key: 'seq',                      label: '#',                       sortable: false },
   { key: 'name',                     label: 'الاسم',                   sortable: true  },
+  { key: 'name_en',                  label: 'الاسم (إنجليزي)',         sortable: true  },
+  { key: 'employee_code',            label: 'كود الموظف',              sortable: true  },
   { key: 'national_id',              label: 'رقم الهوية',              sortable: true  },
   { key: 'job_title',                label: 'المسمى الوظيفي',          sortable: true  },
   { key: 'city',                     label: 'المدينة',                 sortable: true  },
   { key: 'phone',                    label: 'رقم الهاتف',              sortable: true  },
   { key: 'nationality',              label: 'الجنسية',                 sortable: true  },
+  { key: 'status',                   label: 'الحالة',                  sortable: true  },
   { key: 'sponsorship_status',       label: 'حالة الكفالة',            sortable: true  },
   { key: 'join_date',                label: 'تاريخ الانضمام',          sortable: true  },
   { key: 'birth_date',               label: 'تاريخ الميلاد',           sortable: true  },
@@ -81,12 +88,17 @@ const ALL_COLUMNS = [
   { key: 'residency_status',         label: 'حالة الإقامة',            sortable: false },
   { key: 'health_insurance_expiry',  label: 'انتهاء التأمين الصحي',   sortable: true  },
   { key: 'license_status',           label: 'حالة الرخصة',             sortable: true  },
+  { key: 'license_expiry',           label: 'انتهاء الرخصة',           sortable: true  },
   { key: 'bank_account_number',      label: 'رقم الحساب البنكي',      sortable: false },
+  { key: 'iban',                     label: 'IBAN',                    sortable: false },
   { key: 'email',                    label: 'البريد الإلكتروني',       sortable: false },
   { key: 'actions',                  label: 'الإجراءات',               sortable: false },
 ] as const;
 
 type ColKey = typeof ALL_COLUMNS[number]['key'];
+
+// Columns hidden by default (available in column picker, but not shown initially)
+const DEFAULT_HIDDEN_COLS = new Set<ColKey>(['name_en', 'iban', 'license_expiry']);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const calcResidency = (expiry?: string | null) => {
@@ -124,6 +136,14 @@ const SponsorBadge = ({ status }: { status?: string | null }) => {
   };
   const m = map[status];
   return m ? <span className={m.cls}>{m.label}</span> : null;
+};
+
+const StatusBadge = ({ status }: { status?: string | null }) => {
+  if (!status) return <span className="text-muted-foreground/40">—</span>;
+  if (status === 'active')   return <span className="badge-success">نشط</span>;
+  if (status === 'inactive') return <span className="badge-warning">غير نشط</span>;
+  if (status === 'ended')    return <span className="bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded-full">منتهي</span>;
+  return <span className="text-muted-foreground/40">{status}</span>;
 };
 
 // ─── Inline Select ────────────────────────────────────────────────────────────
@@ -257,11 +277,15 @@ const Employees = () => {
 
   // visible columns
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
-    new Set(ALL_COLUMNS.map(c => c.key))
+    new Set(ALL_COLUMNS.map(c => c.key).filter(k => !DEFAULT_HIDDEN_COLS.has(k as ColKey)))
   );
 
   // per-column filters
   const [colFilters, setColFilters] = useState<Record<string, string>>({});
+
+  // pagination
+  const [page, setPage]         = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
   // modals
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
@@ -296,10 +320,11 @@ const Employees = () => {
   }, [toast]);
 
   useEffect(() => {
-    let isMounted = true;
     fetchEmployees();
-    return () => { isMounted = false; };
   }, [fetchEmployees]);
+
+  // Reset page when filters/sort change
+  useEffect(() => { setPage(1); }, [colFilters, sortField, sortDir]);
 
   // ── Sort handler ──
   const handleSort = (field: string) => {
@@ -328,16 +353,11 @@ const Employees = () => {
   const handleSaveStatusWithDate = async () => {
     if (!statusDateDialog) return;
     setStatusDateSaving(true);
-    const extraFields: Record<string, any> = {};
-    if (statusDateDialog.newStatus === 'absconded') extraFields.probation_end_date = statusDate; // reuse or add dedicated field
-    // Store date in join_date as "end date" for terminated, or we just save the date as a note via toast
     await saveField(
       statusDateDialog.emp.id,
       'sponsorship_status',
       statusDateDialog.newStatus,
-      statusDateDialog.newStatus === 'absconded'
-        ? { probation_end_date: statusDate }
-        : statusDateDialog.newStatus === 'terminated'
+      statusDateDialog.newStatus === 'absconded' || statusDateDialog.newStatus === 'terminated'
         ? { probation_end_date: statusDate }
         : {},
     );
@@ -381,6 +401,7 @@ const Employees = () => {
     sponsorship_status: ['sponsored', 'not_sponsored', 'absconded', 'terminated'],
     license_status:     ['has_license', 'no_license', 'applied'],
     job_title:          [...new Set(data.map(e => e.job_title).filter(Boolean))] as string[],
+    status:             ['active', 'inactive', 'ended'],
   }), [data]);
 
   // ── Filter + sort ──
@@ -396,6 +417,9 @@ const Employees = () => {
             break;
           case 'national_id':
             if (!(emp.national_id || '').includes(val)) return false;
+            break;
+          case 'employee_code':
+            if (!(emp.employee_code || '').toLowerCase().includes(val.toLowerCase())) return false;
             break;
           case 'phone':
             if (!(emp.phone || '').includes(val)) return false;
@@ -414,6 +438,9 @@ const Employees = () => {
             break;
           case 'license_status':
             if ((emp.license_status || '') !== val) return false;
+            break;
+          case 'status':
+            if ((emp.status || '') !== val) return false;
             break;
           case 'residency_status': {
             if (val === 'valid'   && res.status !== 'valid')   return false;
@@ -450,26 +477,43 @@ const Employees = () => {
     return rows;
   }, [data, colFilters, sortField, sortDir]);
 
+  // ── Pagination ──
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginated  = useMemo(
+    () => filtered.slice((page - 1) * pageSize, page * pageSize),
+    [filtered, page, pageSize]
+  );
+
   // ── Export ──
   const handleExport = () => {
     const rows = filtered.map((e, i) => {
       const { days, status } = calcResidency(e.residency_expiry);
+      const leExpiry = e.license_expiry;
+      const leDays   = leExpiry ? differenceInDays(parseISO(leExpiry), new Date()) : null;
       return {
-        '#': i + 1,
-        'الاسم': e.name,
-        'رقم الهوية': e.national_id || '',
-        'المسمى الوظيفي': e.job_title || '',
-        'المدينة': e.city === 'makkah' ? 'مكة' : e.city === 'jeddah' ? 'جدة' : '',
-        'رقم الهاتف': e.phone || '',
-        'الجنسية': e.nationality || '',
-        'حالة الكفالة': { sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة', absconded: 'هروب', terminated: 'انتهاء الخدمة' }[e.sponsorship_status || ''] || '',
-        'تاريخ الانضمام': e.join_date || '',
-        'تاريخ الميلاد': e.birth_date || '',
-        'انتهاء الإقامة': e.residency_expiry || '',
-        'المتبقي (يوم)': days ?? '',
-        'حالة الإقامة': status === 'valid' ? 'صالحة' : status === 'expired' ? 'منتهية' : '',
-        'حالة الرخصة': { has_license: 'لديه رخصة', no_license: 'ليس لديه رخصة', applied: 'تم التقديم' }[e.license_status || ''] || '',
+        '#':                 i + 1,
+        'كود الموظف':        e.employee_code || '',
+        'الاسم':             e.name,
+        'الاسم (إنجليزي)':  e.name_en || '',
+        'رقم الهوية':        e.national_id || '',
+        'المسمى الوظيفي':    e.job_title || '',
+        'المدينة':           e.city === 'makkah' ? 'مكة' : e.city === 'jeddah' ? 'جدة' : '',
+        'رقم الهاتف':        e.phone || '',
+        'الجنسية':           e.nationality || '',
+        'الحالة':            { active: 'نشط', inactive: 'غير نشط', ended: 'منتهي' }[e.status] || e.status,
+        'حالة الكفالة':      { sponsored: 'على الكفالة', not_sponsored: 'ليس على الكفالة', absconded: 'هروب', terminated: 'انتهاء الخدمة' }[e.sponsorship_status || ''] || '',
+        'تاريخ الانضمام':    e.join_date || '',
+        'تاريخ الميلاد':     e.birth_date || '',
+        'انتهاء فترة التجربة': e.probation_end_date || '',
+        'انتهاء الإقامة':    e.residency_expiry || '',
+        'المتبقي (يوم)':     days ?? '',
+        'حالة الإقامة':      status === 'valid' ? 'صالحة' : status === 'expired' ? 'منتهية' : '',
+        'انتهاء التأمين الصحي': e.health_insurance_expiry || '',
+        'حالة الرخصة':       { has_license: 'لديه رخصة', no_license: 'ليس لديه رخصة', applied: 'تم التقديم' }[e.license_status || ''] || '',
+        'انتهاء الرخصة':     leExpiry || '',
+        'أيام انتهاء الرخصة': leDays ?? '',
         'رقم الحساب البنكي': e.bank_account_number || '',
+        'IBAN':              e.iban || '',
         'البريد الإلكتروني': e.email || '',
       };
     });
@@ -480,11 +524,16 @@ const Employees = () => {
   };
 
   const handleTemplate = () => {
-    const headers = [['الاسم', 'رقم الهوية', 'رقم الهاتف', 'البريد الإلكتروني', 'المدينة (makkah/jeddah)',
-      'الجنسية', 'المسمى الوظيفي', 'تاريخ الانضمام', 'تاريخ الميلاد', 'انتهاء الإقامة',
+    const headers = [[
+      'كود الموظف', 'الاسم', 'الاسم (إنجليزي)', 'رقم الهوية', 'رقم الهاتف', 'البريد الإلكتروني',
+      'المدينة (makkah/jeddah)', 'الجنسية', 'المسمى الوظيفي',
+      'تاريخ الانضمام', 'تاريخ الميلاد', 'انتهاء فترة التجربة', 'انتهاء الإقامة',
+      'انتهاء التأمين الصحي', 'انتهاء الرخصة',
       'حالة الرخصة (has_license/no_license/applied)',
       'حالة الكفالة (sponsored/not_sponsored/absconded/terminated)',
-      'رقم الحساب البنكي', 'نوع الراتب (orders/shift)', 'الحالة (active/inactive/ended)']];
+      'رقم الحساب البنكي', 'IBAN',
+      'نوع الراتب (orders/shift)', 'الحالة (active/inactive/ended)',
+    ]];
     const ws = XLSX.utils.aoa_to_sheet(headers);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'القالب');
@@ -625,7 +674,7 @@ const Employees = () => {
 
       {/* Result count */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{filtered.length} نتيجة</span>
+        <span className="text-xs text-muted-foreground">{filtered.length} نتيجة من أصل {data.length}</span>
       </div>
 
       {/* Table */}
@@ -633,10 +682,11 @@ const Employees = () => {
         <div className="overflow-x-auto">
           <table className="w-full" ref={tableRef}>
             <thead>
-              {/* Column headers — filter icon embedded beside label */}
               <tr className="ta-thead">
                 {activeCols.map(col => {
-                  const isFilterable = !['seq', 'actions', 'residency_status', 'days_residency', 'residency_expiry', 'join_date', 'birth_date', 'bank_account_number', 'probation_end_date'].includes(col.key);
+                  const isFilterable = !['seq', 'actions', 'residency_status', 'days_residency', 'residency_expiry',
+                    'join_date', 'birth_date', 'bank_account_number', 'probation_end_date', 'iban', 'license_expiry',
+                    'name_en', 'health_insurance_expiry'].includes(col.key);
                   const isActive = !!colFilters[col.key];
 
                   const filterContent = (() => {
@@ -692,6 +742,17 @@ const Employees = () => {
                         </SelectContent>
                       </Select>
                     );
+                    if (col.key === 'status') return (
+                      <Select value={colFilters.status || 'all'} onValueChange={v => setColFilter('status', v)}>
+                        <SelectTrigger className="h-7 text-xs w-full"><SelectValue placeholder="الكل" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">الكل</SelectItem>
+                          <SelectItem value="active">نشط</SelectItem>
+                          <SelectItem value="inactive">غير نشط</SelectItem>
+                          <SelectItem value="ended">منتهي</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    );
                     return (
                       <Input
                         className="h-7 text-xs px-2"
@@ -733,7 +794,7 @@ const Employees = () => {
             <tbody>
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={activeCols.length} />)
-              ) : filtered.length === 0 ? (
+              ) : paginated.length === 0 ? (
                 <tr>
                   <td colSpan={activeCols.length} className="text-center py-16">
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -743,16 +804,17 @@ const Employees = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map((emp, idx) => {
-                const res = calcResidency(emp.residency_expiry);
+              ) : paginated.map((emp, idx) => {
+                const res     = calcResidency(emp.residency_expiry);
                 const daysColor = res.days === null ? '' : res.days > 60 ? 'text-success' : res.days > 0 ? 'text-warning' : 'text-destructive font-bold';
+                const globalIdx = (page - 1) * pageSize + idx + 1;
 
                 return (
                   <tr key={emp.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                     {activeCols.map(col => {
                       switch (col.key) {
                         case 'seq':
-                          return <td key="seq" className="px-3 py-2.5 text-xs text-muted-foreground text-center">{idx + 1}</td>;
+                          return <td key="seq" className="px-3 py-2.5 text-xs text-muted-foreground text-center">{globalIdx}</td>;
 
                         case 'name':
                           return (
@@ -765,6 +827,12 @@ const Employees = () => {
                               </div>
                             </td>
                           );
+
+                        case 'name_en':
+                          return <td key="name_en" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap" dir="ltr">{emp.name_en || '—'}</td>;
+
+                        case 'employee_code':
+                          return <td key="employee_code" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap">{emp.employee_code || '—'}</td>;
 
                         case 'national_id':
                           return <td key="national_id" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.national_id || '—'}</td>;
@@ -789,6 +857,22 @@ const Employees = () => {
 
                         case 'nationality':
                           return <td key="nationality" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.nationality || '—'}</td>;
+
+                        case 'status':
+                          return (
+                            <td key="status" className="px-3 py-2.5 whitespace-nowrap">
+                              <InlineSelect
+                                value={emp.status || 'active'}
+                                options={[
+                                  { value: 'active',   label: 'نشط'      },
+                                  { value: 'inactive', label: 'غير نشط'  },
+                                  { value: 'ended',    label: 'منتهي'     },
+                                ]}
+                                onSave={v => saveField(emp.id, 'status', v)}
+                                renderDisplay={() => <StatusBadge status={emp.status} />}
+                              />
+                            </td>
+                          );
 
                         case 'sponsorship_status':
                           return (
@@ -862,8 +946,8 @@ const Employees = () => {
 
                         case 'health_insurance_expiry': {
                           const hiExpiry = emp.health_insurance_expiry;
-                          const hiDays = hiExpiry ? differenceInDays(parseISO(hiExpiry), new Date()) : null;
-                          const hiColor = hiDays === null ? '' : hiDays < 0 ? 'text-destructive font-bold' : hiDays <= 30 ? 'text-warning font-medium' : hiDays <= 60 ? 'text-amber-500' : 'text-success';
+                          const hiDays   = hiExpiry ? differenceInDays(parseISO(hiExpiry), new Date()) : null;
+                          const hiColor  = hiDays === null ? '' : hiDays < 0 ? 'text-destructive font-bold' : hiDays <= 30 ? 'text-warning font-medium' : hiDays <= 60 ? 'text-amber-500' : 'text-success';
                           return (
                             <td key="health_insurance_expiry" className="px-3 py-2.5 whitespace-nowrap">
                               {hiExpiry ? (
@@ -896,8 +980,31 @@ const Employees = () => {
                             </td>
                           );
 
+                        case 'license_expiry': {
+                          const leExpiry = emp.license_expiry;
+                          const leDays   = leExpiry ? differenceInDays(parseISO(leExpiry), new Date()) : null;
+                          const leColor  = leDays === null ? '' : leDays < 0 ? 'text-destructive font-bold' : leDays <= 30 ? 'text-warning font-medium' : leDays <= 60 ? 'text-amber-500' : 'text-success';
+                          return (
+                            <td key="license_expiry" className="px-3 py-2.5 whitespace-nowrap">
+                              {leExpiry ? (
+                                <div className="flex flex-col gap-0.5">
+                                  <span className={`text-xs ${leColor}`}>{format(parseISO(leExpiry), 'yyyy/MM/dd')}</span>
+                                  {leDays !== null && (
+                                    <span className={`text-[10px] ${leColor}`}>
+                                      {leDays < 0 ? `منتهية منذ ${Math.abs(leDays)} يوم` : `متبقي ${leDays} يوم`}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : <span className="text-muted-foreground/40">—</span>}
+                            </td>
+                          );
+                        }
+
                         case 'bank_account_number':
                           return <td key="bank_account_number" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.bank_account_number || '—'}</td>;
+
+                        case 'iban':
+                          return <td key="iban" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.iban || '—'}</td>;
 
                         case 'email':
                           return (
@@ -953,6 +1060,54 @@ const Employees = () => {
             </tbody>
           </table>
         </div>
+
+        {/* ── Pagination bar ── */}
+        {!loading && filtered.length > 0 && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3 border-t border-border/30 flex-wrap">
+            {/* Page size selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">عرض:</span>
+              <Select
+                value={String(pageSize)}
+                onValueChange={v => { setPageSize(Number(v)); setPage(1); }}
+              >
+                <SelectTrigger className="h-7 w-20 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground">لكل صفحة</span>
+            </div>
+
+            {/* Page navigation */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {Math.min((page - 1) * pageSize + 1, filtered.length)}–{Math.min(page * pageSize, filtered.length)} من {filtered.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(1)} disabled={page === 1}>
+                  «
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
+                  <ChevronRight size={12} />
+                </Button>
+                <span className="text-xs text-muted-foreground px-2 min-w-[70px] text-center">
+                  {page} / {totalPages}
+                </span>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
+                  <ChevronLeft size={12} />
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>
+                  »
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modals */}
@@ -1034,7 +1189,6 @@ const Employees = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 };
