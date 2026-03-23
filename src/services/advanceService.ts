@@ -28,7 +28,7 @@ export const advanceService = {
   create: async (payload: AdvancePayload) => {
     const { data, error } = await supabase
       .from('advances')
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     return { data, error };
@@ -37,7 +37,7 @@ export const advanceService = {
   update: async (id: string, payload: Partial<AdvancePayload>) => {
     const { error } = await supabase
       .from('advances')
-      .update(payload)
+      .update(payload as any)
       .eq('id', id);
     return { error };
   },
@@ -45,7 +45,7 @@ export const advanceService = {
   updateStatus: async (id: string, status: string) => {
     const { error } = await supabase
       .from('advances')
-      .update({ status })
+      .update({ status } as any)
       .eq('id', id);
     return { error };
   },
