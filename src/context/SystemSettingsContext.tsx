@@ -10,7 +10,7 @@ interface SystemSettings {
   logo_url: string | null;
   default_language: string;
   theme: string;
-  iqama_alert_days: number;
+  iqama_alert_days?: number;
 }
 
 interface SystemSettingsContextType {
