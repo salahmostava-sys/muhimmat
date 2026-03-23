@@ -48,7 +48,7 @@ export const vehicleService = {
   create: async (payload: VehiclePayload) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .insert(payload)
+      .insert(payload as any)
       .select()
       .single();
     return { data, error };
@@ -57,7 +57,7 @@ export const vehicleService = {
   update: async (id: string, payload: Partial<VehiclePayload>) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .update(payload)
+      .update(payload as any)
       .eq('id', id)
       .select()
       .single();
@@ -67,7 +67,7 @@ export const vehicleService = {
   upsert: async (payload: Partial<VehiclePayload> & { plate_number: string }) => {
     const { data, error } = await supabase
       .from('vehicles')
-      .upsert(payload, { onConflict: 'plate_number' })
+      .upsert(payload as any, { onConflict: 'plate_number' })
       .select()
       .single();
     return { data, error };
