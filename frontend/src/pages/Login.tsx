@@ -32,7 +32,7 @@ const Login = () => {
 
   const projectName = settings
     ? settings.project_name_ar
-    : 'نظام إدارة التوصيل';
+    : 'مهمة التوصيل';
   const projectSubtitle = settings
     ? settings.project_subtitle_ar
     : 'إدارة المناديب';

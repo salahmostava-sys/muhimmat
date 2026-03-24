@@ -204,7 +204,7 @@ export default function ProjectSettings() {
               <Label className="text-xs font-medium text-muted-foreground">
                 {isRTL ? 'اسم المشروع (عربي)' : 'Project Name (Arabic)'}
               </Label>
-              <Input value={nameAr} onChange={e => setNameAr(e.target.value)} placeholder="نظام التوصيل" dir="rtl" />
+              <Input value={nameAr} onChange={e => setNameAr(e.target.value)} placeholder="مهمة التوصيل" dir="rtl" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">

@@ -23,8 +23,8 @@ interface SystemSettingsContextType {
 
 const defaults: SystemSettings = {
   id: '',
-  project_name_ar: 'نظام التوصيل',
-  project_name_en: 'Delivery System',
+  project_name_ar: 'مهمة التوصيل',
+  project_name_en: 'Muhimmat alTawseel',
   project_subtitle_ar: 'إدارة المناديب',
   project_subtitle_en: 'Rider Management',
   logo_url: null,

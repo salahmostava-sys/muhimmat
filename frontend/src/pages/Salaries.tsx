@@ -1306,7 +1306,7 @@ const Salaries = () => {
     </head><body>
       <div class="header">
         <div>
-          <div class="company-name">${escapeHtml(projectName || 'نظام التوصيل')}</div>
+          <div class="company-name">${escapeHtml(projectName || 'مهمة التوصيل')}</div>
           <div class="report-title">تقرير الرواتب الشهرية</div>
           <div class="report-meta">${monthLabel} • تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')} • عدد الموظفين: ${printRows.length}</div>
         </div>

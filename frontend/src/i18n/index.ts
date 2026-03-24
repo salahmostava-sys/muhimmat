@@ -5,7 +5,7 @@ const resources = {
   ar: {
     translation: {
       // ─── Branding ────────────────────────────────────────────
-      appName: 'نظام التوصيل',
+      appName: 'مهمة التوصيل',
       appSubtitle: 'إدارة المناديب',
       systemAdmin: 'مدير النظام',
 

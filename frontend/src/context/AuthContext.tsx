@@ -98,6 +98,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // عند العودة للتبويب بعد خمول طويل: تجديد الجلسة لتفادي طلبات فاشلة و«اختفاء» البيانات
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      void supabase.auth.refreshSession().catch(() => {
+        /* يُعاد المحاولة تلقائياً عبر onAuthStateChange */
+      });
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
   useEffect(() => {
     if (!user) return;
 
