@@ -7,8 +7,9 @@ const ordersRoutes = require("./src/routes/ordersRoutes");
 const salaryRoutes = require("./src/routes/salaryRoutes");
 const attendanceRoutes = require("./src/routes/attendanceRoutes");
 const rolesRoutes = require("./src/routes/rolesRoutes");
+const authRoutes = require("./src/routes/authRoutes");
 const { notFound, errorHandler } = require("./src/middlewares/errorHandler");
-const { requireRoles } = require("./src/middlewares/authz");
+const { requireAuth } = require("./src/middlewares/authz");
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -20,11 +21,12 @@ app.get("/health", (req, res) => {
   res.json({ ok: true, service: "backend-api" });
 });
 
-app.use("/employees", requireRoles(["admin", "hr"]), employeesRoutes);
-app.use("/orders", requireRoles(["admin", "operations", "hr"]), ordersRoutes);
-app.use("/salary", requireRoles(["admin", "finance"]), salaryRoutes);
-app.use("/attendance", requireRoles(["admin", "hr", "operations"]), attendanceRoutes);
-app.use("/roles", requireRoles(["admin"]), rolesRoutes);
+app.use("/employees", requireAuth(), employeesRoutes);
+app.use("/orders", requireAuth(), ordersRoutes);
+app.use("/salary", requireAuth(), salaryRoutes);
+app.use("/attendance", requireAuth(), attendanceRoutes);
+app.use("/roles", requireAuth(), rolesRoutes);
+app.use("/auth", requireAuth(), authRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
