@@ -49,4 +49,22 @@ describe('OrdersCellPopover', () => {
     expect(screen.getByPlaceholderText('0')).toBeDisabled();
     expect(screen.queryByRole('button', { name: /تطبيق/i })).not.toBeInTheDocument();
   });
+
+  it('closes on escape key press', () => {
+    const onClose = vi.fn();
+    render(
+      <OrdersCellPopover
+        state={baseState}
+        apps={[{ id: 'app-1', name: 'Talabat' }]}
+        data={{}}
+        appColorsList={[]}
+        canEdit
+        onApply={vi.fn()}
+        onClose={onClose}
+      />
+    );
+
+    fireEvent.keyDown(screen.getByPlaceholderText('0'), { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+  });
 });

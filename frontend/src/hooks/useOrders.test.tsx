@@ -36,4 +36,21 @@ describe('useOrders', () => {
     expect(result.current.data).toHaveLength(1);
     expect(orderService.getAll).toHaveBeenCalledTimes(1);
   });
+
+  it('returns error state when service throws', async () => {
+    vi.mocked(orderService.getAll).mockRejectedValue(new Error('orders query failed'));
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useOrders(), { wrapper });
+
+    await waitFor(() => expect(result.current.isError).toBe(true), { timeout: 5000 });
+    expect(result.current.error).toBeTruthy();
+  });
 });

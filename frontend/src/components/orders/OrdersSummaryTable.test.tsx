@@ -45,4 +45,28 @@ describe('OrdersSummaryTable', () => {
     fireEvent.click(screen.getByText(/المندوب/i));
     expect(onSort).toHaveBeenCalled();
   });
+
+  it('renders loading skeleton rows', () => {
+    const { container } = render(
+      <OrdersSummaryTable
+        loading
+        apps={[{ id: 'app-1', name: 'Talabat' }]}
+        appColorsList={[]}
+        sortedEmployees={[]}
+        employeesCount={0}
+        data={{}}
+        dayArr={[1]}
+        days={30}
+        empTotal={() => 0}
+        appGrandTotal={() => 0}
+        grandTotal={0}
+        shortName={(v) => v}
+        sortField="name"
+        sortDir="asc"
+        onSort={vi.fn()}
+      />
+    );
+
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+  });
 });
