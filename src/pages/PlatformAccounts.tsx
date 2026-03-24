@@ -261,21 +261,21 @@ const PlatformAccounts = () => {
     const monthYear = assignForm.start_date.slice(0, 7);
 
     // 1. Close any open assignment for this account
-    const { data: open } = await supabase
+    const { data: open } = await (supabase as any)
       .from('account_assignments')
       .select('id')
       .eq('account_id', assignTarget!.id)
       .is('end_date', null);
 
     if (open && open.length > 0) {
-      await supabase
+      await (supabase as any)
         .from('account_assignments')
         .update({ end_date: today })
-        .in('id', open.map((x) => x.id));
+        .in('id', open.map((x: any) => x.id));
     }
 
     // 2. Insert new assignment
-    const { error } = await supabase.from('account_assignments').insert({
+    const { error } = await (supabase as any).from('account_assignments').insert({
       account_id: assignTarget!.id,
       employee_id: assignForm.employee_id,
       start_date: assignForm.start_date,
@@ -292,7 +292,7 @@ const PlatformAccounts = () => {
     }
 
     // Keep `platform_accounts.employee_id` in sync for alert automation
-    const { error: linkErr } = await supabase
+    const { error: linkErr } = await (supabase as any)
       .from('platform_accounts')
       .update({ employee_id: assignForm.employee_id })
       .eq('id', assignTarget!.id);
@@ -316,14 +316,14 @@ const PlatformAccounts = () => {
     setHistoryDialog(true);
     setHistoryLoading(true);
 
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('account_assignments')
       .select('*')
       .eq('account_id', account.id)
       .order('start_date', { ascending: false });
 
     const empMap = Object.fromEntries(employees.map(e => [e.id, e.name]));
-    const assignments: Assignment[] = (data ?? []).map(r => ({
+    const assignments: Assignment[] = ((data ?? []) as unknown as Assignment[]).map(r => ({
       ...r,
       employee_name: empMap[r.employee_id] ?? 'مندوب غير معروف',
     }));

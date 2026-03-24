@@ -950,11 +950,12 @@ const Advances = () => {
     });
     if (sortField) {
       result = [...result].sort((a, b) => {
-        let aVal: unknown = (a as Record<string, unknown>)[sortField];
-        let bVal: unknown = (b as Record<string, unknown>)[sortField];
-        if (typeof aVal === 'string') aVal = aVal.localeCompare(bVal);
-        else aVal = aVal - bVal;
-        return sortDir === 'asc' ? aVal : -aVal;
+        const aVal = (a as Record<string, unknown>)[sortField];
+        const bVal = (b as Record<string, unknown>)[sortField];
+        let cmp: number;
+        if (typeof aVal === 'string' && typeof bVal === 'string') cmp = aVal.localeCompare(bVal);
+        else cmp = ((aVal as number) ?? 0) - ((bVal as number) ?? 0);
+        return sortDir === 'asc' ? cmp : -cmp;
       });
     }
     return result;
