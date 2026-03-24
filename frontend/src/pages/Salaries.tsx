@@ -1619,8 +1619,7 @@ const Salaries = () => {
     const toPrint = filtered;
     if (toPrint.length === 0) { toast({ title: 'لا يوجد بيانات للتحميل' }); return; }
 
-    import('jspdf').then(async ({ default: jsPDF }) => {
-      const autoTableMod = await import('jspdf-autotable');
+    import('jspdf-autotable').then((autoTableMod) => {
       const autoTable = autoTableMod.default;
 
       toPrint.forEach((row, idx) => {
