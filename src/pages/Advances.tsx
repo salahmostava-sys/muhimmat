@@ -348,7 +348,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase.from('advances').update({
+    const { error } = await advanceService.update(advance.id, {
       amount: parseFloat(form.amount),
       disbursement_date: form.disbursement_date,
       monthly_amount: parseFloat(form.monthly_amount),
@@ -356,7 +356,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       first_deduction_month: form.first_deduction_month,
       status: form.status,
       note: form.note || null,
-    }).eq('id', advance.id);
+    } as any);
     if (error) { setSaving(false); return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); }
     await supabase.from('advance_installments').delete().eq('advance_id', advance.id).eq('status', 'pending');
     const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');
