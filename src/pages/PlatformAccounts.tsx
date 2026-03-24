@@ -126,14 +126,14 @@ const PlatformAccounts = () => {
       const [appsRes, empRes, accRes, assignRes] = await Promise.all([
         supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
         supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
-        supabase.from('platform_accounts' as any).select('*').order('created_at', { ascending: false }),
-        supabase.from('account_assignments' as any).select('*').is('end_date', null),
+        supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
+        supabase.from('account_assignments').select('*').is('end_date', null),
       ]);
 
     const appsData: App[] = (appsRes.data ?? []) as App[];
     const empData: Employee[] = (empRes.data ?? []) as Employee[];
-    const rawAccounts = (accRes.data ?? []) as unknown as PlatformAccount[];
-    const activeAssignments = (assignRes.data ?? []) as unknown as Assignment[];
+    const rawAccounts = (accRes.data ?? []) as PlatformAccount[];
+    const activeAssignments = (assignRes.data ?? []) as Assignment[];
 
     const appMap = Object.fromEntries(appsData.map(a => [a.id, a]));
     const empMap = Object.fromEntries(empData.map(e => [e.id, e]));
@@ -230,9 +230,9 @@ const PlatformAccounts = () => {
 
     let error;
     if (editingAccount) {
-      ({ error } = await (supabase as any).from('platform_accounts').update(payload).eq('id', editingAccount.id));
+      ({ error } = await supabase.from('platform_accounts').update(payload).eq('id', editingAccount.id));
     } else {
-      ({ error } = await (supabase as any).from('platform_accounts').insert(payload));
+      ({ error } = await supabase.from('platform_accounts').insert(payload));
     }
 
     setSavingAccount(false);

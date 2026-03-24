@@ -54,7 +54,6 @@ async function saveVehicleMileageDaily(
   payload: { employee_id: string; date: string; km_total: number; fuel_cost: number; notes: string | null },
   editId?: string
 ) {
-  const db = supabase as any;
   const row = {
     employee_id: payload.employee_id,
     date: payload.date,
@@ -63,9 +62,9 @@ async function saveVehicleMileageDaily(
     notes: payload.notes,
   };
   if (editId) {
-    return db.from('vehicle_mileage_daily').update(row).eq('id', editId);
+    return supabase.from('vehicle_mileage_daily').update(row).eq('id', editId);
   }
-  return db.from('vehicle_mileage_daily').upsert(row, { onConflict: 'employee_id,date' });
+  return supabase.from('vehicle_mileage_daily').upsert(row, { onConflict: 'employee_id,date' });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -368,9 +367,8 @@ const FuelPage = () => {
     setLoading(true);
     const ms = `${monthYear}-01`;
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    const db = supabase as any;
     const [dailyRes, ordersRes, assignmentsRes] = await Promise.all([
-      db
+      supabase
         .from('vehicle_mileage_daily')
         .select('employee_id, km_total, fuel_cost, employees(name, personal_photo_url)')
         .gte('date', ms)
@@ -425,10 +423,9 @@ const FuelPage = () => {
 
   const fetchDaily = useCallback(async () => {
     setLoading(true);
-    const db = supabase as any;
     const ms = `${monthYear}-01`;
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    let q = db
+    let q = supabase
       .from('vehicle_mileage_daily')
       .select('*, employees(name, personal_photo_url)')
       .gte('date', ms)
@@ -451,8 +448,8 @@ const FuelPage = () => {
     if (error) {
       toast({ title: 'خطأ في جلب البيانات', description: (error as any).message, variant: 'destructive' });
     }
-    const mapped = (data || []).map((r: DailyRow & { employees?: Employee }) => ({ ...r, employee: r.employees }));
-    setDailyRows(mapped);
+    const mapped = (data || []).map(r => ({ ...r, employee: r.employees as Employee | undefined }));
+    setDailyRows(mapped as DailyRow[]);
     setLoading(false);
   }, [monthYear, selectedEmployee, employeeIdsOnPlatform, toast]);
 
@@ -468,7 +465,7 @@ const FuelPage = () => {
 
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
-    const { error } = await (supabase as any).from('vehicle_mileage_daily').delete().eq('id', id);
+    const { error } = await supabase.from('vehicle_mileage_daily').delete().eq('id', id);
     if (error) return toast({ title: 'خطأ في الحذف', description: (error as any).message, variant: 'destructive' });
     toast({ title: 'تم الحذف' });
     fetchDaily();

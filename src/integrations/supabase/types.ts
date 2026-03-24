@@ -14,6 +14,64 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_assignments: {
+        Row: {
+          account_id: string
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          end_date: string | null
+          id: string
+          month_year: string
+          notes: string | null
+          start_date: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          end_date?: string | null
+          id?: string
+          month_year: string
+          notes?: string | null
+          start_date?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          end_date?: string | null
+          id?: string
+          month_year?: string
+          notes?: string | null
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_assignments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "platform_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_assignments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       advance_installments: {
         Row: {
           advance_id: string
@@ -723,6 +781,35 @@ export type Database = {
           },
         ]
       }
+      locked_months: {
+        Row: {
+          id: string
+          locked_at: string
+          locked_by: string | null
+          month_year: string
+        }
+        Insert: {
+          id?: string
+          locked_at?: string
+          locked_by?: string | null
+          month_year: string
+        }
+        Update: {
+          id?: string
+          locked_at?: string
+          locked_by?: string | null
+          month_year?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locked_months_locked_by_fkey"
+            columns: ["locked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_logs: {
         Row: {
           cost: number | null
@@ -811,6 +898,63 @@ export type Database = {
           revenue_riders?: number
         }
         Relationships: []
+      }
+      platform_accounts: {
+        Row: {
+          account_id_on_platform: string | null
+          account_username: string
+          app_id: string
+          created_at: string
+          employee_id: string | null
+          id: string
+          iqama_expiry_date: string | null
+          iqama_number: string | null
+          notes: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id_on_platform?: string | null
+          account_username: string
+          app_id: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          iqama_expiry_date?: string | null
+          iqama_number?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id_on_platform?: string | null
+          account_username?: string
+          app_id?: string
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          iqama_expiry_date?: string | null
+          iqama_number?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_accounts_app_id_fkey"
+            columns: ["app_id"]
+            isOneToOne: false
+            referencedRelation: "apps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       positions: {
         Row: {
@@ -1271,6 +1415,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "vehicle_mileage_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_mileage_daily: {
+        Row: {
+          created_at: string
+          date: string
+          employee_id: string
+          fuel_cost: number
+          id: string
+          km_total: number
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          employee_id: string
+          fuel_cost?: number
+          id?: string
+          km_total?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          employee_id?: string
+          fuel_cost?: number
+          id?: string
+          km_total?: number
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_mileage_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
