@@ -177,150 +177,106 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
             </span>
           </DialogTitle>
         </DialogHeader>
-        <div ref={slipRef} className="space-y-4 text-sm bg-background p-1">
-
-          {/* ── Company Header ── */}
-          {companyName && (
-            <div className="flex items-center justify-between border-b-2 border-primary pb-3 mb-1">
-              <div>
-                <p className="text-lg font-black text-primary">{companyName}</p>
-                <p className="text-xs text-muted-foreground">{t.subtitle}</p>
-              </div>
-              <div className="text-left text-xs text-muted-foreground">
-                <p className="font-semibold text-foreground">{t.title}</p>
-                <p>{monthLabel}</p>
-              </div>
+        <div ref={slipRef} className="bg-white text-[#2a1a0f] border border-[#8c6239] p-4 rounded-md space-y-4 text-sm">
+          <div className="flex items-start justify-between text-[12px] font-semibold">
+            <div className="space-y-1 text-left">
+              <div>{companyName || 'شركة مهمة التوصيل للخدمات اللوجستية'}</div>
+              <div className="font-bold">C.R. 4030530671 | VAT: 3118873674</div>
             </div>
-          )}
-
-          {/* Employee Info */}
-          <div className="bg-muted/40 rounded-xl p-3 grid grid-cols-2 gap-x-6 gap-y-1.5">
-            <div><span className="text-muted-foreground text-xs">{t.month}: </span><span className="font-semibold text-xs">{monthLabel}</span></div>
-            <div><span className="text-muted-foreground text-xs">{t.city}: </span><span className="font-semibold text-xs">{row.city || '—'}</span></div>
-            <div><span className="text-muted-foreground text-xs">{t.nationalId}: </span><span className="font-semibold text-xs" dir="ltr">{row.nationalId || '—'}</span></div>
-            <div><span className="text-muted-foreground text-xs">{t.status}: </span><span className={`${statusStyles[row.status]} text-xs`}>{getStatusLabel(row.status, row.preferredLanguage)}</span></div>
-            <div><span className="text-muted-foreground text-xs">{t.paymentMethod}: </span><span className="font-semibold text-xs">{row.paymentMethod === 'bank' ? t.payBank : t.payCash}</span></div>
-          </div>
-
-          {/* ── EARNINGS Section ─────────────────────────────── */}
-          <div className="rounded-xl border border-success/20 bg-success/5 overflow-hidden">
-            <div className="px-3 py-2 bg-success/10 border-b border-success/20">
-              <p className="font-bold text-xs text-success uppercase tracking-wide">{t.sectionEarnings || '✅ الاستحقاقات / Earnings'}</p>
+            <div className="text-center px-2 pt-1">
+              <div className="text-2xl tracking-widest text-[#8c6239]">⌁</div>
             </div>
-            <div className="divide-y divide-border/30">
-              {/* Platform rows — only those with orders > 0 */}
-              {platformRows.length > 0 ? platformRows.map(({ app, orders, salary }) => {
-                const color = PLATFORM_COLORS[app]?.valueColor || 'hsl(var(--primary))';
-                return (
-                  <div key={app} className="flex justify-between items-center px-3 py-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-foreground">{app}</span>
-                      <span className="text-xs text-muted-foreground">{orders} {t.orders}</span>
-                    </div>
-                    <span className="font-semibold" style={{ color }}>{fmt(salary)}</span>
-                  </div>
-                );
-              }) : (
-                <div className="px-3 py-3 text-center text-xs text-muted-foreground">لا توجد طلبات مسجّلة</div>
-              )}
-              {/* Incentives */}
-              {row.incentives > 0 && (
-                <div className="flex justify-between items-center px-3 py-2">
-                  <span className="text-foreground">{t.incentives}</span>
-                  <span className="font-semibold text-success">+{fmt(row.incentives)}</span>
-                </div>
-              )}
-              {/* Sick allowance */}
-              {row.sickAllowance > 0 && (
-                <div className="flex justify-between items-center px-3 py-2">
-                  <span className="text-foreground">{t.sickAllowance}</span>
-                  <span className="font-semibold text-success">+{fmt(row.sickAllowance)}</span>
-                </div>
-              )}
-            </div>
-            {/* Earnings subtotal */}
-            <div className="flex justify-between items-center px-3 py-2.5 bg-success/15 font-bold">
-              <span className="text-success">{t.platformTotal}</span>
-              <span className="text-success text-base">{fmt(totalEarnings)}</span>
+            <div className="space-y-1 text-right">
+              <div>{companyName || 'شركة مهمة التوصيل للخدمات اللوجستية'}</div>
+              <div className="font-bold">س. ت: 4030530671 - الرقم الضريبي: 3118873674</div>
             </div>
           </div>
 
-          {/* ── DEDUCTIONS Section ───────────────────────────── */}
-          <div className="rounded-xl border border-destructive/20 bg-destructive/5 overflow-hidden">
-            <div className="px-3 py-2 bg-destructive/10 border-b border-destructive/20">
-              <p className="font-bold text-xs text-destructive uppercase tracking-wide">{t.sectionDeductions}</p>
+          <div className="text-center space-y-1">
+            <p className="font-extrabold text-3xl text-[#8c6239]">{t.title}</p>
+            <p className="font-bold text-lg">راتب شهر {monthLabel}</p>
+            <p className="font-bold text-xl">اسم الموظف: {row.employeeName}</p>
+          </div>
+
+          <table className="w-full border border-[#8c6239] border-collapse text-center">
+            <thead>
+              <tr className="bg-[#8c6239] text-white">
+                {(row.registeredApps.length > 0 ? row.registeredApps : ['المنصات']).map((app) => (
+                  <th key={app} className="border border-[#8c6239] px-2 py-1 font-bold">{app}</th>
+                ))}
+                <th className="border border-[#8c6239] px-2 py-1 font-bold">إجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="bg-white text-[#2a1a0f]">
+                {(row.registeredApps.length > 0 ? row.registeredApps : ['المنصات']).map((app) => (
+                  <td key={`orders-${app}`} className="border border-[#8c6239] px-2 py-1 font-bold">
+                    {(row.platformOrders[app] || 0).toLocaleString()}
+                  </td>
+                ))}
+                <td className="border border-[#8c6239] px-2 py-1 font-extrabold">
+                  {platformRows.reduce((s, p) => s + p.orders, 0).toLocaleString()}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div className="grid grid-cols-2 gap-0 border border-[#8c6239]">
+            <div className="border-l border-[#8c6239]">
+              <div className="bg-[#8c6239] text-white text-center font-bold py-1">الاستحقاقات (ر.س)</div>
+              <table className="w-full border-collapse">
+                <tbody>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">الراتب الأساسي</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(totalPlatformSalary).toLocaleString()}</td></tr>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.incentives}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.incentives).toLocaleString()}</td></tr>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.sickAllowance}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.sickAllowance).toLocaleString()}</td></tr>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">الحالة</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{getStatusLabel(row.status, row.preferredLanguage)}</td></tr>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">طريقة الصرف</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{row.paymentMethod === 'bank' ? 'تحويل بنكي' : 'كاش'}</td></tr>
+                </tbody>
+              </table>
             </div>
-            <div className="divide-y divide-border/30">
-              {/* Always show advance installment */}
-              <div className="flex justify-between items-center px-3 py-2">
-                <span className="text-foreground">{t.advanceInstallment}</span>
-                <span className={`font-semibold ${row.advanceDeduction > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {row.advanceDeduction > 0 ? `-${fmt(row.advanceDeduction)}` : '—'}
-                </span>
-              </div>
-              {/* Always show external deductions */}
-              <div className="flex justify-between items-center px-3 py-2">
-                <span className="text-foreground">{t.externalDeductions}</span>
-                <span className={`font-semibold ${row.externalDeduction > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {row.externalDeduction > 0 ? `-${fmt(row.externalDeduction)}` : '—'}
-                </span>
-              </div>
-              {/* Always show violations */}
-              <div className="flex justify-between items-center px-3 py-2">
-                <span className="text-foreground">{t.violations}</span>
-                <span className={`font-semibold ${row.violations > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                  {row.violations > 0 ? `-${fmt(row.violations)}` : '—'}
-                </span>
-              </div>
-              {/* Dynamic custom deductions */}
-              {Object.entries(row.customDeductions || {}).map(([k, v]) => {
-                const label = k.split('___').slice(1).join('___') || k;
-                return (
-                  <div key={k} className="flex justify-between items-center px-3 py-2">
-                    <span className="text-foreground">{label}</span>
-                    <span className={`font-semibold ${v > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                      {v > 0 ? `-${fmt(v)}` : '—'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex justify-between items-center px-3 py-2.5 bg-destructive/15 font-bold">
-              <span className="text-destructive">{t.totalDeductions}</span>
-              <span className="text-destructive text-base">-{fmt(totalDeductions)}</span>
+
+            <div>
+              <div className="bg-[#8c6239] text-white text-center font-bold py-1">الاستقطاعات (ر.س)</div>
+              <table className="w-full border-collapse">
+                <tbody>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.advanceInstallment}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.advanceDeduction).toLocaleString()}</td></tr>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.externalDeductions}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.externalDeduction).toLocaleString()}</td></tr>
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.violations}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.violations).toLocaleString()}</td></tr>
+                  {Object.entries(row.customDeductions || {}).map(([k, v]) => {
+                    const label = k.split('___').slice(1).join('___') || k;
+                    return (
+                      <tr key={k}>
+                        <td className="border border-[#8c6239] px-2 py-1 font-semibold">{label}</td>
+                        <td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(v).toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.advanceBalance}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.advanceRemaining).toLocaleString()}</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* ── NET SALARY ──────────────────────────────────── */}
-          <div className="flex justify-between items-center py-3.5 bg-primary text-primary-foreground rounded-xl px-5">
-            <span className="font-bold text-base">{t.netSalary}</span>
-            <span className="text-2xl font-black">{fmt(netSalary)}</span>
-          </div>
-
-          {/* Summary Footer */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-[11px] text-muted-foreground mb-0.5">{t.transfer}</p>
-              <p className="font-bold text-sm">{fmt(row.transfer)}</p>
+          <div className="grid grid-cols-2 gap-0 border border-[#8c6239] font-bold text-lg">
+            <div className="border-l border-[#8c6239] text-center py-2 bg-[#f4ece5]">
+              إجمالي الاستقطاعات: {Math.round(totalDeductions).toLocaleString()}
             </div>
-            <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-[11px] text-muted-foreground mb-0.5">{t.remaining}</p>
-              <p className="font-bold text-sm">{fmt(remaining)}</p>
-            </div>
-            <div className="bg-muted/40 rounded-lg p-3 text-center">
-              <p className="text-[11px] text-muted-foreground mb-0.5">{t.advanceBalance}</p>
-              <p className={`font-bold text-sm ${row.advanceRemaining > 0 ? 'text-destructive' : ''}`}>{fmt(row.advanceRemaining)}</p>
+            <div className="text-center py-2 bg-[#f4ece5]">
+              إجمالي الراتب: {Math.round(totalEarnings).toLocaleString()}
             </div>
           </div>
 
-          {/* Signatures */}
-          <div className="grid grid-cols-2 gap-6 pt-4 border-t border-border/50 mt-2">
-            <div className="text-center text-xs text-muted-foreground">
-              <div className="h-8 border-b border-border/50 mb-1" />
+          <div className="border border-[#8c6239] bg-[#8c6239] text-white text-center py-3 text-2xl font-extrabold">
+            الراتب المستحق: {Math.round(netSalary).toLocaleString()} ر.س
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 pt-2">
+            <div className="text-center text-xs">
+              <div className="h-8 border-b border-[#8c6239] mb-1" />
               <span>{t.signatureDriver}</span>
             </div>
-            <div className="text-center text-xs text-muted-foreground">
-              <div className="h-8 border-b border-border/50 mb-1" />
+            <div className="text-center text-xs">
+              <div className="h-8 border-b border-[#8c6239] mb-1" />
               <span>{t.signatureAdmin}</span>
             </div>
           </div>
