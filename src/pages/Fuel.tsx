@@ -367,9 +367,8 @@ const FuelPage = () => {
     setLoading(true);
     const ms = `${monthYear}-01`;
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    const db = supabase as any;
     const [dailyRes, ordersRes, assignmentsRes] = await Promise.all([
-      db
+      supabase
         .from('vehicle_mileage_daily')
         .select('employee_id, km_total, fuel_cost, employees(name, personal_photo_url)')
         .gte('date', ms)
