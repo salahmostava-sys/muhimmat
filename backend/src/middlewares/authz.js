@@ -23,16 +23,46 @@ async function authenticateUser(req) {
 }
 
 async function getUserRole(userId) {
-  if (!userId) return null;
+  const roles = await getUserRoles(userId);
+  return roles[0] || null;
+}
+
+function decodeJwtPayload(token) {
+  try {
+    const parts = String(token || "").split(".");
+    if (parts.length < 2) return null;
+    const payload = Buffer.from(parts[1], "base64url").toString("utf8");
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+function isExpiredToken(token) {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== "number") return false;
+  const nowSec = Math.floor(Date.now() / 1000);
+  return payload.exp <= nowSec;
+}
+
+async function getUserRoles(userId) {
+  if (!userId) return [];
 
   const { data, error } = await supabaseAdmin
     .from("user_roles")
-    .select("role")
-    .eq("user_id", String(userId))
-    .maybeSingle();
+    .select("role, roles(title)")
+    .eq("user_id", String(userId));
 
   if (error) throw error;
-  return data?.role || null;
+
+  const resolved = (data || [])
+    .map((r) => r?.roles?.title || r?.role)
+    .filter(Boolean);
+
+  // Sort by effective privilege so req.userRole remains deterministic.
+  const priority = ["admin", "hr", "finance", "accountant", "operations", "viewer"];
+  resolved.sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
+  return [...new Set(resolved)];
 }
 
 function defaultPermissionsForRole(role) {
@@ -113,6 +143,21 @@ async function getRolePermissions(role) {
   return data?.permissions || defaultPermissionsForRole(role);
 }
 
+function mergePermissions(permissionSets) {
+  const merged = {};
+  for (const set of permissionSets) {
+    if (!set || typeof set !== "object") continue;
+    for (const [resource, actions] of Object.entries(set)) {
+      if (typeof actions !== "object" || !actions) continue;
+      if (!merged[resource]) merged[resource] = {};
+      for (const [action, allowed] of Object.entries(actions)) {
+        merged[resource][action] = Boolean(merged[resource][action]) || Boolean(allowed);
+      }
+    }
+  }
+  return merged;
+}
+
 function resolvePermission(permissions, resource, action) {
   if (!permissions || typeof permissions !== "object") return false;
   if (permissions["*"] && permissions["*"][action] === true) return true;
@@ -130,11 +175,22 @@ function requireAuth() {
         });
       }
 
-      const role = await getUserRole(user.id);
-      const permissions = role ? await getRolePermissions(role) : null;
+      const token = extractBearerToken(req);
+      if (token && isExpiredToken(token)) {
+        return res.status(401).json({
+          message: "Unauthorized",
+          details: "Token expired",
+        });
+      }
+
+      const roles = await getUserRoles(user.id);
+      const permissionSets = await Promise.all(roles.map((role) => getRolePermissions(role)));
+      const permissions = mergePermissions(permissionSets);
+      const role = roles[0] || null;
       req.user = user;
       req.userId = user.id;
       req.userRole = role;
+      req.userRoles = roles;
       req.userPermissions = permissions;
       return next();
     } catch (err) {
@@ -154,20 +210,23 @@ function requireRoles(allowedRoles) {
         });
       }
 
-      const role = await getUserRole(user.id);
-      if (!role) {
+      const roles = await getUserRoles(user.id);
+      if (!roles.length) {
         return res.status(403).json({
           message: "Forbidden: role is not assigned to this user",
         });
       }
-      if (!allowedRoles.includes(role)) {
+      if (!roles.some((r) => allowedRoles.includes(r))) {
         return res.status(403).json({ message: "Forbidden: insufficient role permissions" });
       }
 
-      const permissions = await getRolePermissions(role);
+      const permissionSets = await Promise.all(roles.map((role) => getRolePermissions(role)));
+      const permissions = mergePermissions(permissionSets);
+      const role = roles[0];
       req.user = user;
       req.userId = user.id;
       req.userRole = role;
+      req.userRoles = roles;
       req.userPermissions = permissions;
       return next();
     } catch (err) {
@@ -203,4 +262,4 @@ function requirePermission(permissionKey) {
   };
 }
 
-module.exports = { requireAuth, requireRoles, requirePermission, authenticateUser };
+module.exports = { requireAuth, requireRoles, requirePermission, authenticateUser, extractBearerToken };

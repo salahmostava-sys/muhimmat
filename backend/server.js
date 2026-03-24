@@ -26,7 +26,7 @@ app.use("/orders", requireAuth(), ordersRoutes);
 app.use("/salary", requireAuth(), salaryRoutes);
 app.use("/attendance", requireAuth(), attendanceRoutes);
 app.use("/roles", requireAuth(), rolesRoutes);
-app.use("/auth", requireAuth(), authRoutes);
+app.use("/auth", authRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
