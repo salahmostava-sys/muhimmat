@@ -684,7 +684,6 @@ const Salaries = () => {
 
       // ── Fetch advance installments via advances → employee_id ──
       // Step 1: get all active/paused advances with total amount for remaining calc
-      const advMap: Record<string, number> = {};      // this month's installment deduction
       const advInstIds: Record<string, string[]> = {};
       const deductedInstIds: Record<string, string[]> = {};
       const advRemainingMap: Record<string, number> = {}; // total remaining balance
@@ -716,7 +715,6 @@ const Salaries = () => {
           const empId = advIdToEmpMap[inst.advance_id];
           if (empId) {
             if (inst.status === 'pending' || inst.status === 'deferred') {
-              advMap[empId] = (advMap[empId] || 0) + Number(inst.amount);
               if (!advInstIds[empId]) advInstIds[empId] = [];
               advInstIds[empId].push(inst.id);
             } else if (inst.status === 'deducted') {

@@ -19,6 +19,36 @@ type Employee = { id: string; name: string; salary_type: string; status: string;
 type App = { id: string; name: string; name_en: string | null; logo_url?: string | null };
 type DailyData = Record<string, number>;
 type AppTargetRow = { app_id: string; target_orders: number };
+type EmployeeAppAssignmentRow = { employee_id: string; app_id: string };
+type OrderRawRow = { employee_id: string; app_id: string; date: string; orders_count: number };
+
+const ordersQueryKeys = {
+  spreadsheetBase: ['orders', 'spreadsheet', 'base-data'] as const,
+  spreadsheetMonthRaw: (year: number, month: number) => ['orders', 'spreadsheet', 'month-raw', year, month] as const,
+  spreadsheetMonthLock: (year: number, month: number) => ['orders', 'spreadsheet', 'month-lock', year, month] as const,
+  summaryBase: ['orders', 'summary', 'base-data'] as const,
+  summaryTargets: (year: number, month: number) => ['orders', 'summary', 'targets', year, month] as const,
+  summaryMonthLock: (year: number, month: number) => ['orders', 'summary', 'month-lock', year, month] as const,
+  summaryMonthRaw: (year: number, month: number) => ['orders', 'summary', 'month-raw', year, month] as const,
+};
+
+const buildAppEmployeeIdsMap = (rows: EmployeeAppAssignmentRow[]): Record<string, Set<string>> => {
+  const map: Record<string, Set<string>> = {};
+  rows.forEach((row) => {
+    if (!map[row.app_id]) map[row.app_id] = new Set();
+    map[row.app_id].add(row.employee_id);
+  });
+  return map;
+};
+
+const buildDailyDataMap = (rows: OrderRawRow[]): DailyData => {
+  const mapped: DailyData = {};
+  rows.forEach((row) => {
+    const day = new Date(`${row.date}T00:00:00`).getDate();
+    mapped[`${row.employee_id}::${row.app_id}::${day}`] = row.orders_count;
+  });
+  return mapped;
+};
 
 const getDaysInMonth = (y: number, m: number) => new Date(y, m, 0).getDate();
 const monthLabel = (y: number, m: number) =>
@@ -165,7 +195,7 @@ const SpreadsheetGrid = () => {
     error: spreadsheetBaseError,
     isLoading: spreadsheetBaseLoading,
   } = useQuery({
-    queryKey: ['orders', 'spreadsheet', 'base-data'],
+    queryKey: ordersQueryKeys.spreadsheetBase,
     queryFn: async () => {
       const [empRes, appRes, empAppsRes] = await Promise.all([
         orderService.getActiveEmployees(),
@@ -178,7 +208,7 @@ const SpreadsheetGrid = () => {
       return {
         employees: (empRes.data || []) as Employee[],
         apps: (appRes.data || []) as App[],
-        employeeApps: empAppsRes.data || [],
+        employeeApps: (empAppsRes.data || []) as EmployeeAppAssignmentRow[],
       };
     },
     retry: 2,
@@ -190,18 +220,18 @@ const SpreadsheetGrid = () => {
     error: spreadsheetMonthError,
     isLoading: spreadsheetMonthLoading,
   } = useQuery({
-    queryKey: ['orders', 'spreadsheet', 'month-raw', year, month],
+    queryKey: ordersQueryKeys.spreadsheetMonthRaw(year, month),
     queryFn: async () => {
       const { data: rows, error } = await orderService.getMonthRaw(year, month);
       if (error) throw error;
-      return rows || [];
+      return (rows || []) as OrderRawRow[];
     },
     retry: 2,
     staleTime: 15_000,
   });
 
   const { data: spreadsheetMonthLock, error: spreadsheetLockError } = useQuery({
-    queryKey: ['orders', 'spreadsheet', 'month-lock', year, month],
+    queryKey: ordersQueryKeys.spreadsheetMonthLock(year, month),
     queryFn: async () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
@@ -216,21 +246,11 @@ const SpreadsheetGrid = () => {
     if (!spreadsheetBaseData) return;
     setEmployees(spreadsheetBaseData.employees);
     setApps(spreadsheetBaseData.apps);
-    const map: Record<string, Set<string>> = {};
-    for (const row of spreadsheetBaseData.employeeApps) {
-      if (!map[row.app_id]) map[row.app_id] = new Set();
-      map[row.app_id].add(row.employee_id);
-    }
-    setAppEmployeeIds(map);
+    setAppEmployeeIds(buildAppEmployeeIdsMap(spreadsheetBaseData.employeeApps));
   }, [spreadsheetBaseData]);
 
   useEffect(() => {
-    const d: DailyData = {};
-    spreadsheetMonthRows.forEach((r) => {
-      const day = new Date(r.date + 'T00:00:00').getDate();
-      d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
-    });
-    setData(d);
+    setData(buildDailyDataMap(spreadsheetMonthRows));
   }, [spreadsheetMonthRows]);
 
   useEffect(() => {
@@ -798,7 +818,7 @@ const MonthSummary = () => {
     error: summaryBaseError,
     isLoading: summaryBaseLoading,
   } = useQuery({
-    queryKey: ['orders', 'summary', 'base-data'],
+    queryKey: ordersQueryKeys.summaryBase,
     queryFn: async () => {
       const [empRes, appRes] = await Promise.all([
         orderService.getActiveEmployees(),
@@ -816,7 +836,7 @@ const MonthSummary = () => {
   });
 
   const { data: summaryTargetsRows = [], error: summaryTargetsError } = useQuery({
-    queryKey: ['orders', 'summary', 'targets', year, month],
+    queryKey: ordersQueryKeys.summaryTargets(year, month),
     queryFn: async () => {
       const my = monthYear(year, month);
       const { data: rows, error } = await orderService.getAppTargets(my);
@@ -828,7 +848,7 @@ const MonthSummary = () => {
   });
 
   const { data: summaryLockData, error: summaryLockError } = useQuery({
-    queryKey: ['orders', 'summary', 'month-lock', year, month],
+    queryKey: ordersQueryKeys.summaryMonthLock(year, month),
     queryFn: async () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
@@ -842,11 +862,11 @@ const MonthSummary = () => {
     error: summaryMonthError,
     isLoading: summaryMonthLoading,
   } = useQuery({
-    queryKey: ['orders', 'summary', 'month-raw', year, month],
+    queryKey: ordersQueryKeys.summaryMonthRaw(year, month),
     queryFn: async () => {
       const { data: rows, error } = await orderService.getMonthRaw(year, month);
       if (error) throw error;
-      return rows || [];
+      return (rows || []) as OrderRawRow[];
     },
     retry: 2,
     staleTime: 15_000,
@@ -862,7 +882,6 @@ const MonthSummary = () => {
 
   // Load targets when month changes
   useEffect(() => {
-    setTargets({});
     const t: Record<string, string> = {};
     summaryTargetsRows.forEach((r) => { t[r.app_id] = String(r.target_orders); });
     setTargets(t);
@@ -875,12 +894,7 @@ const MonthSummary = () => {
   }, [summaryLockData]);
 
   useEffect(() => {
-    const d: DailyData = {};
-    summaryMonthRows.forEach((r) => {
-      const day = new Date(r.date + 'T00:00:00').getDate();
-      d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
-    });
-    setData(d);
+    setData(buildDailyDataMap(summaryMonthRows));
   }, [summaryMonthRows]);
 
   useEffect(() => {
