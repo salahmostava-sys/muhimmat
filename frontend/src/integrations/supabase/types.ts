@@ -734,6 +734,7 @@ export type Database = {
           employee_id: string
           id: string
           incident_date: string | null
+          linked_advance_id: string | null
           note: string | null
           source_app_id: string | null
           type: Database["public"]["Enums"]["deduction_type"]
@@ -747,6 +748,7 @@ export type Database = {
           employee_id: string
           id?: string
           incident_date?: string | null
+          linked_advance_id?: string | null
           note?: string | null
           source_app_id?: string | null
           type?: Database["public"]["Enums"]["deduction_type"]
@@ -760,6 +762,7 @@ export type Database = {
           employee_id?: string
           id?: string
           incident_date?: string | null
+          linked_advance_id?: string | null
           note?: string | null
           source_app_id?: string | null
           type?: Database["public"]["Enums"]["deduction_type"]
@@ -770,6 +773,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_deductions_linked_advance_id_fkey"
+            columns: ["linked_advance_id"]
+            isOneToOne: false
+            referencedRelation: "advances"
             referencedColumns: ["id"]
           },
           {

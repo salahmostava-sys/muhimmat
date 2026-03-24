@@ -4,7 +4,7 @@ export const violationService = {
   getViolations: async () =>
     supabase
       .from('external_deductions')
-      .select('id, employee_id, amount, incident_date, apply_month, approval_status, note, employees(id, name, national_id)')
+      .select('id, employee_id, amount, incident_date, apply_month, approval_status, note, linked_advance_id, employees(id, name, national_id)')
       .eq('type', 'fine')
       .order('created_at', { ascending: false })
       .limit(500),

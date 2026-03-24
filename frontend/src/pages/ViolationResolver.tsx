@@ -41,6 +41,7 @@ type ViolationDataRow = {
   amount: number | string | null;
   apply_month: string;
   approval_status: string;
+  linked_advance_id?: string | null;
   employees?: { name?: string | null; national_id?: string | null } | null;
 };
 
@@ -66,6 +67,8 @@ type ViolationRecord = {
   amount: number;
   apply_month: string;
   status: string; // approval_status
+  /** مربوط بجدول السلف عند التحويل — المصدر الرسمي لحالة السلفة */
+  linked_advance_id: string | null;
 };
 
 type ViolationForm = {
@@ -117,11 +120,14 @@ const ViolationResolver = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
-  const [vSortField, setVSortField] = useState<'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status'>('incident_date');
+  const [vSortField, setVSortField] = useState<'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status'>('incident_date');
   const [vSortDir, setVSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const isViolationConvertedToAdvance = (details: string) =>
+  const isAdvanceLegacyNote = (details: string) =>
     /تم التحويل لسلفة|معرّف السلفة:/u.test(details || '');
+
+  const isViolationConvertedToAdvance = (v: ViolationRecord) =>
+    Boolean(v.linked_advance_id) || isAdvanceLegacyNote(v.violation_details);
 
   const fetchViolations = useCallback(async () => {
     setViolationsLoading(true);
@@ -143,6 +149,7 @@ const ViolationResolver = () => {
         amount: Number(v.amount) || 0,
         apply_month: v.apply_month,
         status: v.approval_status,
+        linked_advance_id: v.linked_advance_id ?? null,
       }))
     );
     setViolationsLoading(false);
@@ -382,7 +389,7 @@ const ViolationResolver = () => {
 
   const handleConvertToAdvance = async (v: ViolationRecord) => {
     if (!v.apply_month) return toast({ title: 'خطأ', description: 'بيانات القسط غير مكتملة', variant: 'destructive' });
-    if (isViolationConvertedToAdvance(v.violation_details)) {
+    if (isViolationConvertedToAdvance(v)) {
       toast({ title: 'تم التحويل مسبقاً', description: 'هذه المخالفة مسجّلة كسلفة بالفعل.', variant: 'destructive' });
       return;
     }
@@ -447,10 +454,13 @@ const ViolationResolver = () => {
       `[تم التحويل لسلفة بتاريخ ${today} — معرّف السلفة: ${advInserted.id}]`,
     ].join('\n');
 
-    const { error: updErr } = await violationService.updateViolation(v.id, { note: appended });
+    const { error: updErr } = await violationService.updateViolation(v.id, {
+      note: appended,
+      linked_advance_id: advInserted.id,
+    });
     setConvertingId(null);
     if (updErr) {
-      toast({ title: 'تم إنشاء السلفة', description: 'تعذر تحديث حقل الملاحظات على سجل المخالفة — يمكنك مراجعته يدوياً.' });
+      toast({ title: 'تم إنشاء السلفة', description: 'تعذر ربط سجل المخالفة بالسلفة في النظام — راجع السجل يدوياً.' });
     }
 
     fetchViolations();
@@ -474,6 +484,9 @@ const ViolationResolver = () => {
       } else if (vSortField === 'violation_details') {
         va = a.violation_details || '';
         vb = b.violation_details || '';
+      } else if (vSortField === 'advance_status') {
+        va = isViolationConvertedToAdvance(a) ? 1 : 0;
+        vb = isViolationConvertedToAdvance(b) ? 1 : 0;
       } else {
         va = a.employee_name || '';
         vb = b.employee_name || '';
@@ -485,7 +498,7 @@ const ViolationResolver = () => {
     return rows;
   }, [violations, vSortDir, vSortField]);
 
-  const toggleVSort = (field: 'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status') => {
+  const toggleVSort = (field: 'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status') => {
     if (vSortField === field) setVSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
       setVSortField(field);
@@ -811,6 +824,9 @@ const ViolationResolver = () => {
                     <th onClick={() => toggleVSort('status')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
                       الحالة {vSortField === 'status' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
                     </th>
+                    <th onClick={() => toggleVSort('advance_status')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none" title="مربوط بجدول السلف في قاعدة البيانات أو سجل قديم في الملاحظة">
+                      حالة السلفة {vSortField === 'advance_status' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                    </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">إجراءات</th>
                   </tr>
                 </thead>
@@ -822,7 +838,7 @@ const ViolationResolver = () => {
                         : v.status === 'rejected'
                           ? 'bg-destructive/10 text-destructive border-destructive/20'
                           : 'bg-muted text-muted-foreground border-border/50';
-                    const convertedAdv = isViolationConvertedToAdvance(v.violation_details);
+                    const convertedAdv = isViolationConvertedToAdvance(v);
 
                     return (
                       <tr key={v.id} className="hover:bg-muted/20 transition-colors">
@@ -836,6 +852,24 @@ const ViolationResolver = () => {
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] ${statusBadge}`}>
                             {v.status === 'pending' ? 'قيد المراجعة' : v.status === 'approved' ? 'موافَق' : v.status === 'rejected' ? 'مرفوض' : v.status}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-center whitespace-nowrap align-top">
+                          {v.linked_advance_id ? (
+                            <span className="inline-flex flex-col items-center gap-0.5">
+                              <span className="text-[11px] px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/25 font-medium">
+                                محوّل لسلفة
+                              </span>
+                              <span className="text-[10px] font-mono text-muted-foreground dir-ltr" title={v.linked_advance_id}>
+                                {v.linked_advance_id.slice(0, 8)}…
+                              </span>
+                            </span>
+                          ) : convertedAdv ? (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground" title="سجل قديم: مذكور في الملاحظة فقط">
+                              محوّل (قديم)
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-2">

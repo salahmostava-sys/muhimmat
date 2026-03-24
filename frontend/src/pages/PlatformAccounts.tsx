@@ -50,6 +50,8 @@ interface PlatformAccount {
   created_at: string;
   current_employee?: Employee | null;
   assignments?: AssignmentWithName[];
+  /** عدد سجلات التعيين المسجّلة على الشهر الحالي (قد يكون >1 إذا تعاقب عدة مناديب) */
+  assignments_this_month_count?: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -84,7 +86,7 @@ const PlatformAccounts = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [groupAppTab, setGroupAppTab] = useState<string>('all');
 
-  type SortKey = 'account_username' | 'account_id_on_platform' | 'iqama_number' | 'iqama_expiry_date' | 'current_employee' | 'status';
+  type SortKey = 'account_username' | 'account_id_on_platform' | 'iqama_number' | 'iqama_expiry_date' | 'current_employee' | 'assignments_month' | 'status';
   const [sortKey, setSortKey] = useState<SortKey>('iqama_expiry_date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -110,17 +112,25 @@ const PlatformAccounts = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-      const [appsRes, empRes, accRes, assignRes] = await Promise.all([
+      const monthYearNow = format(new Date(), 'yyyy-MM');
+      const [appsRes, empRes, accRes, assignRes, monthAssignRes] = await Promise.all([
         platformAccountService.getApps(),
         platformAccountService.getEmployees(),
         platformAccountService.getAccounts(),
         accountAssignmentService.getActiveAssignments(),
+        accountAssignmentService.getAssignmentsForMonthYear(monthYearNow),
       ]);
 
     const appsData: App[] = (appsRes.data ?? []) as App[];
     const empData: Employee[] = (empRes.data ?? []) as Employee[];
     const rawAccounts = (accRes.data ?? []) as PlatformAccount[];
     const activeAssignments = (assignRes.data ?? []) as Assignment[];
+    const monthRows = (monthAssignRes.data ?? []) as { account_id: string }[];
+
+    const countByAccount = new Map<string, number>();
+    monthRows.forEach((r) => {
+      countByAccount.set(r.account_id, (countByAccount.get(r.account_id) ?? 0) + 1);
+    });
 
     const appMap = Object.fromEntries(appsData.map(a => [a.id, a]));
     const empMap = Object.fromEntries(empData.map(e => [e.id, e]));
@@ -133,6 +143,7 @@ const PlatformAccounts = () => {
         app_color: appMap[a.app_id]?.brand_color ?? '#6366f1',
         app_text_color: appMap[a.app_id]?.text_color ?? '#ffffff',
         current_employee: active ? empMap[active.employee_id] ?? null : null,
+        assignments_this_month_count: countByAccount.get(a.id) ?? 0,
       };
     });
 
@@ -183,6 +194,8 @@ const PlatformAccounts = () => {
             return x.current_employee?.name ?? '';
           case 'status':
             return x.status ?? '';
+          case 'assignments_month':
+            return x.assignments_this_month_count ?? 0;
           default:
             return '';
         }
@@ -451,6 +464,9 @@ const PlatformAccounts = () => {
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('current_employee')}>
                             المندوب الحالي {sortKey === 'current_employee' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
+                          <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none max-w-[7rem]" onClick={() => toggleSort('assignments_month')} title="عدد مرات تسجيل تعيين على الشهر الحالي (تعاقب عدة مناديب)">
+                            تعيينات الشهر {sortKey === 'assignments_month' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                          </th>
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('status')}>
                             الحالة {sortKey === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
                           </th>
@@ -460,7 +476,7 @@ const PlatformAccounts = () => {
                       <tbody className="divide-y divide-border">
                         {sorted.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="py-10 text-center text-muted-foreground">
+                            <td colSpan={8} className="py-10 text-center text-muted-foreground">
                               لا توجد نتائج لهذا المنصّة
                             </td>
                           </tr>
@@ -483,6 +499,14 @@ const PlatformAccounts = () => {
                                   ) : (
                                     <span className="text-xs text-muted-foreground">لا يوجد</span>
                                   )}
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span
+                                    className={`text-xs font-semibold tabular-nums ${(acc.assignments_this_month_count ?? 0) > 1 ? 'text-primary' : 'text-muted-foreground'}`}
+                                    title="عدد سجلات التعيين المسجّلة لهذا الشهر (شهر واحد قد يشمل عدة مناديب بالتتابع)"
+                                  >
+                                    {acc.assignments_this_month_count ?? 0}
+                                  </span>
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className={`text-[11px] px-2 py-0.5 rounded-full border ${acc.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground border-border'}`}>
@@ -544,6 +568,9 @@ const PlatformAccounts = () => {
             <DialogTitle>{editingAccount ? 'تعديل الحساب' : 'إضافة حساب جديد'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              بيانات الحساب على المنصة ثابتة (اسم صاحب الحساب، الإقامة المسجّلة على الحساب). المندوب الحالي يُدار من «تعيين» أو يظهر من آخر تعيين نشط؛ ويمكن أن يتعاقب عدة مناديب على نفس الحساب خلال الشهر.
+            </p>
             <div className="space-y-1.5">
               <Label>المنصة</Label>
               <Select value={accountForm.app_id ?? ''} onValueChange={v => setAccountForm(p => ({ ...p, app_id: v }))}>
@@ -553,38 +580,64 @@ const PlatformAccounts = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-foreground">بيانات الحساب على المنصة</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>اسم صاحب الحساب (كما يظهر على المنصة)</Label>
+                  <Input value={accountForm.account_username ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_username: e.target.value }))} placeholder="اسم المستخدم / صاحب الحساب" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>رقم الحساب (ID على المنصة)</Label>
+                  <Input value={accountForm.account_id_on_platform ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_id_on_platform: e.target.value }))} placeholder="رقم الحساب" dir="ltr" />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-foreground">بيانات الإقامة المسجّلة على الحساب</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>رقم الإقامة</Label>
+                  <Input value={accountForm.iqama_number ?? ''} onChange={e => setAccountForm(p => ({ ...p, iqama_number: e.target.value }))} placeholder="1xxxxxxxxx" dir="ltr" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>تاريخ انتهاء الإقامة</Label>
+                  <Input type="date" value={accountForm.iqama_expiry_date ?? ''} onChange={e => setAccountForm(p => ({ ...p, iqama_expiry_date: e.target.value }))} />
+                </div>
+              </div>
+            </div>
             <div className="space-y-1.5">
-              <Label>المندوب المرتبط (اختياري)</Label>
+              <Label>اقتراح من بيانات مندوب (اختياري)</Label>
+              <p className="text-[11px] text-muted-foreground mb-1">
+                عند اختيار مندوب يُعبّأ تلقائياً <strong>رقم الإقامة</strong> و<strong>تاريخ انتهاء الإقامة</strong> من ملفه الموظّف؛ عدّل الحقلين إذا كانت إقامة الحساب على المنصة ليست نفس إقامة المندوب.
+              </p>
               <Select
                 value={(accountForm.employee_id ?? null) ? String(accountForm.employee_id) : '__none__'}
-                onValueChange={v => setAccountForm(p => ({ ...p, employee_id: v === '__none__' ? null : v }))}
+                onValueChange={v => {
+                  const id = v === '__none__' ? null : v;
+                  setAccountForm(p => {
+                    const emp = id ? employees.find(e => e.id === id) : null;
+                    return {
+                      ...p,
+                      employee_id: id,
+                      ...(emp
+                        ? {
+                            iqama_number: emp.national_id?.trim() || p.iqama_number || '',
+                            iqama_expiry_date: emp.residency_expiry
+                              ? String(emp.residency_expiry).slice(0, 10)
+                              : p.iqama_expiry_date,
+                          }
+                        : {}),
+                    };
+                  });
+                }}
               >
-                <SelectTrigger><SelectValue placeholder="اختياري" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="اختياري — لاستيراد الإقامة من ملف الموظف" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">— بدون ربط —</SelectItem>
+                  <SelectItem value="__none__">— بدون اختيار —</SelectItem>
                   {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>اسم الحساب على المنصة</Label>
-                <Input value={accountForm.account_username ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_username: e.target.value }))} placeholder="اسم المستخدم" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>رقم الحساب (ID)</Label>
-                <Input value={accountForm.account_id_on_platform ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_id_on_platform: e.target.value }))} placeholder="رقم الحساب" dir="ltr" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>رقم الإقامة</Label>
-                <Input value={accountForm.iqama_number ?? ''} onChange={e => setAccountForm(p => ({ ...p, iqama_number: e.target.value }))} placeholder="1xxxxxxxxx" dir="ltr" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>تاريخ انتهاء الإقامة</Label>
-                <Input type="date" value={accountForm.iqama_expiry_date ?? ''} onChange={e => setAccountForm(p => ({ ...p, iqama_expiry_date: e.target.value }))} />
-              </div>
             </div>
             <div className="space-y-1.5">
               <Label>الحالة</Label>
@@ -618,6 +671,9 @@ const PlatformAccounts = () => {
             <DialogTitle>تعيين مندوب — {assignTarget?.account_username}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              نفس الحساب قد يعمل عليه <span className="font-semibold text-foreground">عدة مناديب خلال الشهر</span> بالتتابع: كل تعيين جديد يُغلق التعيين السابق ويُفتح سجل جديد. يظهر في الجدول عمود «تعيينات الشهر» لعدد مرات التسجيل في الشهر الحالي.
+            </p>
             {assignTarget?.current_employee && (
               <div className="flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg p-3 text-sm">
                 <span className="font-medium">المندوب الحالي:</span>
@@ -633,6 +689,20 @@ const PlatformAccounts = () => {
                   {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {assignForm.employee_id && (() => {
+                const e = employees.find(x => x.id === assignForm.employee_id);
+                if (!e?.national_id && !e?.residency_expiry) return null;
+                return (
+                  <p className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
+                    {e.national_id && (
+                      <span className="block">رقم الإقامة في ملف الموظف: <span className="font-mono dir-ltr inline-block">{e.national_id}</span></span>
+                    )}
+                    {e.residency_expiry && (
+                      <span className="block">انتهاء الإقامة (ملف الموظف): <span className="font-medium">{format(parseISO(String(e.residency_expiry).slice(0, 10)), 'dd/MM/yyyy')}</span></span>
+                    )}
+                  </p>
+                );
+              })()}
             </div>
             <div className="space-y-1.5">
               <Label>تاريخ البداية</Label>
@@ -674,28 +744,47 @@ const PlatformAccounts = () => {
                 <p className="text-sm">لا يوجد سجل تعيينات بعد</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {historyAccount.assignments!.map((a, idx) => (
-                  <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg border ${!a.end_date ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
-                    <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${!a.end_date ? 'bg-success' : 'bg-muted-foreground/40'}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">{a.employee_name}</span>
-                        {!a.end_date && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
-                            شاغل حالياً
-                          </span>
+              <div className="space-y-4">
+                {(() => {
+                  const rows = historyAccount.assignments ?? [];
+                  const byMonth = new Map<string, typeof rows>();
+                  rows.forEach((a) => {
+                    const my = a.month_year || '—';
+                    if (!byMonth.has(my)) byMonth.set(my, []);
+                    byMonth.get(my)!.push(a);
+                  });
+                  const sortedMonths = Array.from(byMonth.keys()).sort((x, y) => y.localeCompare(x));
+                  return sortedMonths.map((month) => (
+                    <div key={month} className="space-y-2">
+                      <p className="text-xs font-bold text-foreground border-b border-border pb-1">
+                        شهر {month} — {byMonth.get(month)!.length} تعيين
+                        {byMonth.get(month)!.length > 1 && (
+                          <span className="font-normal text-muted-foreground mr-2"> (تعاقب عدة مناديب على نفس الحساب)</span>
                         )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        من: <span className="font-medium text-foreground">{a.start_date}</span>
-                        {a.end_date && <> — إلى: <span className="font-medium text-foreground">{a.end_date}</span></>}
-                        <span className="mr-3 text-muted-foreground">({a.month_year})</span>
                       </p>
-                      {a.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{a.notes}</p>}
+                      {byMonth.get(month)!.map((a) => (
+                        <div key={a.id} className={`flex items-start gap-3 p-3 rounded-lg border ${!a.end_date ? 'border-primary/30 bg-primary/5' : 'border-border bg-muted/30'}`}>
+                          <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${!a.end_date ? 'bg-success' : 'bg-muted-foreground/40'}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-sm">{a.employee_name}</span>
+                              {!a.end_date && (
+                                <span className="text-[11px] px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
+                                  شاغل حالياً
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              من: <span className="font-medium text-foreground">{a.start_date}</span>
+                              {a.end_date && <> — إلى: <span className="font-medium text-foreground">{a.end_date}</span></>}
+                            </p>
+                            {a.notes && <p className="text-xs text-muted-foreground mt-0.5 italic">{a.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             )}
           </div>

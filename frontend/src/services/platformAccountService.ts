@@ -10,6 +10,10 @@ export interface PlatformApp {
 export interface PlatformEmployee {
   id: string;
   name: string;
+  /** رقم الهوية / الإقامة — للاقتراح عند ربط المندوب بالحساب */
+  national_id?: string | null;
+  /** تاريخ انتهاء الإقامة — للاقتراح التلقائي */
+  residency_expiry?: string | null;
 }
 
 export interface PlatformAccount {
@@ -41,7 +45,11 @@ export const platformAccountService = {
     supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
 
   getEmployees: async () =>
-    supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
+    supabase
+      .from('employees')
+      .select('id, name, national_id, residency_expiry')
+      .eq('status', 'active')
+      .order('name'),
 
   getAccounts: async () =>
     supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
