@@ -240,6 +240,12 @@ const SpreadsheetGrid = () => {
     return sorted;
   }, [filteredEmployees, sortField, sortDir, empMonthTotal, empAppMonthTotal]);
 
+  const monthGrandTotal = useMemo(
+    () => sortedEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0),
+    [sortedEmployees, empMonthTotal]
+  );
+  const monthDailyAvg = days > 0 ? Math.round(monthGrandTotal / days) : 0;
+
   const handleSort = (field: 'name' | 'total' | `app:${string}`) => {
     if (sortField === field) {
       setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
@@ -391,25 +397,55 @@ const SpreadsheetGrid = () => {
     toast({ title: '✅ تم قفل الشهر بنجاح' });
   };
 
-  return (
-    <div className="flex flex-col gap-2 h-full min-h-0">
-      {/* Controls bar */}
-      <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+  const repColMin = 132;
 
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          <button onClick={prevMonth} className="p-1.5 rounded hover:bg-background transition-colors"><ChevronRight size={16} /></button>
-          <span className="px-3 text-sm font-medium min-w-28 text-center">{monthLabel(year, month)}</span>
-          <button onClick={nextMonth} className="p-1.5 rounded hover:bg-background transition-colors"><ChevronLeft size={16} /></button>
+  return (
+    <div className="flex flex-col gap-2">
+      {/* صف واحد: الشهر + البحث + ملخص الشهر + الشهري + إجراءات */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-shrink-0">
+        <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
+          <button type="button" onClick={prevMonth} className="p-1.5 rounded-md hover:bg-background transition-colors" aria-label="الشهر السابق"><ChevronRight size={15} /></button>
+          <span className="px-2 text-xs font-semibold min-w-[7.5rem] text-center tabular-nums">{monthLabel(year, month)}</span>
+          <button type="button" onClick={nextMonth} className="p-1.5 rounded-md hover:bg-background transition-colors" aria-label="الشهر التالي"><ChevronLeft size={15} /></button>
         </div>
-        <div className="relative max-w-xs flex-1">
-          <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="بحث بالاسم..." className="pr-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
+
+        <div className="relative flex-1 min-w-[160px] max-w-md">
+          <Search size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input placeholder="بحث بالاسم..." className="pr-8 h-8 text-xs" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="mr-auto flex items-center gap-2">
+
+        <div className="flex items-center gap-2 sm:gap-3 rounded-lg border border-border bg-background px-2.5 py-1.5 text-[11px] shrink-0">
+          <span className="whitespace-nowrap">
+            <span className="text-muted-foreground">ملخص الشهر:</span>{' '}
+            <span className="font-bold tabular-nums text-foreground">{monthGrandTotal.toLocaleString()}</span>
+            <span className="text-muted-foreground mr-0.5"> طلب</span>
+          </span>
+          <span className="hidden sm:inline h-3 w-px bg-border" aria-hidden />
+          <span className="whitespace-nowrap">
+            <span className="text-muted-foreground">شهري:</span>{' '}
+            <span className="font-semibold tabular-nums text-foreground">{monthDailyAvg.toLocaleString()}</span>
+            <span className="text-muted-foreground mr-0.5"> /يوم</span>
+          </span>
+          <span className="h-3 w-px bg-border" aria-hidden />
+          <span className="whitespace-nowrap">
+            <span className="text-muted-foreground">مناديب:</span>{' '}
+            <span className="font-semibold tabular-nums text-foreground">{sortedEmployees.length}</span>
+          </span>
+          {platformFilter !== 'all' && apps.find(a => a.id === platformFilter) && (
+            <>
+              <span className="h-3 w-px bg-border" aria-hidden />
+              <span className="text-primary font-medium truncate max-w-[7rem]">
+                {apps.find(a => a.id === platformFilter)!.name}
+              </span>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 mr-auto shrink-0">
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9"><FolderOpen size={14} /> ملفات</Button>
+              <Button variant="outline" size="sm" className="gap-1 h-8 text-xs px-2"><FolderOpen size={13} /> ملفات</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={exportExcel}>📊 تصدير Excel</DropdownMenuItem>
@@ -420,79 +456,64 @@ const SpreadsheetGrid = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           {permissions.can_edit && !isMonthLocked && (
-            <Button size="sm" className="gap-1.5 h-9" onClick={handleSave} disabled={saving}>
-              {saving ? <><Loader2 size={14} className="animate-spin" /> جاري الحفظ...</> : <><Save size={14} /> حفظ</>}
+            <Button size="sm" className="gap-1 h-8 text-xs px-2.5" onClick={handleSave} disabled={saving}>
+              {saving ? <><Loader2 size={13} className="animate-spin" /> جاري الحفظ...</> : <><Save size={13} /> حفظ</>}
             </Button>
           )}
           {permissions.can_edit && isPastMonth(year, month) && !isMonthLocked && (
             <Button
               size="sm"
               variant="outline"
-              className="gap-1.5 h-9 text-warning border-warning/40 hover:bg-warning/10"
+              className="gap-1 h-8 text-xs px-2 text-warning border-warning/40 hover:bg-warning/10"
               onClick={handleLockMonth}
               disabled={lockingMonth}
             >
-              {lockingMonth ? <><Loader2 size={14} className="animate-spin" /> جاري القفل...</> : <>قفل الشهر</>}
+              {lockingMonth ? <><Loader2 size={13} className="animate-spin" /> جاري القفل...</> : <>قفل الشهر</>}
             </Button>
           )}
         </div>
       </div>
 
-      <p className="text-[11px] leading-snug text-muted-foreground flex-shrink-0">
+      <p className="text-[10px] leading-snug text-muted-foreground flex-shrink-0">
         {isMonthLocked
           ? '🔒 هذا الشهر مقفول: كل الخلايا للقراءة فقط'
-          : '💡 انقر على أي خلية يوم لإدخال الطلبات حسب المنصة — السهم لعرض تفاصيل المنصات'}
+          : '💡 انقر على خلية اليوم لإدخال الطلبات — السهم بجانب المندوب لعرض تفاصيل المنصات — تصفية المنصات أسفل الصفحة'}
       </p>
-      <div className="flex items-center gap-1.5 flex-wrap text-xs">
-        <button
-          onClick={() => setPlatformFilter('all')}
-          className={`px-2 py-1 rounded border ${platformFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60 hover:bg-muted/30'}`}
-        >
-          كل المنصات
-        </button>
-        {apps.map(app => (
-          <button
-            key={`filter-${app.id}`}
-            onClick={() => setPlatformFilter(app.id)}
-            className={`px-2 py-1 rounded border ${platformFilter === app.id ? 'bg-primary text-primary-foreground border-primary' : 'border-border/60 hover:bg-muted/30'}`}
-          >
-            {app.name}
-          </button>
-        ))}
-        <button onClick={() => handleSort('name')} className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30">
+
+      <div className="flex items-center gap-1 flex-wrap text-[10px] flex-shrink-0">
+        <span className="text-muted-foreground ml-1">ترتيب:</span>
+        <button type="button" onClick={() => handleSort('name')} className="px-2 py-0.5 rounded border border-border/60 hover:bg-muted/30">
           اسم المندوب <SortIcon field="name" />
         </button>
-        <button onClick={() => handleSort('total')} className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30">
+        <button type="button" onClick={() => handleSort('total')} className="px-2 py-0.5 rounded border border-border/60 hover:bg-muted/30">
           إجمالي الطلبات <SortIcon field="total" />
         </button>
         {visibleApps.map(app => (
           <button
             key={app.id}
+            type="button"
             onClick={() => handleSort(`app:${app.id}`)}
-            className="px-2 py-1 rounded border border-border/60 hover:bg-muted/30"
+            className="px-2 py-0.5 rounded border border-border/60 hover:bg-muted/30"
           >
             {app.name} <SortIcon field={`app:${app.id}`} />
           </button>
         ))}
       </div>
 
-      {/* Grid — flex-1 fills remaining space, internal scroll only */}
-      <div
-        className="bg-card rounded-xl shadow-card overflow-auto flex-1 min-h-0"
-        onScroll={e => e.stopPropagation()}
-      >
+      {/* جدول: تمرير أفقي فقط؛ التمرير العمودي للصفحة بالكامل */}
+      <div className="bg-card rounded-xl shadow-card overflow-x-auto w-full">
         {loading ? (
           <div className="flex items-center justify-center py-20 gap-2 text-muted-foreground">
             <Loader2 size={20} className="animate-spin" /> جاري التحميل...
           </div>
         ) : (
-          <table ref={tableRef} className="border-collapse text-[11px] leading-tight" style={{ minWidth: `${200 + days * 36 + 68}px`, width: '100%' }}>
+          <table ref={tableRef} className="border-collapse text-[11px] leading-tight" style={{ minWidth: `${repColMin + days * 36 + 64}px`, width: '100%' }}>
             <thead className="sticky top-0 z-20">
-              <tr className="bg-muted/90 border-b-2 border-border">
+              <tr className="bg-muted border-b-2 border-border">
                 <th
                   onClick={() => handleSort('name')}
-                  className="sticky right-0 z-30 bg-muted/95 text-right px-2 py-1.5 font-semibold text-foreground border-l-2 border-border cursor-pointer"
-                  style={{ minWidth: 158 }}>
+                  className="sticky right-0 z-30 bg-muted text-right px-1.5 py-1.5 font-semibold text-foreground border-l-2 border-border cursor-pointer"
+                  style={{ minWidth: repColMin }}>
                   المندوب / المنصة <SortIcon field="name" />
                 </th>
                 {dayArr.map(d => {
@@ -511,7 +532,7 @@ const SpreadsheetGrid = () => {
                 })}
                 <th
                   onClick={() => handleSort('total')}
-                  className="sticky left-0 z-30 text-center py-1.5 font-bold text-primary bg-primary/15 border-r-2 border-border cursor-pointer"
+                  className="sticky left-0 z-30 text-center py-1.5 font-bold text-primary bg-muted border-r-2 border-border cursor-pointer"
                   style={{ minWidth: 64 }}>
                   المجموع <SortIcon field="total" />
                 </th>
@@ -525,23 +546,26 @@ const SpreadsheetGrid = () => {
                 const activeApps = getActiveApps(emp.id);
                 const isExpanded = expandedEmp.has(emp.id);
                 const total = empMonthTotal(emp.id);
-                const rowBg = idx % 2 === 0 ? 'hsl(var(--card))' : 'hsl(var(--muted) / 0.15)';
+                const rowBg = idx % 2 === 0 ? 'hsl(var(--card))' : 'hsl(var(--muted))';
 
                 return (
                   <React.Fragment key={emp.id}>
                     <tr className={`border-b border-border/40 select-none ${isExpanded ? 'border-b-0' : ''}`}>
                       <td
-                        className="sticky right-0 z-10 px-2 py-1 border-l-2 border-border cursor-pointer hover:bg-muted/30 transition-colors"
-                        style={{ backgroundColor: isExpanded ? 'hsl(var(--primary)/0.07)' : rowBg, minWidth: 158 }}
+                        className="sticky right-0 z-10 px-1.5 py-1 border-l-2 border-border cursor-pointer hover:brightness-[0.98] transition-[filter] dark:hover:brightness-110"
+                        style={{
+                          backgroundColor: isExpanded ? 'hsl(var(--muted))' : rowBg,
+                          minWidth: repColMin,
+                        }}
                         onClick={() => activeApps.length > 0 && toggleExpand(emp.id)}
                       >
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           {activeApps.length > 0 && (
                             <span className="text-muted-foreground flex-shrink-0">
-                              {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                              {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                             </span>
                           )}
-                          <span className="font-medium text-foreground truncate max-w-[120px]" title={emp.name}>{shortName(emp.name)}</span>
+                          <span className="font-medium text-foreground truncate max-w-[7.5rem]" title={emp.name}>{shortName(emp.name)}</span>
                         </div>
                         {activeApps.length > 0 && (
                           <div className="flex gap-0.5 flex-wrap mt-0.5 pr-7">
@@ -599,8 +623,8 @@ const SpreadsheetGrid = () => {
 
                       {/* Totals column - sticky left, solid background to prevent bleed */}
                       <td
-                        className="sticky left-0 z-10 text-center px-1.5 py-1 font-bold text-primary border-r-2 border-border"
-                        style={{ minWidth: 64, backgroundColor: 'hsl(var(--primary) / 0.12)' }}
+                        className="sticky left-0 z-10 text-center px-1 py-1 font-bold text-primary border-r-2 border-border bg-muted"
+                        style={{ minWidth: 64 }}
                       >
                         {total > 0 ? total : <span className="text-muted-foreground/30">0</span>}
                       </td>
@@ -611,7 +635,7 @@ const SpreadsheetGrid = () => {
                       const appTotal = empAppMonthTotal(emp.id, app.id);
                       return (
                         <tr key={`${emp.id}-${app.id}`} className="border-b border-border/20" style={{ backgroundColor: c.cellBg }}>
-                          <td className="sticky right-0 z-10 px-2 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: 158 }}>
+                          <td className="sticky right-0 z-10 px-1.5 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: repColMin }}>
                             <div className="flex items-center gap-2 pr-8">
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: c.bg, color: c.text }}>
                                 {app.name}
@@ -632,7 +656,7 @@ const SpreadsheetGrid = () => {
                               </td>
                             );
                           })}
-                          <td className="sticky left-0 z-10 text-center px-1.5 py-1 font-bold border-r-2 border-border text-[10px]" style={{ backgroundColor: c.cellBg, color: c.val, minWidth: 64 }}>
+                          <td className="sticky left-0 z-10 text-center px-1 py-1 font-bold border-r-2 border-border text-[10px] bg-muted" style={{ color: c.val, minWidth: 64 }}>
                             {appTotal > 0 ? appTotal : '—'}
                           </td>
                         </tr>
@@ -644,8 +668,8 @@ const SpreadsheetGrid = () => {
 
               {/* Footer totals */}
               <tr className="border-t-2 border-border font-semibold">
-                <td className="sticky right-0 z-10 px-2 py-1.5 text-xs font-bold border-l-2 border-border text-foreground"
-                  style={{ backgroundColor: 'hsl(var(--muted))', minWidth: 158 }}>
+                <td className="sticky right-0 z-10 px-1.5 py-1.5 text-xs font-bold border-l-2 border-border text-foreground bg-muted"
+                  style={{ minWidth: repColMin }}>
                   الإجمالي
                 </td>
                 {dayArr.map(d => {
@@ -658,8 +682,8 @@ const SpreadsheetGrid = () => {
                     </td>
                   );
                 })}
-                <td className="sticky left-0 z-10 text-center px-1.5 py-1.5 font-bold text-xs text-primary border-r-2 border-border"
-                  style={{ backgroundColor: 'hsl(var(--primary) / 0.2)', minWidth: 64 }}>
+                <td className="sticky left-0 z-10 text-center px-1.5 py-1.5 font-bold text-xs text-primary border-r-2 border-border bg-muted"
+                  style={{ minWidth: 64 }}>
                   {sortedEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
                 </td>
               </tr>
@@ -667,6 +691,38 @@ const SpreadsheetGrid = () => {
           </table>
         )}
       </div>
+
+      {apps.length > 0 && (
+        <div className="flex flex-col gap-2 pt-3 flex-shrink-0 border-t border-border/60 mt-1">
+          <p className="text-xs font-semibold text-foreground">تصفية المنصات</p>
+          <p className="text-[10px] text-muted-foreground -mt-1">اختر منصة لعرض طلباتها فقط، أو «كل المنصات» لعرض الجميع.</p>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setPlatformFilter('all')}
+              className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${platformFilter === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card border-border hover:bg-muted/50'}`}
+            >
+              كل المنصات
+            </button>
+            {apps.map(app => {
+              const c = getAppColor(appColorsList, app.name);
+              const active = platformFilter === app.id;
+              return (
+                <button
+                  key={`plat-${app.id}`}
+                  type="button"
+                  onClick={() => setPlatformFilter(app.id)}
+                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors max-w-[10rem] truncate ${active ? 'border-primary ring-1 ring-primary/30' : 'border-border/70 hover:border-border'}`}
+                  style={active ? { backgroundColor: c.bg, color: c.text, borderColor: c.bg } : { borderColor: 'hsl(var(--border))' }}
+                  title={app.name}
+                >
+                  {app.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {cellPopover && (
         <CellPopover
@@ -988,7 +1044,7 @@ const MonthSummary = () => {
 // ─── Page ────────────────────────────────────────────────────────────
 const Orders = () => {
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0" dir="rtl">
+    <div className="flex flex-col gap-3 w-full" dir="rtl">
       <div className="flex-shrink-0">
         <nav className="page-breadcrumb">
           <span>الرئيسية</span>
@@ -1000,13 +1056,13 @@ const Orders = () => {
         </h1>
       </div>
 
-      <Tabs defaultValue="grid" dir="rtl" className="flex-1 flex flex-col min-h-0">
+      <Tabs defaultValue="grid" dir="rtl" className="w-full">
         <TabsList className="flex-shrink-0">
           <TabsTrigger value="grid">📊 Grid الشهري</TabsTrigger>
           <TabsTrigger value="summary">ملخص الشهر</TabsTrigger>
         </TabsList>
-        <TabsContent value="grid" className="mt-4 flex-1 flex flex-col min-h-0"><SpreadsheetGrid /></TabsContent>
-        <TabsContent value="summary" className="mt-4 overflow-auto"><MonthSummary /></TabsContent>
+        <TabsContent value="grid" className="mt-4 outline-none"><SpreadsheetGrid /></TabsContent>
+        <TabsContent value="summary" className="mt-4 overflow-x-auto outline-none"><MonthSummary /></TabsContent>
       </Tabs>
     </div>
   );
