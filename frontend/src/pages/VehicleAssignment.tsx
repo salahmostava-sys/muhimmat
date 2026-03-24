@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
+import { vehicleService } from '@/services/vehicleService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
@@ -79,7 +79,7 @@ const AssignmentFormModal = ({
       return toast({ title: 'يرجى اختيار المركبة والمندوب', variant: 'destructive' });
     setSaving(true);
     const startAt = new Date(form.start_at);
-    const { error } = await supabase.from('vehicle_assignments').insert({
+    const { error } = await vehicleService.createAssignment({
       vehicle_id: form.vehicle_id,
       employee_id: form.employee_id,
       start_date: format(startAt, 'yyyy-MM-dd'),
@@ -196,10 +196,10 @@ const ReturnModal = ({
     if (!assignment) return;
     setSaving(true);
     const rt = new Date(returnedAt);
-    const { error } = await supabase.from('vehicle_assignments').update({
+    const { error } = await vehicleService.updateAssignment(assignment.id, {
       returned_at: rt.toISOString(),
       end_date: format(rt, 'yyyy-MM-dd'),
-    }).eq('id', assignment.id);
+    });
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
     toast({ title: '✅ تم تسجيل الإعادة بنجاح' });
@@ -261,13 +261,9 @@ const VehicleAssignment = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [assignRes, vehicleRes, empRes] = await Promise.all([
-      supabase
-        .from('vehicle_assignments')
-        .select('*, vehicles(plate_number, type), employees(name)')
-        .order('created_at', { ascending: false })
-        .limit(200),
-      supabase.from('vehicles').select('id, plate_number, type, brand, model, status').order('plate_number'),
-      supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
+      vehicleService.getAssignmentsWithRelations(200),
+      vehicleService.getAll(),
+      vehicleService.getActiveEmployees(),
     ]);
     if (!assignRes.error && assignRes.data) setAssignments(assignRes.data as Assignment[]);
     if (!vehicleRes.error && vehicleRes.data) setVehicles(vehicleRes.data as Vehicle[]);
