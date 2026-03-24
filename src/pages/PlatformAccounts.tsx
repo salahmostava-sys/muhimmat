@@ -123,12 +123,12 @@ const PlatformAccounts = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    const [appsRes, empRes, accRes, assignRes] = await Promise.all([
-      supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
-      supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
-      supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
-      supabase.from('account_assignments').select('*').is('end_date', null),
-    ]);
+      const [appsRes, empRes, accRes, assignRes] = await Promise.all([
+        supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
+        supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
+        (supabase as any).from('platform_accounts').select('*').order('created_at', { ascending: false }),
+        (supabase as any).from('account_assignments').select('*').is('end_date', null),
+      ]);
 
     const appsData: App[] = (appsRes.data ?? []) as App[];
     const empData: Employee[] = (empRes.data ?? []) as Employee[];

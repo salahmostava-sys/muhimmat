@@ -946,8 +946,8 @@ const Salaries = () => {
           va = a.platformOrders[sortField] || 0;
           vb = b.platformOrders[sortField] || 0;
         } else {
-          va = (a as Record<string, unknown>)[sortField] || 0;
-          vb = (b as Record<string, unknown>)[sortField] || 0;
+          va = (a as unknown as Record<string, unknown>)[sortField] || 0;
+          vb = (b as unknown as Record<string, unknown>)[sortField] || 0;
         }
     }
     if (va < vb) return sortDir === 'asc' ? -1 : 1;
