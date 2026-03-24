@@ -10,11 +10,13 @@ import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
 type Employee = { id: string; name: string; salary_type: string; status: string; sponsorship_status: string | null };
-type App = { id: string; name: string; name_en: string | null };
+type App = { id: string; name: string; name_en: string | null; logo_url?: string | null };
 type DailyData = Record<string, number>;
 type AppTargetRow = { app_id: string; target_orders: number };
 
@@ -153,9 +155,8 @@ const SpreadsheetGrid = () => {
   const [saving, setSaving] = useState(false);
   const [expandedEmp, setExpandedEmp] = useState<Set<string>>(new Set());
   const [cellPopover, setCellPopover] = useState<PopoverState | null>(null);
-  const [sortField, setSortField] = useState<'name' | 'total' | `app:${string}`>('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [platformFilter, setPlatformFilter] = useState<'all' | string>('all');
+  const [appEmployeeIds, setAppEmployeeIds] = useState<Record<string, Set<string>>>({});
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [lockingMonth, setLockingMonth] = useState(false);
   const canEditMonth = permissions.can_edit && !isMonthLocked;
@@ -165,10 +166,19 @@ const SpreadsheetGrid = () => {
     Promise.all([
       orderService.getActiveEmployees(),
       orderService.getActiveApps(),
-    ]).then(([empRes, appRes]) => {
+      supabase.from('employee_apps').select('employee_id, app_id'),
+    ]).then(([empRes, appRes, empAppsRes]) => {
       if (!isMounted) return;
       if (empRes.data) setEmployees(empRes.data as Employee[]);
       if (appRes.data) setApps(appRes.data as App[]);
+      if (empAppsRes.data) {
+        const map: Record<string, Set<string>> = {};
+        for (const row of empAppsRes.data) {
+          if (!map[row.app_id]) map[row.app_id] = new Set();
+          map[row.app_id].add(row.employee_id);
+        }
+        setAppEmployeeIds(map);
+      }
     });
     return () => { isMounted = false; };
   }, []);
@@ -180,7 +190,6 @@ const SpreadsheetGrid = () => {
       if (!isMounted) return;
       const d: DailyData = {};
       rows?.forEach(r => {
-        if (platformFilter !== 'all' && r.app_id !== platformFilter) return;
         const day = new Date(r.date + 'T00:00:00').getDate();
         d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
       });
@@ -188,7 +197,7 @@ const SpreadsheetGrid = () => {
       setLoading(false);
     });
     return () => { isMounted = false; };
-  }, [year, month, platformFilter]);
+  }, [year, month]);
 
   useEffect(() => {
     let isMounted = true;
@@ -202,7 +211,15 @@ const SpreadsheetGrid = () => {
     };
   }, [year, month]);
 
-  const filteredEmployees = employees.filter(emp => emp.name.includes(search));
+  const baseEmployees = useMemo(() => {
+    if (platformFilter === 'all') return employees;
+    return employees.filter(e => appEmployeeIds[platformFilter]?.has(e.id));
+  }, [employees, platformFilter, appEmployeeIds]);
+
+  const filteredEmployees = useMemo(
+    () => baseEmployees.filter(emp => emp.name.includes(search)),
+    [baseEmployees, search]
+  );
   const visibleApps = platformFilter === 'all' ? apps : apps.filter(a => a.id === platformFilter);
   const days = getDaysInMonth(year, month);
   const dayArr = Array.from({ length: days }, (_, i) => i + 1);
@@ -214,51 +231,11 @@ const SpreadsheetGrid = () => {
   const empMonthTotal = useCallback((empId: string) => dayArr.reduce((s, d) => s + empDayTotal(empId, d), 0), [dayArr, empDayTotal]);
   const empAppMonthTotal = useCallback((empId: string, appId: string) => dayArr.reduce((s, d) => s + getVal(empId, appId, d), 0), [dayArr, getVal]);
 
-  const sortedEmployees = useMemo(() => {
-    const sorted = [...filteredEmployees].sort((a, b) => {
-      let aVal: number | string = '';
-      let bVal: number | string = '';
-      if (sortField === 'name') {
-        aVal = a.name;
-        bVal = b.name;
-      } else if (sortField === 'total') {
-        aVal = empMonthTotal(a.id);
-        bVal = empMonthTotal(b.id);
-      } else {
-        const appId = sortField.replace('app:', '');
-        aVal = empAppMonthTotal(a.id, appId);
-        bVal = empAppMonthTotal(b.id, appId);
-      }
-
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        const cmp = aVal.localeCompare(bVal, 'ar');
-        return sortDir === 'asc' ? cmp : -cmp;
-      }
-      const cmp = Number(aVal) - Number(bVal);
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-    return sorted;
-  }, [filteredEmployees, sortField, sortDir, empMonthTotal, empAppMonthTotal]);
-
   const monthGrandTotal = useMemo(
-    () => sortedEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0),
-    [sortedEmployees, empMonthTotal]
+    () => filteredEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0),
+    [filteredEmployees, empMonthTotal]
   );
   const monthDailyAvg = days > 0 ? Math.round(monthGrandTotal / days) : 0;
-
-  const handleSort = (field: 'name' | 'total' | `app:${string}`) => {
-    if (sortField === field) {
-      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDir('asc');
-    }
-  };
-
-  const SortIcon = ({ field }: { field: 'name' | 'total' | `app:${string}` }) => {
-    if (sortField !== field) return <span className="text-muted-foreground/40 text-[10px] mr-0.5">⇅</span>;
-    return <span className="text-[10px] mr-0.5">{sortDir === 'asc' ? '↑' : '↓'}</span>;
-  };
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => { if (month === 12) { setMonth(1); setYear(y => y + 1); } else setMonth(m => m + 1); };
@@ -397,6 +374,7 @@ const SpreadsheetGrid = () => {
     toast({ title: '✅ تم قفل الشهر بنجاح' });
   };
 
+  const seqColMin = 36;
   const repColMin = 132;
 
   return (
@@ -429,7 +407,7 @@ const SpreadsheetGrid = () => {
           <span className="h-3 w-px bg-border" aria-hidden />
           <span className="whitespace-nowrap">
             <span className="text-muted-foreground">مناديب:</span>{' '}
-            <span className="font-semibold tabular-nums text-foreground">{sortedEmployees.length}</span>
+            <span className="font-semibold tabular-nums text-foreground">{filteredEmployees.length}</span>
           </span>
           {platformFilter !== 'all' && apps.find(a => a.id === platformFilter) && (
             <>
@@ -440,6 +418,55 @@ const SpreadsheetGrid = () => {
             </>
           )}
         </div>
+
+        {apps.length > 0 && (
+          <>
+            <span className="hidden lg:inline text-border mx-0.5 select-none">|</span>
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0 max-w-full lg:max-w-[min(100%,42rem)]">
+              <span className="text-[10px] text-muted-foreground shrink-0">المنصات:</span>
+              <button
+                type="button"
+                onClick={() => setPlatformFilter('all')}
+                className={cn(
+                  'px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors leading-tight shrink-0',
+                  platformFilter === 'all'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                )}
+              >
+                الكل ({employees.length})
+              </button>
+              {apps.map(app => {
+                const count = appEmployeeIds[app.id]
+                  ? employees.filter(e => appEmployeeIds[app.id]?.has(e.id)).length
+                  : 0;
+                const active = platformFilter === app.id;
+                const c = getAppColor(appColorsList, app.name);
+                return (
+                  <button
+                    type="button"
+                    key={app.id}
+                    onClick={() => setPlatformFilter(active ? 'all' : app.id)}
+                    className={cn(
+                      'flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors max-w-[150px] leading-tight',
+                      active
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
+                    )}
+                    style={active ? { backgroundColor: c.bg, color: c.text, borderColor: c.bg } : undefined}
+                    title={app.name}
+                  >
+                    {app.logo_url && (
+                      <img src={app.logo_url} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" alt="" />
+                    )}
+                    <span className="truncate">{app.name}</span>
+                    <span className="shrink-0">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         <div className="flex items-center gap-1.5 mr-auto shrink-0">
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
@@ -477,28 +504,8 @@ const SpreadsheetGrid = () => {
       <p className="text-[10px] leading-snug text-muted-foreground flex-shrink-0">
         {isMonthLocked
           ? '🔒 هذا الشهر مقفول: كل الخلايا للقراءة فقط'
-          : '💡 انقر على خلية اليوم لإدخال الطلبات — السهم بجانب المندوب لعرض تفاصيل المنصات — تصفية المنصات أسفل الصفحة'}
+          : '💡 انقر على خلية اليوم لإدخال الطلبات — السهم بجانب المندوب لعرض تفاصيل المنصات — اختر المنصة من الشريط أعلاه'}
       </p>
-
-      <div className="flex items-center gap-1 flex-wrap text-[10px] flex-shrink-0">
-        <span className="text-muted-foreground ml-1">ترتيب:</span>
-        <button type="button" onClick={() => handleSort('name')} className="px-2 py-0.5 rounded border border-border/60 hover:bg-muted/30">
-          اسم المندوب <SortIcon field="name" />
-        </button>
-        <button type="button" onClick={() => handleSort('total')} className="px-2 py-0.5 rounded border border-border/60 hover:bg-muted/30">
-          إجمالي الطلبات <SortIcon field="total" />
-        </button>
-        {visibleApps.map(app => (
-          <button
-            key={app.id}
-            type="button"
-            onClick={() => handleSort(`app:${app.id}`)}
-            className="px-2 py-0.5 rounded border border-border/60 hover:bg-muted/30"
-          >
-            {app.name} <SortIcon field={`app:${app.id}`} />
-          </button>
-        ))}
-      </div>
 
       {/* جدول: تمرير أفقي فقط؛ التمرير العمودي للصفحة بالكامل */}
       <div className="bg-card rounded-xl shadow-card overflow-x-auto w-full">
@@ -507,14 +514,18 @@ const SpreadsheetGrid = () => {
             <Loader2 size={20} className="animate-spin" /> جاري التحميل...
           </div>
         ) : (
-          <table ref={tableRef} className="border-collapse text-[11px] leading-tight" style={{ minWidth: `${repColMin + days * 36 + 64}px`, width: '100%' }}>
+          <table ref={tableRef} className="border-collapse text-[11px] leading-tight" style={{ minWidth: `${seqColMin + repColMin + days * 36 + 64}px`, width: '100%' }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-muted border-b-2 border-border">
                 <th
-                  onClick={() => handleSort('name')}
-                  className="sticky right-0 z-30 bg-muted text-right px-1.5 py-1.5 font-semibold text-foreground border-l-2 border-border cursor-pointer"
-                  style={{ minWidth: repColMin }}>
-                  المندوب / المنصة <SortIcon field="name" />
+                  className="sticky right-0 z-[32] bg-muted text-center px-0.5 py-1.5 font-semibold text-muted-foreground border-l border-border"
+                  style={{ minWidth: seqColMin, width: seqColMin }}>
+                  #
+                </th>
+                <th
+                  className="sticky z-[31] bg-muted text-right px-1.5 py-1.5 font-semibold text-foreground border-l-2 border-border"
+                  style={{ right: seqColMin, minWidth: repColMin }}>
+                  المندوب / المنصة
                 </th>
                 {dayArr.map(d => {
                   const dow = new Date(year, month - 1, d).getDay();
@@ -531,18 +542,17 @@ const SpreadsheetGrid = () => {
                   );
                 })}
                 <th
-                  onClick={() => handleSort('total')}
-                  className="sticky left-0 z-30 text-center py-1.5 font-bold text-primary bg-muted border-r-2 border-border cursor-pointer"
+                  className="sticky left-0 z-30 text-center py-1.5 font-bold text-primary bg-muted border-r-2 border-border"
                   style={{ minWidth: 64 }}>
-                  المجموع <SortIcon field="total" />
+                  المجموع
                 </th>
               </tr>
             </thead>
 
             <tbody>
-              {sortedEmployees.length === 0 ? (
-                <tr><td colSpan={days + 2} className="text-center py-12 text-muted-foreground">لا يوجد مناديب</td></tr>
-              ) : sortedEmployees.map((emp, idx) => {
+              {filteredEmployees.length === 0 ? (
+                <tr><td colSpan={days + 3} className="text-center py-12 text-muted-foreground">لا يوجد مناديب</td></tr>
+              ) : filteredEmployees.map((emp, idx) => {
                 const activeApps = getActiveApps(emp.id);
                 const isExpanded = expandedEmp.has(emp.id);
                 const total = empMonthTotal(emp.id);
@@ -552,9 +562,20 @@ const SpreadsheetGrid = () => {
                   <React.Fragment key={emp.id}>
                     <tr className={`border-b border-border/40 select-none ${isExpanded ? 'border-b-0' : ''}`}>
                       <td
-                        className="sticky right-0 z-10 px-1.5 py-1 border-l-2 border-border cursor-pointer hover:brightness-[0.98] transition-[filter] dark:hover:brightness-110"
+                        className="sticky right-0 z-[12] text-center px-0.5 py-1 border-l border-border tabular-nums text-muted-foreground font-medium"
                         style={{
                           backgroundColor: isExpanded ? 'hsl(var(--muted))' : rowBg,
+                          minWidth: seqColMin,
+                          width: seqColMin,
+                        }}
+                      >
+                        {idx + 1}
+                      </td>
+                      <td
+                        className="sticky z-[11] px-1.5 py-1 border-l-2 border-border cursor-pointer hover:brightness-[0.98] transition-[filter] dark:hover:brightness-110"
+                        style={{
+                          backgroundColor: isExpanded ? 'hsl(var(--muted))' : rowBg,
+                          right: seqColMin,
                           minWidth: repColMin,
                         }}
                         onClick={() => activeApps.length > 0 && toggleExpand(emp.id)}
@@ -635,7 +656,8 @@ const SpreadsheetGrid = () => {
                       const appTotal = empAppMonthTotal(emp.id, app.id);
                       return (
                         <tr key={`${emp.id}-${app.id}`} className="border-b border-border/20" style={{ backgroundColor: c.cellBg }}>
-                          <td className="sticky right-0 z-10 px-1.5 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, minWidth: repColMin }}>
+                          <td className="sticky right-0 z-[12] border-l border-border" style={{ backgroundColor: c.cellBg, minWidth: seqColMin, width: seqColMin }} aria-hidden />
+                          <td className="sticky z-[11] px-1.5 py-1 border-l-2 border-border" style={{ backgroundColor: c.cellBg, right: seqColMin, minWidth: repColMin }}>
                             <div className="flex items-center gap-2 pr-8">
                               <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: c.bg, color: c.text }}>
                                 {app.name}
@@ -668,12 +690,16 @@ const SpreadsheetGrid = () => {
 
               {/* Footer totals */}
               <tr className="border-t-2 border-border font-semibold">
-                <td className="sticky right-0 z-10 px-1.5 py-1.5 text-xs font-bold border-l-2 border-border text-foreground bg-muted"
-                  style={{ minWidth: repColMin }}>
+                <td className="sticky right-0 z-[12] text-center px-0.5 py-1.5 border-l border-border text-muted-foreground bg-muted"
+                  style={{ minWidth: seqColMin, width: seqColMin }}>
+                  —
+                </td>
+                <td className="sticky z-[11] px-1.5 py-1.5 text-xs font-bold border-l-2 border-border text-foreground bg-muted"
+                  style={{ right: seqColMin, minWidth: repColMin }}>
                   الإجمالي
                 </td>
                 {dayArr.map(d => {
-                  const dayTotal = sortedEmployees.reduce((s, e) => s + empDayTotal(e.id, d), 0);
+                  const dayTotal = filteredEmployees.reduce((s, e) => s + empDayTotal(e.id, d), 0);
                   const isToday = d === today;
                   return (
                     <td key={d} className={`text-center px-0.5 py-1.5 font-bold border-l border-border/40 ${isToday ? 'bg-primary/10 text-primary' : 'text-foreground'}`}
@@ -684,45 +710,13 @@ const SpreadsheetGrid = () => {
                 })}
                 <td className="sticky left-0 z-10 text-center px-1.5 py-1.5 font-bold text-xs text-primary border-r-2 border-border bg-muted"
                   style={{ minWidth: 64 }}>
-                  {sortedEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
+                  {filteredEmployees.reduce((s, e) => s + empMonthTotal(e.id), 0)}
                 </td>
               </tr>
             </tbody>
           </table>
         )}
       </div>
-
-      {apps.length > 0 && (
-        <div className="flex flex-col gap-2 pt-3 flex-shrink-0 border-t border-border/60 mt-1">
-          <p className="text-xs font-semibold text-foreground">تصفية المنصات</p>
-          <p className="text-[10px] text-muted-foreground -mt-1">اختر منصة لعرض طلباتها فقط، أو «كل المنصات» لعرض الجميع.</p>
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPlatformFilter('all')}
-              className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors ${platformFilter === 'all' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-card border-border hover:bg-muted/50'}`}
-            >
-              كل المنصات
-            </button>
-            {apps.map(app => {
-              const c = getAppColor(appColorsList, app.name);
-              const active = platformFilter === app.id;
-              return (
-                <button
-                  key={`plat-${app.id}`}
-                  type="button"
-                  onClick={() => setPlatformFilter(app.id)}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors max-w-[10rem] truncate ${active ? 'border-primary ring-1 ring-primary/30' : 'border-border/70 hover:border-border'}`}
-                  style={active ? { backgroundColor: c.bg, color: c.text, borderColor: c.bg } : { borderColor: 'hsl(var(--border))' }}
-                  title={app.name}
-                >
-                  {app.name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {cellPopover && (
         <CellPopover

@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { differenceInDays, parseISO } from 'date-fns';
 import { employeeTierService } from '@/services/employeeTierService';
+import { cn } from '@/lib/utils';
 
 /* ─── Types ─── */
 type Employee = { id: string; name: string; sponsorship_status: string | null; };
@@ -369,16 +370,21 @@ const EmployeeTiers = () => {
     return days >= 0 && days <= 30;
   }).length;
 
-  const ThSort = ({ field, label }: { field: string; label: string }) => (
-    <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer select-none hover:text-foreground transition-colors border-b border-border/50 text-center"
-      onClick={() => handleSort(field)}>
+  const ThSort = ({ field, label, className }: { field: string; label: string; className?: string }) => (
+    <th
+      className={cn(
+        'px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer select-none hover:text-foreground transition-colors border-b border-border/50 text-center',
+        className
+      )}
+      onClick={() => handleSort(field)}
+    >
       {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
     </th>
   );
 
   /* ══════════════ RENDER ══════════════ */
   return (
-    <div className="space-y-5" dir="rtl">
+    <div className="flex flex-col flex-1 min-h-0 w-full gap-5" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
@@ -429,22 +435,30 @@ const EmployeeTiers = () => {
         <span className="text-xs text-muted-foreground mr-auto">{filtered.length} سجل</span>
       </div>
 
-      {/* Table */}
-      <div className="bg-card border border-border/50 rounded-xl shadow-sm">
+      {/* Table — يملأ المساحة المتبقية من ارتفاع الصفحة */}
+      <div className="flex-1 flex flex-col min-h-0 w-full bg-card border border-border/50 rounded-xl shadow-sm">
         {loading ? (
-          <div className="h-48 flex items-center justify-center text-muted-foreground gap-2">
+          <div className="flex-1 min-h-[12rem] flex items-center justify-center text-muted-foreground gap-2">
             <Loader2 size={18} className="animate-spin" /> جارٍ التحميل...
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
+          <div className="flex-1 min-h-0 overflow-auto w-full">
+            <table className="w-full min-w-[920px] text-sm border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[13%]" />
+                <col className="w-[22%]" />
+                <col className="w-[14%]" />
+                <col className="w-[12%]" />
+                <col className="w-[29%]" />
+                <col className="w-[10%]" />
+              </colgroup>
               <thead className="bg-muted/50">
                 <tr>
                   <ThSort field="sim_number" label="رقم الشريحة" />
                   <ThSort field="employee_name" label="المندوب" />
                   <ThSort field="package_type" label="نوع الباقة" />
                   <ThSort field="delivery_status" label="الحالة" />
-                  <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 text-center">المنصات</th>
+                  <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground border-b border-border/50 text-center min-w-0">المنصات</th>
                   <th className="px-3 py-2.5 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 text-center">إجراءات</th>
                 </tr>
               </thead>
@@ -453,45 +467,47 @@ const EmployeeTiers = () => {
                 {addingRow && (
                   <tr className="border-b border-border/30 bg-primary/5">
                     {/* sim_number */}
-                    <td className="px-2 py-2">
+                    <td className="px-2 py-2 min-w-0 align-top">
                       <Input
                         value={newRow.sim_number || ''}
                         onChange={e => setNewRow(p => ({ ...p, sim_number: e.target.value }))}
                         placeholder="رقم الشريحة"
-                        className="h-8 text-xs w-32"
+                        className="h-8 text-xs w-full min-w-0"
                         dir="ltr"
                       />
                     </td>
                     {/* employee */}
-                    <td className="px-2 py-2">
-                      <EmployeeSelect employees={employees} value={newRow.employee_id || ''} onChange={id => setNewRow(p => ({ ...p, employee_id: id }))} />
+                    <td className="px-2 py-2 min-w-0 align-top">
+                      <div className="w-full min-w-0">
+                        <EmployeeSelect employees={employees} value={newRow.employee_id || ''} onChange={id => setNewRow(p => ({ ...p, employee_id: id }))} />
+                      </div>
                     </td>
                     {/* package */}
-                    <td className="px-2 py-2">
+                    <td className="px-2 py-2 min-w-0 align-top">
                       <Input
                         value={newRow.package_type || ''}
                         onChange={e => setNewRow(p => ({ ...p, package_type: e.target.value }))}
                         placeholder="نوع الباقة"
-                        className="h-8 text-xs w-32"
+                        className="h-8 text-xs w-full min-w-0"
                       />
                     </td>
                     {/* status */}
-                    <td className="px-2 py-2">
+                    <td className="px-2 py-2 min-w-0 align-top">
                       <select
                         value={newRow.delivery_status || STATUS_DELIVERED}
                         onChange={e => setNewRow(p => ({ ...p, delivery_status: e.target.value }))}
-                        className="h-8 text-xs rounded-lg border border-border/50 bg-background px-2 w-28"
+                        className="h-8 text-xs rounded-lg border border-border/50 bg-background px-2 w-full min-w-0 max-w-full"
                       >
                         <option value={STATUS_DELIVERED}>مسلّمة</option>
                           <option value={STATUS_NOT_DELIVERED}>غير مسلم</option>
                       </select>
                     </td>
                     {/* apps */}
-                    <td className="px-2 py-2 min-w-[160px]">
+                    <td className="px-2 py-2 min-w-0 align-top">
                       <AppMultiSelect apps={apps} selected={newRow.app_ids || []} onChange={ids => setNewRow(p => ({ ...p, app_ids: ids }))} />
                     </td>
                     {/* actions */}
-                    <td className="px-2 py-2 text-center">
+                    <td className="px-2 py-2 text-center align-top whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         <Button size="sm" onClick={saveNew} disabled={savingNew || !perms.can_edit} className="h-7 px-2 text-xs gap-1">
                           {savingNew ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
@@ -523,18 +539,19 @@ const EmployeeTiers = () => {
                     return (
                       <tr key={tier.id} className={`border-b border-border/30 hover:bg-muted/10 transition-colors ${dirty ? 'bg-primary/5' : ''}`}>
                         {/* sim_number */}
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-2 min-w-0 align-top">
                           <Input
                             value={row.sim_number || ''}
                             onChange={e => patchRow(tier.id, { sim_number: e.target.value })}
-                            className="h-8 text-xs w-32 font-mono"
+                            className="h-8 text-xs w-full min-w-0 font-mono"
                             dir="ltr"
                             placeholder="—"
                           />
                         </td>
 
                         {/* employee */}
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-2 min-w-0 align-top">
+                          <div className="w-full min-w-0">
                           <EmployeeSelect
                             employees={employees}
                             value={row.employee_id}

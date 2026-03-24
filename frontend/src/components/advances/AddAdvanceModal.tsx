@@ -156,10 +156,6 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
               <Input type="number" min={1} max={36} value={form.totalInstallments} onChange={e => setField('totalInstallments', e.target.value)} />
             </F>
 
-            <F label="قيمة القسط الشهري (ر.س)" required>
-              <Input type="number" value={form.monthlyAmount} onChange={e => setField('monthlyAmount', e.target.value)} />
-            </F>
-
             {!editId && (
               <F label="شهر أول خصم (YYYY-MM)" required error={errors.firstDeductionMonth}>
                 <Input type="month" value={form.firstDeductionMonth} onChange={e => setField('firstDeductionMonth', e.target.value)} dir="ltr" />

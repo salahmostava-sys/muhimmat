@@ -94,20 +94,23 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    amount: '', monthly_amount: '', disbursement_date: format(new Date(), 'yyyy-MM-dd'),
+    amount: '', disbursement_date: format(new Date(), 'yyyy-MM-dd'),
     first_deduction_month: format(new Date(), 'yyyy-MM'), note: '',
   });
 
-  const projectedInstallments = form.amount && form.monthly_amount
-    ? Math.ceil(parseFloat(form.amount) / parseFloat(form.monthly_amount)) : 0;
+  /** قسط واحد بكامل المبلغ (بدون حقل قسط شهري منفصل) */
+  const projectedInstallments = 1;
 
   const saveAdvance = async () => {
-    if (!form.amount || !form.monthly_amount || !form.disbursement_date || !form.first_deduction_month)
+    if (!form.amount || !form.disbursement_date || !form.first_deduction_month)
       return toast({ title: 'أكمل الحقول المطلوبة', variant: 'destructive' });
+    const amt = parseFloat(form.amount);
+    if (!Number.isFinite(amt) || amt <= 0)
+      return toast({ title: 'أدخل مبلغاً صحيحاً', variant: 'destructive' });
     setSaving(true);
     const payload: AdvancePayload = {
-      employee_id: employeeId, amount: parseFloat(form.amount),
-      monthly_amount: parseFloat(form.monthly_amount), total_installments: projectedInstallments,
+      employee_id: employeeId, amount: amt,
+      monthly_amount: amt, total_installments: projectedInstallments,
       disbursement_date: form.disbursement_date, first_deduction_month: form.first_deduction_month,
       note: form.note || null, status: 'active',
     };
@@ -128,15 +131,10 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
   return (
     <div className="border-b border-border/50 bg-primary/5 rounded-lg animate-in fade-in duration-150 px-3 py-3">
       <p className="text-xs font-medium text-foreground mb-3">إضافة سلفة</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         <div>
           <label className="text-[11px] text-muted-foreground mb-1 block">المبلغ (ر.س) *</label>
           <Input type="number" className="h-7 text-xs" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0" />
-        </div>
-        <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">القسط الشهري (ر.س) *</label>
-          <Input type="number" className="h-7 text-xs" value={form.monthly_amount} onChange={e => setForm(p => ({ ...p, monthly_amount: e.target.value }))} placeholder="0" />
-          {projectedInstallments > 0 && <p className="text-[10px] text-muted-foreground mt-0.5">{projectedInstallments} قسط</p>}
         </div>
         <div>
           <label className="text-[11px] text-muted-foreground mb-1 block">تاريخ الصرف *</label>
@@ -146,7 +144,7 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
           <label className="text-[11px] text-muted-foreground mb-1 block">أول شهر خصم *</label>
           <Input type="month" className="h-7 text-xs" value={form.first_deduction_month} onChange={e => setForm(p => ({ ...p, first_deduction_month: e.target.value }))} dir="ltr" />
         </div>
-        <div className="sm:col-span-4">
+        <div className="sm:col-span-3">
           <label className="text-[11px] text-muted-foreground mb-1 block">ملاحظات</label>
           <Input className="h-7 text-xs" value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="سبب السلفة..." />
         </div>
@@ -270,14 +268,13 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
   const [form, setForm] = useState({
     amount: advance.amount.toString(),
     disbursement_date: advance.disbursement_date,
-    monthly_amount: advance.monthly_amount.toString(),
     first_deduction_month: advance.first_deduction_month,
     status: advance.status as AdvanceStatus,
     note: advance.note || '',
   });
 
   const remaining = parseFloat(form.amount) || 0;
-  const monthly = parseFloat(form.monthly_amount) || 1;
+  const monthly = advance.monthly_amount > 0 ? advance.monthly_amount : 1;
   const projectedInstallments = monthly > 0 ? Math.ceil(remaining / monthly) : 0;
 
   const handleSave = async () => {
@@ -285,7 +282,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
     const payload: Partial<AdvancePayload> = {
       amount: parseFloat(form.amount),
       disbursement_date: form.disbursement_date,
-      monthly_amount: parseFloat(form.monthly_amount),
+      monthly_amount: monthly,
       total_installments: projectedInstallments,
       first_deduction_month: form.first_deduction_month,
       status: form.status,
@@ -323,11 +320,6 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
           <div>
             <label className="text-sm font-medium mb-1 block">تاريخ الصرف</label>
             <Input type="date" value={form.disbursement_date} onChange={e => setForm(p => ({ ...p, disbursement_date: e.target.value }))} />
-          </div>
-          <div>
-            <label className="text-sm font-medium mb-1 block">القسط الشهري (ر.س)</label>
-            <Input type="number" value={form.monthly_amount} onChange={e => setForm(p => ({ ...p, monthly_amount: e.target.value }))} />
-            {form.amount && form.monthly_amount && <p className="text-xs text-muted-foreground mt-1">عدد الأقساط = {projectedInstallments}</p>}
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">أول شهر خصم</label>

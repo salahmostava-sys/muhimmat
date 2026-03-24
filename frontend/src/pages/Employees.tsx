@@ -74,9 +74,9 @@ const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 const ALL_COLUMNS = [
-  { key: 'employee_code',            label: 'كود الموظف',              sortable: true  },
-  { key: 'seq',                      label: '#',                       sortable: false },
-  { key: 'name',                     label: 'الاسم',                   sortable: true  },
+  { key: 'seq',                      label: 'التسلسل',                 sortable: false },
+  { key: 'employee_code',            label: 'الكود',                   sortable: true  },
+  { key: 'name',                     label: 'اسم الموظف',              sortable: true  },
   { key: 'name_en',                  label: 'الاسم (إنجليزي)',         sortable: true  },
   { key: 'national_id',              label: 'رقم الهوية',              sortable: true  },
   { key: 'job_title',                label: 'المسمى الوظيفي',          sortable: true  },

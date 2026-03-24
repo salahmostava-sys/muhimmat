@@ -29,6 +29,7 @@ type ActiveApp = {
   id: string;
   name: string;
   name_en: string | null;
+  logo_url?: string | null;
 };
 
 export const orderService = {
@@ -184,7 +185,7 @@ export const orderService = {
   getActiveApps: async () => {
     const { data, error } = await supabase
       .from('apps')
-      .select('id, name, name_en')
+      .select('id, name, name_en, logo_url')
       .eq('is_active', true)
       .order('name');
     return { data: (data || []) as ActiveApp[], error };
