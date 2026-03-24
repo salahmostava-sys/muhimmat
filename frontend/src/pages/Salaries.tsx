@@ -11,11 +11,13 @@ import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAppColors, AppColorData, CustomColumn } from '@/hooks/useAppColors';
-import { payrollService } from '@/services/payrollService';
+import { payrollService, type PricingRule } from '@/services/payrollService';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
+import { employeeService } from '@/services/employeeService';
+import { salaryDataService } from '@/services/salaryDataService';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -552,6 +554,8 @@ const Salaries = () => {
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [platformColors, setPlatformColors] = useState<Record<string, { header: string; headerText: string; cellBg: string; valueColor: string; focusBorder: string }>>({});
   const [appsWithoutScheme, setAppsWithoutScheme] = useState<string[]>([]);
+  const [appIdByName, setAppIdByName] = useState<Record<string, string>>({});
+  const [pricingRulesByAppId, setPricingRulesByAppId] = useState<Record<string, PricingRule[]>>({});
   // appCustomColumns: appName → CustomColumn[]
   const [appCustomColumns, setAppCustomColumns] = useState<Record<string, CustomColumn[]>>({});
 
@@ -590,56 +594,8 @@ const Salaries = () => {
   useEffect(() => {
     const fetchAllData = async () => {
       setLoadingData(true);
-      const [y, m] = selectedMonth.split('-');
-      const daysInMonth = new Date(parseInt(y), parseInt(m), 0).getDate();
-      const startDate = `${selectedMonth}-01`;
-      const endDate = `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`;
-
-      const [empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes] = await Promise.all([
-        supabase
-          .from('employees')
-          .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone')
-          .eq('status', 'active')
-          .order('name'),
-
-        supabase
-          .from('external_deductions')
-          .select('employee_id, amount')
-          .eq('apply_month', selectedMonth)
-          .eq('approval_status', 'approved'),
-
-        supabase
-          .from('daily_orders')
-          .select('employee_id, app_id, orders_count, apps(name, id)')
-          .gte('date', startDate)
-          .lte('date', endDate),
-
-        // Fetch apps with their assigned scheme (scheme per platform) — include scheme_type & monthly_amount
-        supabase
-          .from('apps')
-          .select('id, name, scheme_id, salary_schemes(id, name, name_en, status, scheme_type, monthly_amount, target_orders, target_bonus, salary_scheme_tiers(id, from_orders, to_orders, price_per_order, tier_order, tier_type, incremental_threshold, incremental_price))')
-          .eq('is_active', true),
-
-        // Fetch attendance for this month (present/late = worked day)
-        supabase
-          .from('attendance')
-          .select('employee_id, status')
-          .gte('date', startDate)
-          .lte('date', endDate)
-          .in('status', ['present', 'late']),
-
-        // Fetch fuel/mileage cost for this month
-        supabase
-          .from('vehicle_mileage')
-          .select('employee_id, fuel_cost')
-          .eq('month_year', selectedMonth),
-      ]);
-
-      // ── Fetch saved salary records for this month (to restore status) ──
-      const { data: savedRecords } = await supabase
-        .from('salary_records')
-        .select('employee_id, is_approved, advance_deduction, net_salary, manual_deduction, attendance_deduction, external_deduction')
-        .eq('month_year', selectedMonth);
+      const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } =
+        await salaryDataService.getMonthlyContext(selectedMonth);
 
       const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
       savedRecords?.forEach(r => {
@@ -648,11 +604,6 @@ const Salaries = () => {
 
       // ── Fetch advance installments via advances → employee_id ──
       // Step 1: get all active/paused advances with total amount for remaining calc
-      const { data: allAdvances } = await supabase
-        .from('advances')
-        .select('id, employee_id, status, amount, monthly_amount')
-        .in('status', ['active', 'paused']);
-
       const advMap: Record<string, number> = {};      // this month's installment deduction
       const advInstIds: Record<string, string[]> = {};
       const deductedInstIds: Record<string, string[]> = {};
@@ -727,9 +678,22 @@ const Salaries = () => {
 
       // ── Build appName→scheme map from apps.scheme_id (scheme per platform) ──
       const appSchemeMap: Record<string, SchemeData | null> = {};
+      const appNameToId: Record<string, string> = {};
       appsWithSchemeRes.data?.forEach((a: any) => {
         appSchemeMap[a.name] = a.salary_schemes ? (a.salary_schemes as SchemeData) : null;
+        appNameToId[a.name] = a.id;
       });
+      setAppIdByName(appNameToId);
+
+      // ── Fetch pricing rules for active apps (fallbacks keep legacy scheme behavior) ──
+      const appIds = Object.values(appNameToId);
+      const { data: rulesData } = await payrollService.getPricingRulesForApps(appIds);
+      const rulesMap: Record<string, PricingRule[]> = {};
+      (rulesData || []).forEach((rule) => {
+        if (!rulesMap[rule.app_id]) rulesMap[rule.app_id] = [];
+        rulesMap[rule.app_id].push(rule);
+      });
+      setPricingRulesByAppId(rulesMap);
 
       // Track which active platforms have no scheme
       const missing = (appsWithSchemeRes.data || [])
@@ -758,6 +722,13 @@ const Salaries = () => {
         platforms.forEach(p => {
           const orders = empOrders[p] || 0;
           platformOrders[p] = orders;
+          const appId = appNameToId[p];
+          const appRules = appId ? (rulesMap[appId] || []) : [];
+          const ruleSalary = payrollService.calculateFromPricingRules(orders, appRules);
+          if (ruleSalary !== null) {
+            platformSalaries[p] = ruleSalary;
+            return;
+          }
 
           const scheme = appSchemeMap[p];
           if (!scheme) { platformSalaries[p] = 0; return; }
@@ -924,19 +895,21 @@ const Salaries = () => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
       const newOrders = { ...r.platformOrders, [platform]: value };
-      // Recalculate salary using proper scheme
-      const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
-      let salary = 0;
-      if (scheme && scheme.salary_scheme_tiers) {
-        salary = payrollService.calculateTierSalary(
-          value,
-          scheme.salary_scheme_tiers,
-          scheme.target_orders,
-          scheme.target_bonus
-        );
-      } else {
-        // No scheme assigned → 0 salary (user needs to assign scheme)
-        salary = 0;
+      const appId = appIdByName[platform];
+      const appRules = appId ? (pricingRulesByAppId[appId] || []) : [];
+      const salaryFromRules = payrollService.calculateFromPricingRules(value, appRules);
+      let salary = salaryFromRules ?? 0;
+      if (salaryFromRules === null) {
+        // Fallback to scheme behavior when pricing_rules are not configured.
+        const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
+        if (scheme && scheme.salary_scheme_tiers) {
+          salary = payrollService.calculateTierSalary(
+            value,
+            scheme.salary_scheme_tiers,
+            scheme.target_orders,
+            scheme.target_bonus
+          );
+        }
       }
       const newSalaries = { ...r.platformSalaries, [platform]: salary };
       const isDirty = r.status !== 'pending' ? true : r.isDirty;
@@ -2180,7 +2153,7 @@ const Salaries = () => {
                             const newCityVal = e.target.value as 'makkah' | 'jeddah';
                             const newCityLabel = newCityVal === 'makkah' ? 'مكة' : 'جدة';
                             updateRow(r.id, { city: newCityLabel });
-                            await (supabase as any).from('employees').update({ city: newCityVal }).eq('id', r.employeeId);
+                            await employeeService.updateCity(r.employeeId, newCityVal);
                           }}
                           className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.city === 'مكة' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400'}`}
                         >
