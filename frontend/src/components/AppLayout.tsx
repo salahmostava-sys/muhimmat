@@ -7,7 +7,6 @@ import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useMobileSidebar, MobileSidebarProvider } from '@/context/MobileSidebarContext';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -115,7 +114,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
 
         {/* ── Glass Header ─────────────────────────────────── */}
         <header
-          className="h-[70px] flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40"
+          className="h-[70px] flex items-center justify-between gap-2 px-4 lg:px-6 sticky top-0 z-40"
           style={{
             background: 'var(--header-glass-bg)',
             backdropFilter: 'blur(12px)',
@@ -124,13 +123,50 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
           }}
         >
 
-          {/* Start: profile + hamburger + breadcrumb */}
-          <div className="flex items-center gap-2 lg:gap-4">
-            {/* ── User profile chip (top-left) ─────────────────────── */}
+          {/* أدوات البحث والإشعارات — في RTL تظهر يمين الشاشة */}
+          <div className="flex items-center gap-1 lg:gap-1.5 min-w-0 flex-shrink">
+            <div className="hidden sm:block">
+              <GlobalSearch />
+            </div>
+
+            <NotificationCenter />
+
+            <button
+              onClick={toggleTheme}
+              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0"
+              style={{ color: 'var(--ds-on-surface-variant)' }}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+            >
+              {isDark
+                ? <Sun size={15} className="text-warning" />
+                : <Moon size={15} />
+              }
+            </button>
+          </div>
+
+          {/* الملف الشخصي + خروج + مسار الصفحة — في RTL تظهر يسار الشاشة (أعلى اليسار) */}
+          <div className="flex items-center gap-2 lg:gap-4 min-w-0 justify-end">
+            <div className="hidden md:flex items-center gap-1.5 text-xs min-w-0" style={{ color: 'var(--ds-on-surface-variant)' }}>
+              <span className="font-medium truncate" style={{ color: 'var(--ds-on-surface-variant)' }}>{projectName}</span>
+              <Sep size={12} className="opacity-40 flex-shrink-0" />
+              <span className="font-semibold truncate" style={{ color: 'var(--ds-on-surface)' }}>{pageTitle}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={toggle}
+              className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0"
+              style={{ color: 'var(--ds-on-surface-variant)' }}
+              aria-label="Toggle sidebar"
+            >
+              <Menu size={18} />
+            </button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="flex items-center gap-2 h-9 px-2 rounded-xl transition-colors"
+                  type="button"
+                  className="flex items-center gap-2 h-9 ps-2 pe-2.5 rounded-xl transition-colors border border-transparent hover:border-[var(--ds-outline-variant)]"
                   style={{ background: 'var(--ds-surface-container)' }}
                 >
                   <div
@@ -139,18 +175,18 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                   >
                     {initials || 'A'}
                   </div>
-                  <div className={`hidden md:flex flex-col items-${isRTL ? 'end' : 'start'} leading-none`}>
-                    <span className="text-xs font-semibold truncate max-w-[120px]" style={{ color: 'var(--ds-on-surface)' }}>
+                  <div className={`hidden sm:flex flex-col items-${isRTL ? 'end' : 'start'} leading-none text-start`}>
+                    <span className="text-xs font-semibold truncate max-w-[100px] lg:max-w-[140px]" style={{ color: 'var(--ds-on-surface)' }}>
                       {displayName || t('systemAdmin')}
                     </span>
                     {roleLabel && (
                       <span className={`text-[10px] font-medium ${roleColor}`}>{roleLabel}</span>
                     )}
                   </div>
-                  <ChevronDown size={12} className="hidden md:block" style={{ color: 'var(--ds-on-surface-variant)' }} />
+                  <ChevronDown size={12} className="hidden sm:block flex-shrink-0" style={{ color: 'var(--ds-on-surface-variant)' }} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuContent align="end" className="w-56" sideOffset={6}>
                 <div className="px-3 py-2.5" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
                   <div className="flex items-center gap-2.5">
                     <div className="min-w-0">
@@ -181,43 +217,6 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <button
-              onClick={toggle}
-              className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-              style={{ color: 'var(--ds-on-surface-variant)' }}
-              aria-label="Toggle sidebar"
-            >
-              <Menu size={18} />
-            </button>
-
-            <div className="hidden md:flex items-center gap-1.5 text-xs" style={{ color: 'var(--ds-on-surface-variant)' }}>
-              <span className="font-medium" style={{ color: 'var(--ds-on-surface-variant)' }}>{projectName}</span>
-              <Sep size={12} className="opacity-40" />
-              <span className="font-semibold" style={{ color: 'var(--ds-on-surface)' }}>{pageTitle}</span>
-            </div>
-          </div>
-
-          {/* End: tools + user profile */}
-          <div className="flex items-center gap-1 lg:gap-1.5">
-            <div className="hidden sm:block">
-              <GlobalSearch />
-            </div>
-
-            <NotificationCenter />
-
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors"
-              style={{ color: 'var(--ds-on-surface-variant)' }}
-              title={isDark ? 'Light mode' : 'Dark mode'}
-            >
-              {isDark
-                ? <Sun size={15} className="text-warning" />
-                : <Moon size={15} />
-              }
-            </button>
-
           </div>
         </header>
 
