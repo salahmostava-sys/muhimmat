@@ -230,9 +230,9 @@ const PlatformAccounts = () => {
 
     let error;
     if (editingAccount) {
-      ({ error } = await supabase.from('platform_accounts').update(payload).eq('id', editingAccount.id));
+      ({ error } = await (supabase as any).from('platform_accounts').update(payload).eq('id', editingAccount.id));
     } else {
-      ({ error } = await supabase.from('platform_accounts').insert(payload));
+      ({ error } = await (supabase as any).from('platform_accounts').insert(payload));
     }
 
     setSavingAccount(false);
