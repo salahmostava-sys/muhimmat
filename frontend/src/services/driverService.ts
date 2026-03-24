@@ -1,13 +1,21 @@
-// Removed 'as any' type assertions and used proper typing
+import { supabase } from '@/integrations/supabase/client';
 
-interface Filters {
-    city: string; // replace 'string' with the actual type if available
-    // ... other properties
-}
+export const driverService = {
+  async update(id: string, payload: Record<string, unknown>) {
+    const { error } = await supabase
+      .from('employees')
+      .update(payload)
+      .eq('id', id);
+    return { error };
+  },
 
-const filters: Filters = { // Ensure to initialize filters correctly
-    city: 'some city', // Example city
-    // ... other properties
+  async delete(id: string) {
+    const { error } = await supabase
+      .from('employees')
+      .delete()
+      .eq('id', id);
+    return { error };
+  },
 };
 
-// Rest of the code continues...
+export default driverService;

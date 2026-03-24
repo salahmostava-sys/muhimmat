@@ -5,7 +5,6 @@ import { Search, Save, Package, Upload, FolderOpen, ChevronLeft, ChevronRight, L
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { supabase } from '@/integrations/supabase/client';
 import { orderService } from '@/services/orderService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
@@ -157,12 +156,8 @@ const SpreadsheetGrid = () => {
   useEffect(() => {
     let isMounted = true;
     Promise.all([
-      supabase.from('employees')
-        .select('id, name, salary_type, status, sponsorship_status')
-        .eq('status', 'active')
-        .not('sponsorship_status', 'in', '("absconded","terminated")')
-        .order('name'),
-      supabase.from('apps').select('id, name, name_en').eq('is_active', true).order('name'),
+      orderService.getActiveEmployees(),
+      orderService.getActiveApps(),
     ]).then(([empRes, appRes]) => {
       if (!isMounted) return;
       if (empRes.data) setEmployees(empRes.data as Employee[]);
@@ -190,14 +185,9 @@ const SpreadsheetGrid = () => {
   useEffect(() => {
     let isMounted = true;
     const my = monthYear(year, month);
-    supabase
-      .from('locked_months')
-      .select('month_year')
-      .eq('month_year', my)
-      .maybeSingle()
-      .then(({ data }) => {
+    orderService.getMonthLockStatus(my).then(({ locked }) => {
         if (!isMounted) return;
-        setIsMonthLocked(!!data);
+        setIsMonthLocked(locked);
       });
     return () => {
       isMounted = false;
@@ -381,12 +371,7 @@ const SpreadsheetGrid = () => {
     const my = monthYear(year, month);
     if (!isPastMonth(year, month) || isMonthLocked) return;
     setLockingMonth(true);
-    const { data: userRes } = await supabase.auth.getUser();
-    const userId = userRes.user?.id ?? null;
-    const { error } = await supabase.from('locked_months').upsert(
-      { month_year: my, locked_at: new Date().toISOString(), locked_by: userId },
-      { onConflict: 'month_year' }
-    );
+    const { error } = await orderService.lockMonth(my);
     setLockingMonth(false);
     if (error) {
       toast({ title: 'فشل قفل الشهر', description: error.message, variant: 'destructive' });

@@ -1,36 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
-const useSignedUrl = (endpoint) => {
-    const [url, setUrl] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+export const extractStoragePath = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  if (!value.startsWith('http')) return value;
+  const marker = '/storage/v1/object/public/';
+  const index = value.indexOf(marker);
+  if (index === -1) return null;
+  const rest = value.slice(index + marker.length);
+  const firstSlash = rest.indexOf('/');
+  if (firstSlash === -1) return null;
+  return rest.slice(firstSlash + 1);
+};
 
-    useEffect(() => {
-        const fetchUrl = async () => {
-            try {
-                setLoading(true);
-                const response = await fetch(endpoint);
-                if (!response.ok) throw new Error('Failed to fetch signed URL');
-                const data = await response.json();
-                setUrl(data.url);
-            } catch (err) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
+export const useSignedUrl = (bucket: string, path: string | null | undefined) => {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
 
-        fetchUrl();
+  useEffect(() => {
+    let isMounted = true;
+    const run = async () => {
+      if (!path) {
+        setSignedUrl(null);
+        return;
+      }
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
+      if (!isMounted) return;
+      if (error) {
+        setSignedUrl(null);
+        return;
+      }
+      setSignedUrl(data.signedUrl);
+    };
+    run();
+    return () => {
+      isMounted = false;
+    };
+  }, [bucket, path]);
 
-        // Cleanup function to prevent state updates if component unmounts
-        return () => {
-            setUrl(null);
-            setLoading(false);
-            setError(null);
-        };
-    }, [endpoint]);
-
-    return { url, loading, error };
+  return signedUrl;
 };
 
 export default useSignedUrl;

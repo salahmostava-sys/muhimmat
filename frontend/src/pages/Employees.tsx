@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import {
   Plus, FolderOpen, Eye, Edit, Trash2,
   ChevronUp, ChevronDown, ChevronsUpDown, Pencil, Check, Loader2,
@@ -26,6 +25,7 @@ import EmployeeProfile from '@/components/employees/EmployeeProfile';
 import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
 import ImportEmployeesModal from '@/components/employees/ImportEmployeesModal';
 import { driverService } from '@/services/driverService';
+import { employeeService } from '@/services/employeeService';
 import { useToast } from '@/hooks/use-toast';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import * as XLSX from '@e965/xlsx';
@@ -307,10 +307,7 @@ const Employees = () => {
   // ── Fetch employees ──
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
-    const { data: rows, error } = await supabase
-      .from('employees')
-      .select('*')
-      .order('name', { ascending: true });
+    const { data: rows, error } = await employeeService.getAll();
     if (!error && rows) {
       setData(rows as Employee[]);
     } else if (error) {

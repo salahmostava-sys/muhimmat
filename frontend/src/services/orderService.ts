@@ -17,6 +17,20 @@ export interface OrderFilter {
   monthYear?: string;
 }
 
+type ActiveEmployee = {
+  id: string;
+  name: string;
+  salary_type: string;
+  status: string;
+  sponsorship_status: string | null;
+};
+
+type ActiveApp = {
+  id: string;
+  name: string;
+  name_en: string | null;
+};
+
 export const orderService = {
   getByDate: async (date: string, filters: Pick<OrderFilter, 'employeeId' | 'appId'> = {}) => {
     let query = supabase
@@ -127,5 +141,43 @@ export const orderService = {
       else saved += chunk.length;
     }
     return { saved, failed };
+  },
+
+  getActiveEmployees: async () => {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id, name, salary_type, status, sponsorship_status')
+      .eq('status', 'active')
+      .not('sponsorship_status', 'in', '("absconded","terminated")')
+      .order('name');
+    return { data: (data || []) as ActiveEmployee[], error };
+  },
+
+  getActiveApps: async () => {
+    const { data, error } = await supabase
+      .from('apps')
+      .select('id, name, name_en')
+      .eq('is_active', true)
+      .order('name');
+    return { data: (data || []) as ActiveApp[], error };
+  },
+
+  getMonthLockStatus: async (month_year: string) => {
+    const { data, error } = await supabase
+      .from('locked_months')
+      .select('month_year')
+      .eq('month_year', month_year)
+      .maybeSingle();
+    return { locked: !!data, error };
+  },
+
+  lockMonth: async (month_year: string) => {
+    const { data: userRes } = await supabase.auth.getUser();
+    const userId = userRes.user?.id ?? null;
+    const { error } = await supabase.from('locked_months').upsert(
+      { month_year, locked_at: new Date().toISOString(), locked_by: userId },
+      { onConflict: 'month_year' }
+    );
+    return { error };
   },
 };
