@@ -1,8 +1,8 @@
-import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Search, Save, Package, Upload, FolderOpen, ChevronLeft, ChevronRight, Loader2, X, Check, Target, TrendingUp } from 'lucide-react';
+import { Search, Save, Package, Upload, FolderOpen, Loader2, Target, TrendingUp } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
@@ -12,6 +12,8 @@ import * as XLSX from '@e965/xlsx';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
 import { OrdersGridTable } from '@/components/orders/OrdersGridTable';
+import { OrdersCellPopover, type OrdersPopoverState } from '@/components/orders/OrdersCellPopover';
+import { OrdersMonthNavigator } from '@/components/orders/OrdersMonthNavigator';
 import { OrdersSummaryTable } from '@/components/orders/OrdersSummaryTable';
 import { cn } from '@/lib/utils';
 
@@ -71,103 +73,6 @@ const isPastMonth = (y: number, m: number) => {
   return selectedMonthIndex < currentMonthIndex;
 };
 
-// ─── Cell Popover ─────────────────────────────────────────────────
-type PopoverState = { empId: string; day: number; x: number; y: number };
-
-interface CellPopoverProps {
-  state: PopoverState;
-  apps: App[];
-  data: DailyData;
-  appColorsList: ReturnType<typeof useAppColors>['apps'];
-  canEdit: boolean;
-  onApply: (empId: string, day: number, vals: Record<string, number>) => void;
-  onClose: () => void;
-}
-
-const CellPopover = ({ state, apps, data, appColorsList, canEdit, onApply, onClose }: CellPopoverProps) => {
-  const initVals = () => {
-    const v: Record<string, string> = {};
-    apps.forEach(app => {
-      const k = `${state.empId}::${app.id}::${state.day}`;
-      const cur = data[k];
-      if (cur) v[app.id] = String(cur);
-    });
-    return v;
-  };
-  const [vals, setVals] = useState<Record<string, string>>(initVals);
-  const popRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: state.y + 6, left: state.x });
-
-  useLayoutEffect(() => {
-    if (!popRef.current) return;
-    const rect = popRef.current.getBoundingClientRect();
-    let left = state.x;
-    let top = state.y + 6;
-    if (left + rect.width > window.innerWidth - 8) left = window.innerWidth - rect.width - 8;
-    if (top + rect.height > window.innerHeight - 8) top = state.y - rect.height - 6;
-    setPos({ top, left });
-  }, [state.x, state.y]);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) onClose();
-    };
-    setTimeout(() => document.addEventListener('mousedown', handler), 10);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
-
-  const handleApply = () => {
-    const result: Record<string, number> = {};
-    Object.entries(vals).forEach(([appId, v]) => {
-      result[appId] = parseInt(v) || 0;
-    });
-    onApply(state.empId, state.day, result);
-    onClose();
-  };
-
-  return (
-    <div
-      ref={popRef}
-      className="fixed z-50 bg-popover border border-border rounded-xl shadow-xl p-3 min-w-[200px]"
-      style={{ top: pos.top, left: pos.left }}
-      onMouseDown={e => e.stopPropagation()}
-    >
-      <div className="flex items-center justify-between mb-2.5">
-        <span className="text-xs font-semibold text-foreground">يوم {state.day}</span>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-0.5 rounded">
-          <X size={13} />
-        </button>
-      </div>
-      <div className="space-y-1.5">
-        {apps.map(app => {
-          const c = getAppColor(appColorsList, app.name);
-          return (
-            <div key={app.id} className="flex items-center gap-2">
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 min-w-[70px] text-center"
-                style={{ backgroundColor: c.bg, color: c.text }}>
-                {app.name}
-              </span>
-              <input
-                type="number" min={0} placeholder="0"
-                value={vals[app.id] ?? ''}
-                onChange={e => setVals(prev => ({ ...prev, [app.id]: e.target.value }))}
-                disabled={!canEdit}
-                className="w-16 h-7 text-center text-xs rounded border border-border bg-background focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                onKeyDown={e => { if (e.key === 'Enter') handleApply(); if (e.key === 'Escape') onClose(); }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      {canEdit && (
-        <Button size="sm" className="w-full mt-3 h-7 text-xs gap-1" onClick={handleApply}>
-          <Check size={12} /> تطبيق
-        </Button>
-      )}
-    </div>
-  );
-};
-
 // ─── SpreadsheetGrid ─────────────────────────────────────────────────
 const SpreadsheetGrid = () => {
   const { apps: appColorsList } = useAppColors();
@@ -185,7 +90,7 @@ const SpreadsheetGrid = () => {
   const [data, setData] = useState<DailyData>({});
   const [saving, setSaving] = useState(false);
   const [expandedEmp, setExpandedEmp] = useState<Set<string>>(new Set());
-  const [cellPopover, setCellPopover] = useState<PopoverState | null>(null);
+  const [cellPopover, setCellPopover] = useState<OrdersPopoverState | null>(null);
   const [platformFilter, setPlatformFilter] = useState<'all' | string>('all');
   const [appEmployeeIds, setAppEmployeeIds] = useState<Record<string, Set<string>>>({});
   const [isMonthLocked, setIsMonthLocked] = useState(false);
@@ -453,11 +358,12 @@ const SpreadsheetGrid = () => {
     <div className="flex flex-col gap-2">
       {/* صف واحد: الشهر + البحث + ملخص الشهر + الشهري + إجراءات */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2 flex-shrink-0">
-        <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5 shrink-0">
-          <button type="button" onClick={prevMonth} className="p-1.5 rounded-md hover:bg-background transition-colors" aria-label="الشهر السابق"><ChevronRight size={15} /></button>
-          <span className="px-2 text-xs font-semibold min-w-[7.5rem] text-center tabular-nums">{monthLabel(year, month)}</span>
-          <button type="button" onClick={nextMonth} className="p-1.5 rounded-md hover:bg-background transition-colors" aria-label="الشهر التالي"><ChevronLeft size={15} /></button>
-        </div>
+        <OrdersMonthNavigator
+          compact
+          label={monthLabel(year, month)}
+          onPrev={prevMonth}
+          onNext={nextMonth}
+        />
 
         <div className="relative flex-1 min-w-[160px] max-w-md">
           <Search size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -604,7 +510,7 @@ const SpreadsheetGrid = () => {
       />
 
       {cellPopover && (
-        <CellPopover
+        <OrdersCellPopover
           state={cellPopover} apps={apps} data={data} appColorsList={appColorsList}
           canEdit={canEditMonth} onApply={handlePopoverApply} onClose={() => setCellPopover(null)}
         />
@@ -790,11 +696,11 @@ const MonthSummary = () => {
           <TrendingUp size={14} className="text-primary" />
           <span className="text-sm font-semibold text-foreground">ملخص الشهر</span>
         </div>
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          <button onClick={prevMonth} className="p-1.5 rounded hover:bg-background transition-colors"><ChevronRight size={16} /></button>
-          <span className="px-3 text-sm font-medium min-w-28 text-center">{monthLabel(year, month)}</span>
-          <button onClick={nextMonth} className="p-1.5 rounded hover:bg-background transition-colors"><ChevronLeft size={16} /></button>
-        </div>
+        <OrdersMonthNavigator
+          label={monthLabel(year, month)}
+          onPrev={prevMonth}
+          onNext={nextMonth}
+        />
       </div>
 
       {/* Per-app target cards */}
