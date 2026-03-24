@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { advanceService } from '@/services/advanceService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
@@ -109,12 +110,12 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
     if (!form.amount || !form.monthly_amount || !form.disbursement_date || !form.first_deduction_month)
       return toast({ title: 'أكمل الحقول المطلوبة', variant: 'destructive' });
     setSaving(true);
-    const { data: adv, error } = await supabase.from('advances').insert({
+    const { data: adv, error } = await advanceService.create({
       employee_id: employeeId, amount: parseFloat(form.amount),
       monthly_amount: parseFloat(form.monthly_amount), total_installments: projectedInstallments,
       disbursement_date: form.disbursement_date, first_deduction_month: form.first_deduction_month,
       note: form.note || null, status: 'active',
-    }).select().single();
+    } as any);
     if (error || !adv) { setSaving(false); return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' }); }
     const installments = buildInstallmentsPayload(
       adv.id,
@@ -347,7 +348,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase.from('advances').update({
+    const { error } = await advanceService.update(advance.id, {
       amount: parseFloat(form.amount),
       disbursement_date: form.disbursement_date,
       monthly_amount: parseFloat(form.monthly_amount),
@@ -355,7 +356,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       first_deduction_month: form.first_deduction_month,
       status: form.status,
       note: form.note || null,
-    }).eq('id', advance.id);
+    } as any);
     if (error) { setSaving(false); return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); }
     await supabase.from('advance_installments').delete().eq('advance_id', advance.id).eq('status', 'pending');
     const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');
@@ -868,7 +869,7 @@ const Advances = () => {
   const fetchAll = async () => {
     setLoading(true);
     const [advRes, empRes] = await Promise.all([
-      supabase.from('advances').select('*, employees(name, national_id), advance_installments(*)').order('created_at', { ascending: false }),
+      advanceService.getAll(),
       supabase.from('employees').select('id, name, sponsorship_status').eq('status', 'active').order('name'),
     ]);
     if (advRes.data) setAdvances(advRes.data as Advance[]);
