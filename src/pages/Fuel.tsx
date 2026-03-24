@@ -448,8 +448,8 @@ const FuelPage = () => {
     if (error) {
       toast({ title: 'خطأ في جلب البيانات', description: (error as any).message, variant: 'destructive' });
     }
-    const mapped = (data || []).map((r: DailyRow & { employees?: Employee }) => ({ ...r, employee: r.employees }));
-    setDailyRows(mapped);
+    const mapped = (data || []).map(r => ({ ...r, employee: r.employees as Employee | undefined }));
+    setDailyRows(mapped as DailyRow[]);
     setLoading(false);
   }, [monthYear, selectedEmployee, employeeIdsOnPlatform, toast]);
 
