@@ -65,6 +65,17 @@ interface PlatformAccount {
   assignments?: Assignment[];
 }
 
+interface PlatformAccountWritePayload {
+  app_id: string;
+  account_username: string;
+  employee_id: string | null;
+  account_id_on_platform: string | null;
+  iqama_number: string | null;
+  iqama_expiry_date: string | null;
+  status: 'active' | 'inactive';
+  notes: string | null;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const iqamaBadge = (expiry: string | null, alertDays: number) => {
@@ -217,7 +228,7 @@ const PlatformAccounts = () => {
     }
     setSavingAccount(true);
 
-    const payload: any = {
+    const payload: PlatformAccountWritePayload = {
       app_id: accountForm.app_id,
       account_username: accountForm.account_username!.trim(),
       employee_id: accountForm.employee_id || null,
@@ -261,21 +272,22 @@ const PlatformAccounts = () => {
     const monthYear = assignForm.start_date.slice(0, 7);
 
     // 1. Close any open assignment for this account
-    const { data: open } = await (supabase as any)
+    const { data: open } = await supabase
       .from('account_assignments')
       .select('id')
       .eq('account_id', assignTarget!.id)
       .is('end_date', null);
 
     if (open && open.length > 0) {
-      await (supabase as any)
+      const openRows = open as Array<{ id: string }>;
+      await supabase
         .from('account_assignments')
         .update({ end_date: today })
-        .in('id', open.map((x: any) => x.id));
+        .in('id', openRows.map((x) => x.id));
     }
 
     // 2. Insert new assignment
-    const { error } = await (supabase as any).from('account_assignments').insert({
+    const { error } = await supabase.from('account_assignments').insert({
       account_id: assignTarget!.id,
       employee_id: assignForm.employee_id,
       start_date: assignForm.start_date,
@@ -292,7 +304,7 @@ const PlatformAccounts = () => {
     }
 
     // Keep `platform_accounts.employee_id` in sync for alert automation
-    const { error: linkErr } = await (supabase as any)
+    const { error: linkErr } = await supabase
       .from('platform_accounts')
       .update({ employee_id: assignForm.employee_id })
       .eq('id', assignTarget!.id);
@@ -316,7 +328,7 @@ const PlatformAccounts = () => {
     setHistoryDialog(true);
     setHistoryLoading(true);
 
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from('account_assignments')
       .select('*')
       .eq('account_id', account.id)

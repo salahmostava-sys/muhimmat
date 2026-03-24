@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { escapeHtml } from '@/lib/security';
 import { Input } from '@/components/ui/input';
@@ -95,9 +95,32 @@ interface SchemeData {
     incremental_threshold?: number | null;
     incremental_price?: number | null;
   }[];
-  snapshot?: any;
+  snapshot?: unknown;
   scheme_id?: string;
 }
+
+type OrderWithAppRow = {
+  employee_id: string;
+  orders_count: number;
+  apps?: { name?: string | null } | null;
+};
+
+type AppWithSchemeRow = {
+  id: string;
+  name: string;
+  salary_schemes?: SchemeData | null;
+};
+
+type SalaryDraftPatch = Pick<
+  SalaryRow,
+  'platformOrders' | 'incentives' | 'sickAllowance' | 'violations' | 'customDeductions' | 'transfer' | 'advanceDeduction' | 'externalDeduction' | 'platformIncome'
+>;
+
+const getManualDeductionTotal = (row: SalaryRow) =>
+  Object.values(row.customDeductions || {}).reduce((sum, value) => sum + value, 0);
+
+const getTotalDeductions = (row: SalaryRow) =>
+  row.advanceDeduction + row.externalDeduction + row.violations + getManualDeductionTotal(row);
 
 const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: string | null; sortDir: SortDir }) => {
   if (sortField !== field) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />;
@@ -498,7 +521,7 @@ const Salaries = () => {
   const [selectedMonth, setSelectedMonth] = useState(months[0].v);
   const [rows, setRows] = useState<SalaryRow[]>([]);
   // empPlatformScheme[employeeId][platformName] = scheme
-  const [empPlatformScheme, setEmpPlatformScheme] = useState<Record<string, Record<string, SchemeData>>>({});
+  const [empPlatformScheme, setEmpPlatformScheme] = useState<Record<string, Record<string, SchemeData | null>>>({});
   const [payslipRow, setPayslipRow] = useState<SalaryRow | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [sortField, setSortField] = useState<string | null>(null);
@@ -521,6 +544,10 @@ const Salaries = () => {
   const [batchZip, setBatchZip] = useState<JSZip | null>(null);
   const [batchMonth, setBatchMonth] = useState('');
   const batchSlipRef = useRef<HTMLDivElement>(null);
+  const salariesDraftKey = useMemo(
+    () => `salaries:draft:${user?.id || 'anon'}:${selectedMonth}`,
+    [user?.id, selectedMonth]
+  );
 
   // Sync platforms, colors, and custom columns from DB apps
   useEffect(() => {
@@ -550,8 +577,23 @@ const Salaries = () => {
   useEffect(() => {
     const fetchAllData = async () => {
       setLoadingData(true);
-      const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } =
-        await salaryDataService.getMonthlyContext(selectedMonth);
+      const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('انتهت مهلة تحميل بيانات الرواتب. حاول مرة أخرى.')), 15000);
+      });
+      let monthlyContext: Awaited<ReturnType<typeof salaryDataService.getMonthlyContext>>;
+      try {
+        monthlyContext = await Promise.race([monthlyContextPromise, timeoutPromise]);
+      } catch (error) {
+        setLoadingData(false);
+        toast({
+          title: 'تعذر تحميل البيانات',
+          description: error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
 
       const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
       savedRecords?.forEach(r => {
@@ -623,8 +665,8 @@ const Salaries = () => {
       });
 
       const ordMap: Record<string, Record<string, number>> = {};
-      ordersRes.data?.forEach(r => {
-        const appName = (r.apps as any)?.name || 'غير معروف';
+      (ordersRes.data as OrderWithAppRow[] | null)?.forEach(r => {
+        const appName = r.apps?.name || 'غير معروف';
         if (!ordMap[r.employee_id]) ordMap[r.employee_id] = {};
         ordMap[r.employee_id][appName] = (ordMap[r.employee_id][appName] || 0) + r.orders_count;
       });
@@ -632,7 +674,7 @@ const Salaries = () => {
       // ── Build appName→scheme map from apps.scheme_id (scheme per platform) ──
       const appSchemeMap: Record<string, SchemeData | null> = {};
       const appNameToId: Record<string, string> = {};
-      appsWithSchemeRes.data?.forEach((a: any) => {
+      (appsWithSchemeRes.data as AppWithSchemeRow[] | null)?.forEach((a) => {
         appSchemeMap[a.name] = a.salary_schemes ? (a.salary_schemes as SchemeData) : null;
         appNameToId[a.name] = a.id;
       });
@@ -649,9 +691,9 @@ const Salaries = () => {
       setPricingRulesByAppId(rulesMap);
 
       // Track which active platforms have no scheme
-      const missing = (appsWithSchemeRes.data || [])
-        .filter((a: any) => !a.salary_schemes)
-        .map((a: any) => a.name);
+      const missing = ((appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [])
+        .filter((a) => !a.salary_schemes)
+        .map((a) => a.name);
       setAppsWithoutScheme(missing);
 
       // ── Build empPlatformScheme: per-employee per-platform → uses app's scheme ──
@@ -662,7 +704,7 @@ const Salaries = () => {
           builtEmpPlatformScheme[emp.id][p] = appSchemeMap[p] ?? null;
         });
       });
-      setEmpPlatformScheme(builtEmpPlatformScheme as any);
+      setEmpPlatformScheme(builtEmpPlatformScheme);
 
       const newRows: SalaryRow[] = employees.map(emp => {
         const empOrders = ordMap[emp.id] || {};
@@ -764,18 +806,56 @@ const Salaries = () => {
         };
       });
 
-      setRows(newRows);
+      // Restore draft values for this month if present
+      let hydratedRows = newRows;
+      try {
+        const draftRaw = localStorage.getItem(salariesDraftKey);
+        if (draftRaw) {
+          const draft = JSON.parse(draftRaw) as Record<string, SalaryDraftPatch>;
+          hydratedRows = newRows.map((row) => {
+            const patch = draft[row.id];
+            return patch ? { ...row, ...patch, isDirty: true } : row;
+          });
+        }
+      } catch {
+        // Ignore malformed draft payloads safely.
+      }
+
+      setRows(hydratedRows);
       setLoadingData(false);
     };
 
-    fetchAllData();
-  }, [selectedMonth, platforms]);
+    void fetchAllData();
+  }, [selectedMonth, platforms, salariesDraftKey, toast]);
+
+  // Auto-save editable salary draft per month/user.
+  useEffect(() => {
+    if (loadingData || rows.length === 0) return;
+    const timer = setTimeout(() => {
+      const draft: Record<string, SalaryDraftPatch> = {};
+      rows.forEach((row) => {
+        draft[row.id] = {
+          platformOrders: row.platformOrders,
+          incentives: row.incentives,
+          sickAllowance: row.sickAllowance,
+          violations: row.violations,
+          customDeductions: row.customDeductions,
+          transfer: row.transfer,
+          advanceDeduction: row.advanceDeduction,
+          externalDeduction: row.externalDeduction,
+          platformIncome: row.platformIncome,
+        };
+      });
+      localStorage.setItem(salariesDraftKey, JSON.stringify(draft));
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [rows, loadingData, salariesDraftKey]);
 
   const computeRow = useCallback((r: SalaryRow) => {
     const totalPlatformSalary = Object.values(r.platformSalaries).reduce((s, v) => s + v, 0);
     const totalAdditions = r.incentives + r.sickAllowance;
     const totalWithSalary = totalPlatformSalary + totalAdditions;
-    const totalDeductions = r.advanceDeduction + r.violations + Object.values(r.customDeductions || {}).reduce((s, v) => s + v, 0);
+    const totalDeductions = getTotalDeductions(r);
     const netSalary = Math.max(0, totalWithSalary - totalDeductions);
     const remaining = netSalary - r.transfer;
     return { totalPlatformSalary, totalAdditions, totalWithSalary, totalDeductions, netSalary, remaining };
@@ -804,7 +884,8 @@ const Salaries = () => {
 
   const filtered = [...filteredBase].sort((a, b) => {
     if (!sortField || !sortDir) return 0;
-    let va: any, vb: any;
+    let va: string | number;
+    let vb: string | number;
     const ca = computeRow(a), cb = computeRow(b);
     switch (sortField) {
       case 'employeeName': va = a.employeeName; vb = b.employeeName; break;
@@ -883,7 +964,7 @@ const Salaries = () => {
       attendance_deduction: row.violations,
       advance_deduction: row.advanceDeduction,
       external_deduction: row.externalDeduction,
-      manual_deduction: Object.values(row.customDeductions || {}).reduce((s, v) => s + v, 0),
+      manual_deduction: getManualDeductionTotal(row),
       net_salary: c.netSalary,
       is_approved: true,
       approved_by: user?.id ?? null,
@@ -914,7 +995,7 @@ const Salaries = () => {
         attendance_deduction: row.violations,
         advance_deduction: row.advanceDeduction,
         external_deduction: row.externalDeduction,
-        manual_deduction: 0,
+        manual_deduction: getManualDeductionTotal(row),
         net_salary: c.netSalary,
         is_approved: true,
         approved_by: user?.id ?? null,
@@ -949,8 +1030,9 @@ const Salaries = () => {
         sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\n✅ تم صرف راتبك لشهر ${monthLabel}\nالمبلغ: ${computeRow(row).netSalary.toLocaleString()} ر.س\n\nشكراً لجهودك.`)
           .then(ok => { if (!ok) toast({ title: 'تعذّر إرسال إشعار واتساب' }); });
       }
-    } catch (err: any) {
-      toast({ title: 'خطأ أثناء الصرف', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ أثناء الصرف', description: message, variant: 'destructive' });
     }
     setMarkingPaid(null);
   };
@@ -971,7 +1053,7 @@ const Salaries = () => {
         attendance_deduction: row.violations,
         advance_deduction: row.advanceDeduction,
         external_deduction: row.externalDeduction,
-        manual_deduction: 0,
+        manual_deduction: getManualDeductionTotal(row),
         net_salary: c.netSalary,
         is_approved: true,
         approved_by: user?.id ?? null,
@@ -1347,6 +1429,8 @@ const Salaries = () => {
           const c = computeRow(row);
           const [y, m] = selectedMonth.split('-');
           const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+          const docWithTables = doc as jsPDF & { lastAutoTable?: { finalY: number } };
+          const lastAutoTableY = () => docWithTables.lastAutoTable?.finalY ?? 40;
 
           // Header
           doc.setFont('helvetica', 'bold');
@@ -1379,7 +1463,7 @@ const Salaries = () => {
           platformBody.push(['Total / الإجمالي', '', c.totalPlatformSalary.toLocaleString() + ' SAR']);
 
           autoTable(doc, {
-            startY: (doc as any).lastAutoTable.finalY + 6,
+            startY: lastAutoTableY() + 6,
             head: [['Platform / المنصة', 'Orders / الطلبات', 'Salary / الراتب']],
             body: platformBody,
             headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
@@ -1395,7 +1479,7 @@ const Salaries = () => {
             if (row.violations > 0) dedBody.push(['Violations / مخالفات', `-${row.violations.toLocaleString()} SAR`]);
             dedBody.push(['Total Deductions', `-${c.totalDeductions.toLocaleString()} SAR`]);
             autoTable(doc, {
-              startY: (doc as any).lastAutoTable.finalY + 6,
+              startY: lastAutoTableY() + 6,
               head: [['Deductions / المستقطعات', 'Amount / المبلغ']],
               body: dedBody,
               headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold' },
@@ -1405,13 +1489,13 @@ const Salaries = () => {
 
           // Net salary
           autoTable(doc, {
-            startY: (doc as any).lastAutoTable.finalY + 6,
+            startY: lastAutoTableY() + 6,
             body: [['Net Salary / الراتب الصافي', c.netSalary.toLocaleString() + ' SAR']],
             styles: { fontSize: 12, fontStyle: 'bold', fillColor: [240, 253, 244], textColor: [22, 163, 74], cellPadding: 4 },
           });
 
           // Footer signature
-          const finalY = (doc as any).lastAutoTable.finalY + 20;
+          const finalY = lastAutoTableY() + 20;
           doc.setFontSize(8);
           doc.setTextColor(150, 150, 150);
           doc.text('Employee Signature: ___________________', 20, finalY);
