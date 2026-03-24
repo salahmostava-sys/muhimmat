@@ -14,10 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { invalidateAppColorsCache } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';
+import { appService } from '@/services/appService';
 
 interface CustomColumn {
   key: string;
@@ -40,6 +40,16 @@ interface EmployeeInApp {
   name: string;
   monthOrders: number;
 }
+
+type EmployeeAppRow = {
+  employee_id: string;
+  employees: {
+    id: string;
+    name: string;
+    status: string;
+    sponsorship_status: string | null;
+  } | null;
+};
 
 // ─── App Modal ────────────────────────────────────────────────────────────────
 interface AppModalProps {
@@ -95,9 +105,9 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
 
     let error;
     if (isEdit && app) {
-      ({ error } = await supabase.from('apps').update(payload).eq('id', app.id));
+      ({ error } = await appService.update(app.id, payload));
     } else {
-      ({ error } = await supabase.from('apps').insert({ ...payload }));
+      ({ error } = await appService.create(payload));
     }
 
     if (error) {
@@ -233,19 +243,12 @@ const Apps = () => {
 
   const fetchApps = async () => {
     setLoadingApps(true);
-    const { data } = await supabase
-      .from('apps')
-      .select('id, name, name_en, brand_color, text_color, is_active, custom_columns')
-      .order('name');
+    const { data } = await appService.getAll();
     if (!data) { setLoadingApps(false); return; }
 
     const appsWithCounts = await Promise.all(
-      data.map(async (app: any) => {
-        const { count } = await supabase
-          .from('employee_apps')
-          .select('id', { count: 'exact', head: true })
-          .eq('app_id', app.id)
-          .eq('status', 'active');
+      data.map(async (app) => {
+        const { count } = await appService.countActiveEmployeeApps(app.id);
         return {
           id: app.id,
           name: app.name,
@@ -272,33 +275,23 @@ const Apps = () => {
     const startDate = `${currentMonth}-01`;
     const endDate = `${currentMonth}-${new Date(parseInt(currentMonth.split('-')[0]), parseInt(currentMonth.split('-')[1]), 0).getDate()}`;
 
-    const { data: empApps } = await supabase
-      .from('employee_apps')
-      .select('employee_id, employees!inner(id, name, status, sponsorship_status)')
-      .eq('app_id', app.id)
-      .eq('status', 'active');
+    const { data: empApps } = await appService.getActiveEmployeeAppsWithEmployees(app.id);
 
     if (!empApps) { setLoadingEmployees(false); return; }
 
-    const employees = empApps
-      .map(ea => (ea.employees as any))
+    const employees = (empApps as EmployeeAppRow[])
+      .map(ea => ea.employees)
       .filter(Boolean)
-      .filter((e: any) =>
+      .filter((e) =>
         e.status === 'active' &&
         e.sponsorship_status !== 'absconded' &&
         e.sponsorship_status !== 'terminated'
       );
 
     const employeesWithOrders = await Promise.all(
-      employees.map(async (emp: any) => {
-        const { data: orders } = await supabase
-          .from('daily_orders')
-          .select('orders_count')
-          .eq('employee_id', emp.id)
-          .eq('app_id', app.id)
-          .gte('date', startDate)
-          .lte('date', endDate);
-        const total = orders?.reduce((s: number, o: any) => s + o.orders_count, 0) || 0;
+      employees.map(async (emp) => {
+        const { data: orders } = await appService.getEmployeeMonthlyOrders(emp.id, app.id, startDate, endDate);
+        const total = orders?.reduce((s: number, o) => s + o.orders_count, 0) || 0;
         return { id: emp.id, name: emp.name, monthOrders: total };
       })
     );
@@ -308,7 +301,7 @@ const Apps = () => {
 
   const handleToggleActive = async (app: AppData, e: React.MouseEvent) => {
     e.stopPropagation();
-    const { error } = await supabase.from('apps').update({ is_active: !app.is_active }).eq('id', app.id);
+    const { error } = await appService.toggleActive(app.id, !app.is_active);
     if (error) {
       toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
       return;
@@ -321,7 +314,7 @@ const Apps = () => {
   const handleDeleteConfirm = async () => {
     if (!deleteApp) return;
     setDeleting(true);
-    const { error } = await supabase.from('apps').delete().eq('id', deleteApp.id);
+    const { error } = await appService.delete(deleteApp.id);
     if (error) {
       toast({ title: 'حدث خطأ أثناء الحذف', description: error.message, variant: 'destructive' });
       setDeleting(false);

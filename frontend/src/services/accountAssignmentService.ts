@@ -1,69 +1,39 @@
-// accountAssignmentService.ts
+import { supabase } from '@/integrations/supabase/client';
 
-interface Assignment {
-    id: number;
-    userId: number;
-    status: 'open' | 'closed';
-    createdAt: Date;
-    updatedAt: Date;
+export interface AccountAssignment {
+  id: string;
+  account_id: string;
+  employee_id: string;
+  start_date: string;
+  end_date: string | null;
+  month_year: string;
+  notes: string | null;
+  created_at: string;
 }
 
-let assignments: Assignment[] = [];
-
-/**
- * Retrieves all open assignments.
- * @returns Array of open assignments.
- */
-function getOpenAssignments(): Assignment[] {
-    return assignments.filter(assignment => assignment.status === 'open');
+interface AccountAssignmentInsertPayload {
+  account_id: string;
+  employee_id: string;
+  start_date: string;
+  end_date: null;
+  month_year: string;
+  notes: string | null;
+  created_by: string | null;
 }
 
-/**
- * Closes all open assignments.
- */
-function closeOpenAssignments(): void {
-    assignments.forEach(assignment => {
-        if (assignment.status === 'open') {
-            assignment.status = 'closed';
-            assignment.updatedAt = new Date();
-        }
-    });
-}
+export const accountAssignmentService = {
+  getActiveAssignments: async () =>
+    supabase.from('account_assignments').select('*').is('end_date', null),
 
-/**
- * Creates a new assignment.
- * @param userId - The ID of the user to assign.
- * @returns The created assignment.
- */
-function createAssignment(userId: number): Assignment {
-    const newAssignment: Assignment = {
-        id: assignments.length + 1,
-        userId,
-        status: 'open',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    };
-    assignments.push(newAssignment);
-    return newAssignment;
-}
+  getHistoryByAccountId: async (accountId: string) =>
+    supabase.from('account_assignments').select('*').eq('account_id', accountId).order('start_date', { ascending: false }),
 
-/**
- * Updates an existing assignment.
- * @param id - The ID of the assignment to update.
- * @param userId - The new user ID to assign (optional).
- * @param status - The new status ('open' or 'closed') (optional).
- */
-function updateAssignment(id: number, userId?: number, status?: 'open' | 'closed'): void {
-    const assignment = assignments.find(a => a.id === id);
-    if (assignment) {
-        if (userId !== undefined) {
-            assignment.userId = userId;
-        }
-        if (status !== undefined) {
-            assignment.status = status;
-        }
-        assignment.updatedAt = new Date();
-    }
-}
+  getOpenAssignmentIdsByAccount: async (accountId: string) =>
+    supabase.from('account_assignments').select('id').eq('account_id', accountId).is('end_date', null),
 
-export { getOpenAssignments, closeOpenAssignments, createAssignment, updateAssignment };
+  closeAssignmentsByIds: async (ids: string[], endDate: string) =>
+    supabase.from('account_assignments').update({ end_date: endDate }).in('id', ids),
+
+  createAssignment: async (payload: AccountAssignmentInsertPayload) =>
+    supabase.from('account_assignments').insert(payload),
+};

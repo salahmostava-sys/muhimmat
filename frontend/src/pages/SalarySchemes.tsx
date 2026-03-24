@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { appService } from '@/services/appService';
+import { salarySchemeService } from '@/services/salarySchemeService';
 
 type TierType = 'total_multiplier' | 'fixed_amount' | 'base_plus_incremental';
 
@@ -36,6 +37,15 @@ type Scheme = {
 };
 type Snapshot = { month_year: string };
 type AppItem = { id: string; name: string; scheme_id: string | null };
+type SalarySchemeTierRow = {
+  scheme_id: string;
+  from_orders: number;
+  to_orders: number | null;
+  price_per_order: number;
+  tier_type?: TierType;
+  incremental_threshold?: number | null;
+  incremental_price?: number | null;
+};
 
 const arabicMonths: Record<string, string> = {
   '01': 'يناير', '02': 'فبراير', '03': 'مارس', '04': 'أبريل',
@@ -88,17 +98,17 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const fetchAll = async () => {
     setLoading(true);
     const [{ data: sData }, { data: tData }, { data: snData }, { data: aData }] = await Promise.all([
-      supabase.from('salary_schemes').select('*').order('created_at', { ascending: false }),
-      supabase.from('salary_scheme_tiers').select('*').order('tier_order'),
-      supabase.from('scheme_month_snapshots').select('scheme_id, month_year'),
-      supabase.from('apps').select('id, name, scheme_id').eq('is_active', true).order('name'),
+      salarySchemeService.getSchemes(),
+      salarySchemeService.getTiers(),
+      salarySchemeService.getSnapshots(),
+      appService.getActiveWithScheme(),
     ]);
 
     if (sData) setSchemes(sData as Scheme[]);
     if (aData) setApps(aData as AppItem[]);
     if (tData) {
       const map: Record<string, Tier[]> = {};
-      for (const t of tData as any[]) {
+      for (const t of tData as SalarySchemeTierRow[]) {
         if (!map[t.scheme_id]) map[t.scheme_id] = [];
         map[t.scheme_id].push({
           from: t.from_orders,
@@ -113,7 +123,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     }
     if (snData) {
       const map: Record<string, Snapshot[]> = {};
-      for (const s of snData as any[]) {
+      for (const s of snData as { scheme_id: string; month_year: string }[]) {
         if (!map[s.scheme_id]) map[s.scheme_id] = [];
         map[s.scheme_id].push({ month_year: s.month_year });
       }
@@ -167,7 +177,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     setSaving(true);
     try {
       let schemeId = editing?.id;
-      const schemePayload: any = {
+      const schemePayload = {
         name,
         scheme_type: schemeType,
         monthly_amount: schemeType === 'fixed_monthly' ? monthlyAmount : null,
@@ -176,15 +186,15 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
       };
 
       if (editing) {
-        await supabase.from('salary_schemes').update(schemePayload).eq('id', editing.id);
-        await supabase.from('salary_scheme_tiers').delete().eq('scheme_id', editing.id);
+        await salarySchemeService.updateScheme(editing.id, schemePayload);
+        await salarySchemeService.deleteSchemeTiers(editing.id);
       } else {
-        const { data } = await supabase.from('salary_schemes').insert(schemePayload).select('id').single();
+        const { data } = await salarySchemeService.createScheme(schemePayload);
         schemeId = data?.id;
       }
 
       if (schemeId && schemeType === 'order_based') {
-        await supabase.from('salary_scheme_tiers').insert(
+        await salarySchemeService.insertSchemeTiers(
           formTiers.map((t, i) => ({
             scheme_id: schemeId!,
             from_orders: t.from,
@@ -201,8 +211,9 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
       toast({ title: editing ? 'تم التعديل' : 'تمت الإضافة', description: editing ? 'تم تعديل السكيمة بنجاح' : 'تمت إضافة السكيمة بنجاح' });
       setShowModal(false);
       fetchAll();
-    } catch (err: any) {
-      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
     }
     setSaving(false);
   };
@@ -211,26 +222,27 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     if (!assignAppId) { toast({ title: 'خطأ', description: 'اختر منصة أولاً', variant: 'destructive' }); return; }
     setAssigning(true);
     try {
-      const { error } = await supabase.from('apps').update({ scheme_id: assignSchemeId }).eq('id', assignAppId);
+      const { error } = await appService.assignScheme(assignAppId, assignSchemeId);
       if (error) throw error;
       toast({ title: '✅ تم الربط', description: `تم ربط السكيمة بالمنصة بنجاح` });
       setShowAssignModal(false);
       fetchAll();
-    } catch (err: any) {
-      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
     }
     setAssigning(false);
   };
 
   const handleUnassignApp = async (appId: string) => {
-    await supabase.from('apps').update({ scheme_id: null }).eq('id', appId);
+    await appService.assignScheme(appId, null);
     toast({ title: 'تم إلغاء الربط' });
     fetchAll();
   };
 
   const handleArchive = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'archived' : 'active';
-    await supabase.from('salary_schemes').update({ status: newStatus }).eq('id', id);
+    await salarySchemeService.updateSchemeStatus(id, newStatus as 'active' | 'archived');
     setSchemes(prev => prev.map(s => s.id === id ? { ...s, status: newStatus as 'active' | 'archived' } : s));
     toast({ title: 'تم التحديث' });
   };
@@ -239,11 +251,11 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     setSnapshotLoading(schemeId);
     try {
       const schemeTiers = tiers[schemeId] || [];
-      const { error } = await supabase.from('scheme_month_snapshots').upsert({
-        scheme_id: schemeId,
-        month_year: currentMonth,
-        snapshot: schemeTiers,
-      }, { onConflict: 'scheme_id,month_year' });
+      const { error } = await salarySchemeService.upsertSnapshot(
+        schemeId,
+        currentMonth,
+        schemeTiers as unknown as import('@/integrations/supabase/types').Json
+      );
       if (error) throw error;
       toast({ title: '📌 تم التثبيت', description: `تم تثبيت السكيمة لشهر ${monthLabel(currentMonth)}` });
       setSnapshots(prev => ({
@@ -253,8 +265,9 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
           { month_year: currentMonth },
         ],
       }));
-    } catch (err: any) {
-      toast({ title: 'خطأ', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
     }
     setSnapshotLoading(null);
   };

@@ -8,11 +8,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
+import { vehicleService } from '@/services/vehicleService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type MaintenanceType = 'routine' | 'breakdown' | 'accident';
@@ -86,9 +86,9 @@ const MaintenanceFormModal = ({ open, onClose, onSaved, editLog, vehicles }: {
     };
     let error;
     if (editLog) {
-      ({ error } = await supabase.from('maintenance_logs').update(payload).eq('id', editLog.id));
+      ({ error } = await vehicleService.updateMaintenanceLog(editLog.id, payload));
     } else {
-      ({ error } = await supabase.from('maintenance_logs').insert(payload));
+      ({ error } = await vehicleService.createMaintenanceLog(payload));
     }
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
@@ -204,8 +204,8 @@ const MaintenanceLogs = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [logsRes, vehiclesRes] = await Promise.all([
-      supabase.from('maintenance_logs').select('*, vehicles(id, plate_number, brand)').order('date', { ascending: false }),
-      supabase.from('vehicles').select('id, plate_number, brand').order('plate_number'),
+      vehicleService.getMaintenanceLogs(),
+      vehicleService.getForSelect(),
     ]);
     if (logsRes.data) setLogs(logsRes.data as MaintenanceLog[]);
     else if (logsRes.error) toast({ title: 'خطأ في تحميل البيانات', description: logsRes.error.message, variant: 'destructive' });
@@ -236,7 +236,7 @@ const MaintenanceLogs = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await supabase.from('maintenance_logs').delete().eq('id', deleteTarget.id);
+    const { error } = await vehicleService.deleteMaintenanceLog(deleteTarget.id);
     setDeleting(false);
     setDeleteTarget(null);
     if (error) { toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' }); return; }
@@ -280,7 +280,7 @@ const MaintenanceLogs = () => {
     if (!printWindow.document.body) return;
     // Append the live DOM table node to avoid string-interpolating table HTML.
     printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     printWindow.document.close();
   };
 

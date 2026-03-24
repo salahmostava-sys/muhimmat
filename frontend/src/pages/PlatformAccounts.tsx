@@ -14,38 +14,25 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
+import {
+  platformAccountService,
+  type PlatformApp as App,
+  type PlatformEmployee as Employee,
+  type PlatformAccountWritePayload,
+} from '@/services/platformAccountService';
+import {
+  accountAssignmentService,
+  type AccountAssignment as Assignment,
+} from '@/services/accountAssignmentService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface App {
-  id: string;
-  name: string;
-  brand_color: string;
-  text_color: string;
-}
-
-interface Employee {
-  id: string;
-  name: string;
-}
-
-interface Assignment {
-  id: string;
-  account_id: string;
-  employee_id: string;
-  employee_name?: string;
-  start_date: string;
-  end_date: string | null;
-  month_year: string;
-  notes: string | null;
-  created_at: string;
-}
+type AssignmentWithName = Assignment & { employee_name?: string };
 
 interface PlatformAccount {
   id: string;
@@ -62,18 +49,7 @@ interface PlatformAccount {
   notes: string | null;
   created_at: string;
   current_employee?: Employee | null;
-  assignments?: Assignment[];
-}
-
-interface PlatformAccountWritePayload {
-  app_id: string;
-  account_username: string;
-  employee_id: string | null;
-  account_id_on_platform: string | null;
-  iqama_number: string | null;
-  iqama_expiry_date: string | null;
-  status: 'active' | 'inactive';
-  notes: string | null;
+  assignments?: AssignmentWithName[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -135,10 +111,10 @@ const PlatformAccounts = () => {
     setLoading(true);
 
       const [appsRes, empRes, accRes, assignRes] = await Promise.all([
-        supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
-        supabase.from('employees').select('id, name').eq('status', 'active').order('name'),
-        supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
-        supabase.from('account_assignments').select('*').is('end_date', null),
+        platformAccountService.getApps(),
+        platformAccountService.getEmployees(),
+        platformAccountService.getAccounts(),
+        accountAssignmentService.getActiveAssignments(),
       ]);
 
     const appsData: App[] = (appsRes.data ?? []) as App[];
@@ -241,9 +217,9 @@ const PlatformAccounts = () => {
 
     let error;
     if (editingAccount) {
-      ({ error } = await supabase.from('platform_accounts').update(payload).eq('id', editingAccount.id));
+      ({ error } = await platformAccountService.updateAccount(editingAccount.id, payload));
     } else {
-      ({ error } = await supabase.from('platform_accounts').insert(payload));
+      ({ error } = await platformAccountService.createAccount(payload));
     }
 
     setSavingAccount(false);
@@ -272,22 +248,15 @@ const PlatformAccounts = () => {
     const monthYear = assignForm.start_date.slice(0, 7);
 
     // 1. Close any open assignment for this account
-    const { data: open } = await supabase
-      .from('account_assignments')
-      .select('id')
-      .eq('account_id', assignTarget!.id)
-      .is('end_date', null);
+    const { data: open } = await accountAssignmentService.getOpenAssignmentIdsByAccount(assignTarget!.id);
 
     if (open && open.length > 0) {
       const openRows = open as Array<{ id: string }>;
-      await supabase
-        .from('account_assignments')
-        .update({ end_date: today })
-        .in('id', openRows.map((x) => x.id));
+      await accountAssignmentService.closeAssignmentsByIds(openRows.map((x) => x.id), today);
     }
 
     // 2. Insert new assignment
-    const { error } = await supabase.from('account_assignments').insert({
+    const { error } = await accountAssignmentService.createAssignment({
       account_id: assignTarget!.id,
       employee_id: assignForm.employee_id,
       start_date: assignForm.start_date,
@@ -304,10 +273,7 @@ const PlatformAccounts = () => {
     }
 
     // Keep `platform_accounts.employee_id` in sync for alert automation
-    const { error: linkErr } = await supabase
-      .from('platform_accounts')
-      .update({ employee_id: assignForm.employee_id })
-      .eq('id', assignTarget!.id);
+    const { error: linkErr } = await platformAccountService.syncAccountEmployee(assignTarget!.id, assignForm.employee_id);
 
     if (linkErr) {
       setSavingAssign(false);
@@ -328,14 +294,10 @@ const PlatformAccounts = () => {
     setHistoryDialog(true);
     setHistoryLoading(true);
 
-    const { data } = await supabase
-      .from('account_assignments')
-      .select('*')
-      .eq('account_id', account.id)
-      .order('start_date', { ascending: false });
+    const { data } = await accountAssignmentService.getHistoryByAccountId(account.id);
 
     const empMap = Object.fromEntries(employees.map(e => [e.id, e.name]));
-    const assignments: Assignment[] = ((data ?? []) as unknown as Assignment[]).map(r => ({
+    const assignments: AssignmentWithName[] = ((data ?? []) as Assignment[]).map(r => ({
       ...r,
       employee_name: empMap[r.employee_id] ?? 'مندوب غير معروف',
     }));
