@@ -3,11 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 export interface AdvancePayload {
   employee_id: string;
   amount: number;
-  reason?: string;
-  start_month: string;
-  installments_count: number;
-  monthly_deduction: number;
-  notes?: string;
+  monthly_amount: number;
+  total_installments: number;
+  disbursement_date: string;
+  first_deduction_month: string;
+  note?: string | null;
+  status?: string;
 }
 
 export interface InstallmentUpdate {
@@ -32,6 +33,13 @@ export const advanceService = {
       .select()
       .single();
     return { data, error };
+  },
+
+  insertMany: async (rows: AdvancePayload[]) => {
+    const { error } = await supabase
+      .from('advances')
+      .insert(rows as unknown[]);
+    return { error };
   },
 
   update: async (id: string, payload: Partial<AdvancePayload>) => {
@@ -62,6 +70,30 @@ export const advanceService = {
     return { error };
   },
 
+  writeOffMany: async (ids: string[], reason: string) => {
+    const { error } = await supabase
+      .from('advances')
+      .update({
+        is_written_off: true,
+        written_off_at: new Date().toISOString(),
+        written_off_reason: reason,
+      } as Record<string, unknown>)
+      .in('id', ids);
+    return { error };
+  },
+
+  restoreWrittenOffMany: async (ids: string[]) => {
+    const { error } = await supabase
+      .from('advances')
+      .update({
+        is_written_off: false,
+        written_off_at: null,
+        written_off_reason: null,
+      } as Record<string, unknown>)
+      .in('id', ids);
+    return { error };
+  },
+
   getInstallments: async (advanceId: string) => {
     const { data, error } = await supabase
       .from('advance_installments')
@@ -72,7 +104,7 @@ export const advanceService = {
   },
 
   createInstallments: async (installments: Record<string, unknown>[]) => {
-    const { error } = await supabase.from('advance_installments').insert(installments as any);
+    const { error } = await supabase.from('advance_installments').insert(installments as unknown[]);
     return { error };
   },
 
@@ -80,6 +112,14 @@ export const advanceService = {
     const { error } = await supabase
       .from('advance_installments')
       .update(payload as any)
+      .eq('id', id);
+    return { error };
+  },
+
+  updateInstallmentNote: async (id: string, notes: string | null) => {
+    const { error } = await supabase
+      .from('advance_installments')
+      .update({ notes })
       .eq('id', id);
     return { error };
   },

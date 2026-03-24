@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { differenceInDays, parseISO } from 'date-fns';
+import { employeeTierService } from '@/services/employeeTierService';
 
 /* ─── Types ─── */
 type Employee = { id: string; name: string; sponsorship_status: string | null; };
@@ -182,9 +182,9 @@ const EmployeeTiers = () => {
   const fetchAll = async () => {
     setLoading(true);
     const [{ data: tiersData }, { data: empsData }, { data: appsData }] = await Promise.all([
-      (supabase as any).from('employee_tiers').select('*').order('created_at', { ascending: false }),
-      supabase.from('employees').select('id, name, sponsorship_status').order('name'),
-      supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
+      employeeTierService.getTiers(),
+      employeeTierService.getEmployees(),
+      employeeTierService.getActiveApps(),
     ]);
     setEmployees((empsData || []) as Employee[]);
     setApps((appsData || []) as AppRow[]);
@@ -218,19 +218,12 @@ const EmployeeTiers = () => {
 
       for (const tier of affectedTiers) {
         // Auto-update status to not_delivered
-        await (supabase as any).from('employee_tiers')
-          .update({ delivery_status: STATUS_NOT_DELIVERED })
-          .eq('id', tier.id);
+        await employeeTierService.updateTier(tier.id, { delivery_status: STATUS_NOT_DELIVERED });
 
         // Show alert dialog only once per employee per session
         if (newlyAbsconded.includes(tier.employee_id)) {
           const emp = employees.find(e => e.id === tier.employee_id);
-          const { data: assignments } = await supabase
-            .from('vehicle_assignments')
-            .select('vehicle_id, vehicles(plate_number)')
-            .eq('employee_id', tier.employee_id)
-            .is('end_date', null)
-            .limit(1);
+          const { data: assignments } = await employeeTierService.getActiveAssignmentWithVehicleByEmployee(tier.employee_id);
 
           const plate = (assignments?.[0] as any)?.vehicles?.plate_number || 'غير مسجلة';
           setAbscondedAlert({
@@ -265,14 +258,14 @@ const EmployeeTiers = () => {
     const merged = { ...tier, ...editRows[tier.id] };
     if (!merged.employee_id) { toast({ title: 'خطأ', description: 'اختر مندوباً', variant: 'destructive' }); return; }
     setSavingId(tier.id);
-    const { error } = await (supabase as any).from('employee_tiers').update({
+    const { error } = await employeeTierService.updateTier(tier.id, {
       sim_number: merged.sim_number || null,
       employee_id: merged.employee_id,
       package_type: merged.package_type,
       renewal_date: merged.renewal_date,
       delivery_status: merged.delivery_status,
       app_ids: merged.app_ids,
-    }).eq('id', tier.id);
+    });
     if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); }
     else {
       toast({ title: '✅ تم الحفظ' });
@@ -294,7 +287,7 @@ const EmployeeTiers = () => {
     if (!newRow.employee_id) { toast({ title: 'خطأ', description: 'اختر مندوباً', variant: 'destructive' }); return; }
     if (!newRow.renewal_date) { toast({ title: 'خطأ', description: 'أدخل تاريخ التجديد', variant: 'destructive' }); return; }
     setSavingNew(true);
-    const { error } = await (supabase as any).from('employee_tiers').insert({
+    const { error } = await employeeTierService.createTier({
       sim_number: newRow.sim_number || null,
       employee_id: newRow.employee_id,
       package_type: newRow.package_type || '',
@@ -320,7 +313,7 @@ const EmployeeTiers = () => {
       return;
     }
     if (!deleteId) return;
-    await (supabase as any).from('employee_tiers').delete().eq('id', deleteId);
+    await employeeTierService.deleteTier(deleteId);
     toast({ title: 'تم الحذف' });
     setDeleteId(null);
     fetchAll();

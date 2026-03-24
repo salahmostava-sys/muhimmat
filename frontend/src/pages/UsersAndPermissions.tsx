@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Shield, RefreshCw, Save } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { userPermissionService } from '@/services/userPermissionService';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 
@@ -36,8 +36,8 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     setLoading(true);
     try {
       const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, is_active').order('full_name'),
-        supabase.from('user_roles').select('user_id, role'),
+        userPermissionService.getProfiles(),
+        userPermissionService.getUserRoles(),
       ]);
 
       if (profilesError) throw profilesError;
@@ -56,10 +56,11 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
       }));
 
       setRows(built);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر تحميل بيانات المستخدمين والصلاحيات';
       toast({
         title: 'خطأ في تحميل المستخدمين',
-        description: err?.message || 'تعذر تحميل بيانات المستخدمين والصلاحيات',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -68,7 +69,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, []);
 
   const totals = useMemo(() => {
@@ -81,32 +82,16 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
   const updateRole = async (userId: string, role: AppRole) => {
     setSavingId(userId);
     try {
-      const { data: existing, error: existingError } = await supabase
-        .from('user_roles')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (existingError) throw existingError;
-
-      if (existing?.id) {
-        const { error } = await supabase
-          .from('user_roles')
-          .update({ role })
-          .eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('user_roles')
-          .insert({ user_id: userId, role });
-        if (error) throw error;
-      }
+      const { error } = await userPermissionService.upsertRole(userId, role);
+      if (error) throw error;
 
       setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, role } : r)));
       toast({ title: 'تم تحديث الصلاحية' });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'حدث خطأ أثناء الحفظ';
       toast({
         title: 'فشل تحديث الصلاحية',
-        description: err?.message || 'حدث خطأ أثناء الحفظ',
+        description: message,
         variant: 'destructive',
       });
     } finally {

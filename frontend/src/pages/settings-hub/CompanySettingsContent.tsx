@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
+import { settingsHubService } from '@/services/settingsHubService';
 
 const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) => (
   <div className="flex items-center gap-3 pb-4 mb-5" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
@@ -43,7 +43,7 @@ export default function CompanySettingsContent() {
   }, [settings]);
 
   useEffect(() => {
-    supabase.from('trade_registers').select('*').order('created_at').limit(1).maybeSingle()
+    settingsHubService.getTradeRegister()
       .then(({ data }) => {
         if (data) {
           setRecordId(data.id);
@@ -73,10 +73,10 @@ export default function CompanySettingsContent() {
     try {
       const ext = logoFile.name.split('.').pop();
       const path = `logo/project-logo.${ext}`;
-      const { error: upErr } = await supabase.storage.from('avatars').upload(path, logoFile, { upsert: true });
+      const { error: upErr } = await settingsHubService.uploadCompanyLogo(path, logoFile);
       if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
-      const { error } = await supabase.from('system_settings').update({ logo_url: publicUrl }).eq('id', settings.id);
+      const { data: { publicUrl } } = settingsHubService.getCompanyLogoPublicUrl(path);
+      const { error } = await settingsHubService.updateSystemLogo(settings.id, publicUrl);
       if (error) throw error;
       await refresh();
       setLogoFile(null);
@@ -89,7 +89,7 @@ export default function CompanySettingsContent() {
 
   const handleRemoveLogo = async () => {
     if (!settings?.id) return;
-    const { error } = await supabase.from('system_settings').update({ logo_url: null }).eq('id', settings.id);
+    const { error } = await settingsHubService.updateSystemLogo(settings.id, null);
     if (!error) { setLogoPreview(null); setLogoFile(null); await refresh(); }
   };
 
@@ -103,10 +103,10 @@ export default function CompanySettingsContent() {
         notes: taxNumber.trim(),
       };
       if (recordId) {
-        const { error } = await supabase.from('trade_registers').update(payload).eq('id', recordId);
+        const { error } = await settingsHubService.updateTradeRegister(recordId, payload);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('trade_registers').insert(payload).select().single();
+        const { data, error } = await settingsHubService.createTradeRegister(payload);
         if (error) throw error;
         if (data) setRecordId(data.id);
       }

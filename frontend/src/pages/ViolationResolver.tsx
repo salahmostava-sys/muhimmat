@@ -7,10 +7,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { usePermissions } from '@/hooks/usePermissions';
 import { format, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { violationService } from '@/services/violationService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleSuggestion = {
@@ -96,12 +96,7 @@ const ViolationResolver = () => {
 
   const fetchViolations = useCallback(async () => {
     setViolationsLoading(true);
-    const { data, error } = await supabase
-      .from('external_deductions')
-      .select('id, employee_id, amount, incident_date, apply_month, approval_status, note, employees(id, name, national_id)')
-      .eq('type', 'fine')
-      .order('created_at', { ascending: false })
-      .limit(500);
+    const { data, error } = await violationService.getViolations();
 
     if (error) {
       setViolationsLoading(false);
@@ -131,12 +126,7 @@ const ViolationResolver = () => {
   // ── Vehicle autocomplete ──────────────────────────────────────────────────
   const fetchSuggestions = useCallback(async (q: string) => {
     if (!q.trim()) { setSuggestions([]); return; }
-    const { data } = await supabase
-      .from('vehicles')
-      .select('id, plate_number, plate_number_en, brand, type')
-      .or(`plate_number.ilike.%${q}%,plate_number_en.ilike.%${q}%`)
-      .eq('status', 'active')
-      .limit(8);
+    const { data } = await violationService.findVehiclesByPlateQuery(q);
     setSuggestions(data || []);
   }, []);
 
@@ -191,11 +181,7 @@ const ViolationResolver = () => {
     if (vehicleId) {
       vehicleIds = [vehicleId];
     } else {
-      const { data: vData } = await supabase
-        .from('vehicles')
-        .select('id')
-        .ilike('plate_number', `%${plate}%`)
-        .limit(5);
+      const { data: vData } = await violationService.findVehicleIdsByPlate(plate);
       vehicleIds = (vData || []).map(v => v.id);
     }
 
@@ -206,11 +192,7 @@ const ViolationResolver = () => {
       ? new Date(dateVal).toISOString()
       : new Date(dateVal + 'T12:00:00').toISOString();
 
-    const { data: assignments } = await supabase
-      .from('vehicle_assignments')
-      .select('id, vehicle_id, employee_id, start_date, start_at, returned_at, end_date, employees(id, name, national_id), vehicles(plate_number, brand, type)')
-      .in('vehicle_id', vehicleIds)
-      .order('start_at', { ascending: false });
+    const { data: assignments } = await violationService.getAssignmentsByVehicleIds(vehicleIds);
 
     if (!assignments?.length) { setSearching(false); setResults([]); return; }
 
@@ -243,13 +225,7 @@ const ViolationResolver = () => {
 
     // Existing external_deductions for this employee/date/amount
     const applyMonth = violationDate.substring(0, 7);
-    const { data: existingDeduction } = await supabase
-      .from('external_deductions')
-      .select('id, employee_id, amount')
-      .eq('type', 'fine')
-      .in('employee_id', empIds)
-      .eq('incident_date', violationDate)
-      .eq('apply_month', applyMonth);
+    const { data: existingDeduction } = await violationService.getExistingFineDeductions(empIds, violationDate, applyMonth);
 
     const recordedByEmployee = new Map<string, { id: string; amount: number }>();
     (existingDeduction || []).forEach((d: any) => {
@@ -297,9 +273,7 @@ const ViolationResolver = () => {
       form.note || null,
     ].filter(Boolean).join(' - ');
 
-    const { data: inserted, error } = await supabase
-      .from('external_deductions')
-      .insert({
+    const { data: inserted, error } = await violationService.createFineDeduction({
       employee_id: row.employee_id,
       amount: amt,
       type: 'fine',
@@ -307,9 +281,7 @@ const ViolationResolver = () => {
       incident_date: violationDate,
       note: noteText,
       approval_status: 'pending',
-    })
-      .select('id')
-      .single();
+    });
 
     setAssigningEmployeeId(null);
     if (error) { toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); return; }
@@ -344,15 +316,12 @@ const ViolationResolver = () => {
     if (!editForm.incident_date) return toast({ title: 'خطأ', description: 'أدخل تاريخ المخالفة', variant: 'destructive' });
 
     setEditSaving(true);
-    const { error } = await supabase
-      .from('external_deductions')
-      .update({
+    const { error } = await violationService.updateViolation(editViolationId, {
         amount,
         incident_date: editForm.incident_date,
         note: editForm.note,
         approval_status: editForm.approval_status as 'pending' | 'approved' | 'rejected',
-      })
-      .eq('id', editViolationId);
+      });
 
     setEditSaving(false);
     if (error) {
@@ -372,7 +341,7 @@ const ViolationResolver = () => {
       return;
     }
     setDeletingId(id);
-    const { error } = await supabase.from('external_deductions').delete().eq('id', id);
+    const { error } = await violationService.deleteViolation(id);
     setDeletingId(null);
     if (error) {
       toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
@@ -393,15 +362,7 @@ const ViolationResolver = () => {
     // Guard against converting the same fine multiple times
     const amountMin = v.amount - 0.01;
     const amountMax = v.amount + 0.01;
-    const { data: existingAdv } = await supabase
-      .from('advances')
-      .select('id')
-      .eq('employee_id', v.employee_id)
-      .eq('status', 'active')
-      .eq('first_deduction_month', v.apply_month)
-      .gte('monthly_amount', amountMin)
-      .lte('monthly_amount', amountMax)
-      .limit(1);
+    const { data: existingAdv } = await violationService.findMatchingAdvanceForFine(v.employee_id, v.apply_month, amountMin, amountMax);
 
     if (existingAdv && existingAdv.length > 0) {
       toast({ title: 'تم التحويل مسبقاً', description: 'يوجد سلفة نشطة مطابقة لهذه المخالفة.' });
@@ -409,9 +370,7 @@ const ViolationResolver = () => {
     }
 
     setConvertingId(v.id);
-    const { data: advInserted, error: advErr } = await supabase
-      .from('advances')
-      .insert({
+    const { data: advInserted, error: advErr } = await violationService.createAdvanceFromFine({
         employee_id: v.employee_id,
         amount: v.amount,
         disbursement_date: today,
@@ -420,9 +379,7 @@ const ViolationResolver = () => {
         first_deduction_month: v.apply_month,
         note: noteText,
         status: 'active',
-      })
-      .select('id')
-      .single();
+      });
 
     if (advErr || !advInserted?.id) {
       setConvertingId(null);
@@ -430,7 +387,7 @@ const ViolationResolver = () => {
       return;
     }
 
-    const { error: instErr } = await supabase.from('advance_installments').insert({
+    const { error: instErr } = await violationService.createSingleInstallment({
       advance_id: advInserted.id,
       month_year: v.apply_month,
       amount: v.amount,

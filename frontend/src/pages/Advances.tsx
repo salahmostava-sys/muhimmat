@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { supabase } from '@/integrations/supabase/client';
 import { advanceService } from '@/services/advanceService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
@@ -123,7 +122,7 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
       parseFloat(form.amount),
       projectedInstallments
     );
-    if (installments.length > 0) await supabase.from('advance_installments').insert(installments);
+    if (installments.length > 0) await advanceService.createInstallments(installments);
     setSaving(false);
     toast({ title: '✅ تم إضافة السلفة' });
     onSaved();
@@ -140,9 +139,9 @@ const InlineRowEntry = ({ employeeId, allAdvances, onSaved, onCancel }: InlineRo
     const paymentAmount = parseFloat(payAmount);
     const noteText = payNote || `سداد يدوي بتاريخ ${payDate} — ${payAmount} ر.س`;
     const targetInstallment = pendingInst.find(i => i.amount === paymentAmount) || pendingInst[0];
-    const { error } = await supabase.from('advance_installments').update({
+    const { error } = await advanceService.updateInstallment(targetInstallment.id, {
       status: 'deducted' as const, deducted_at: new Date().toISOString(), notes: noteText,
-    }).eq('id', targetInstallment.id);
+    });
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', variant: 'destructive' });
     toast({ title: `✅ تم تسجيل السداد — ${payAmount} ر.س` });
@@ -236,11 +235,7 @@ const WriteOffDialog = ({ employeeName, remaining, advanceIds, onClose, onDone }
 
   const handleWriteOff = async () => {
     setSaving(true);
-    const { error } = await supabase.from('advances').update({
-      is_written_off: true,
-      written_off_at: new Date().toISOString(),
-      written_off_reason: reason || 'ديون معدومة',
-    } as any).in('id', advanceIds);
+    const { error } = await advanceService.writeOffMany(advanceIds, reason || 'ديون معدومة');
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
     toast({ title: `✅ تم إعدام ديون ${employeeName}` });
@@ -288,11 +283,7 @@ const RestoreWriteOffDialog = ({ employeeName, advanceIds, onClose, onDone }: Re
 
   const handleRestore = async () => {
     setSaving(true);
-    const { error } = await supabase.from('advances').update({
-      is_written_off: false,
-      written_off_at: null,
-      written_off_reason: null,
-    } as any).in('id', advanceIds);
+    const { error } = await advanceService.restoreWrittenOffMany(advanceIds);
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
     toast({ title: `✅ تم استرداد ديون ${employeeName}` });
@@ -358,7 +349,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       note: form.note || null,
     } as any);
     if (error) { setSaving(false); return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); }
-    await supabase.from('advance_installments').delete().eq('advance_id', advance.id).eq('status', 'pending');
+    await advanceService.deletePendingInstallments(advance.id);
     const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');
     const paidCount = paidInstallments.length;
     const paidAmount = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
@@ -370,7 +361,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       remainingAmount,
       remaining_count
     );
-    if (installments.length > 0) await supabase.from('advance_installments').insert(installments);
+    if (installments.length > 0) await advanceService.createInstallments(installments);
     setSaving(false);
     toast({ title: 'تم تحديث السلفة ✅' });
     onSaved(); onClose();
@@ -554,8 +545,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const handleDeleteAdvance = async () => {
     if (!deleteAdvanceId) return;
     setDeletingAdvance(true);
-    await supabase.from('advance_installments').delete().eq('advance_id', deleteAdvanceId);
-    const { error } = await supabase.from('advances').delete().eq('id', deleteAdvanceId);
+    const { error } = await advanceService.delete(deleteAdvanceId);
     setDeletingAdvance(false);
     if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     toast({ title: '✅ تم حذف السلفة نهائياً' });
@@ -566,7 +556,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const handleDeleteInstallment = async () => {
     if (!deleteInstallmentId) return;
     setDeletingInstallment(true);
-    const { error } = await supabase.from('advance_installments').delete().eq('id', deleteInstallmentId);
+    const { error } = await advanceService.deleteInstallment(deleteInstallmentId);
     setDeletingInstallment(false);
     if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     toast({ title: '✅ تم حذف الصف' });
@@ -577,7 +567,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const startEditNote = (inst: any) => { setEditingNoteId(inst.id); setNoteValue(inst.notes || ''); };
   const saveNote = async (instId: string) => {
     setSavingNote(true);
-    const { error } = await supabase.from('advance_installments').update({ notes: noteValue || null }).eq('id', instId);
+    const { error } = await advanceService.updateInstallmentNote(instId, noteValue || null);
     setSavingNote(false);
     if (error) return toast({ title: 'خطأ', variant: 'destructive' });
     setEditingNoteId(null);
@@ -824,8 +814,7 @@ const Advances = () => {
     setDeletingEmployeeAdvances(true);
     const empAdvIds = advances.filter(a => a.employee_id === deleteEmployeeAdvancesId).map(a => a.id);
     if (empAdvIds.length > 0) {
-      await supabase.from('advance_installments').delete().in('advance_id', empAdvIds);
-      await supabase.from('advances').delete().in('id', empAdvIds);
+      await advanceService.deleteMany(empAdvIds);
     }
     setDeletingEmployeeAdvances(false);
     toast({ title: '✅ تم حذف جميع سلف المندوب' });
@@ -851,7 +840,7 @@ const Advances = () => {
         const amount = parseFloat(row['المبلغ']) || 0;
         const monthly = parseFloat(row['القسط']) || amount;
         const installments = monthly > 0 ? Math.ceil(amount / monthly) : 1;
-        await supabase.from('advances').insert({
+        await advanceService.create({
           employee_id: emp.id, amount, monthly_amount: monthly, total_installments: installments,
           disbursement_date: row['تاريخ الصرف'] || format(new Date(), 'yyyy-MM-dd'),
           first_deduction_month: row['أول شهر خصم'] || format(new Date(), 'yyyy-MM'),
@@ -870,10 +859,10 @@ const Advances = () => {
     setLoading(true);
     const [advRes, empRes] = await Promise.all([
       advanceService.getAll(),
-      supabase.from('employees').select('id, name, sponsorship_status').eq('status', 'active').order('name'),
+      advanceService.getEmployees(),
     ]);
     if (advRes.data) setAdvances(advRes.data as Advance[]);
-    if (empRes.data) setEmployees(empRes.data);
+    if (empRes.data) setEmployees(empRes.data as { id: string; name: string; sponsorship_status?: string | null }[]);
     setLoading(false);
   };
 

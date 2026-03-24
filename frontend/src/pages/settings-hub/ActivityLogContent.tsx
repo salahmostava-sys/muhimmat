@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/integrations/supabase/client';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
+import { settingsHubService } from '@/services/settingsHubService';
 
 interface AuditLog {
   id: string;
@@ -74,27 +74,19 @@ export default function ActivityLogContent() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('audit_log')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-
-      if (filterAction !== 'all') query = query.eq('action', filterAction);
-      if (filterTable !== 'all') query = query.eq('table_name', filterTable);
-      if (debouncedSearch.trim()) {
-        query = query.or(
-          `table_name.ilike.%${debouncedSearch}%,action.ilike.%${debouncedSearch}%,record_id.ilike.%${debouncedSearch}%`
-        );
-      }
-
-      const { data, count, error } = await query;
+      const { data, count, error } = await settingsHubService.getAuditLogs(
+        page * PAGE_SIZE,
+        (page + 1) * PAGE_SIZE - 1,
+        filterAction,
+        filterTable,
+        debouncedSearch
+      );
       if (error) throw error;
 
       const userIds = [...new Set((data || []).map(l => l.user_id).filter(Boolean))] as string[];
       let profileMap: Record<string, { name: string | null; email: string | null }> = {};
       if (userIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, name, email').in('id', userIds);
+        const { data: profiles } = await settingsHubService.getAuditProfilesByIds(userIds);
         profiles?.forEach(p => { profileMap[p.id] = { name: p.name, email: p.email }; });
       }
 
@@ -113,7 +105,7 @@ export default function ActivityLogContent() {
   useEffect(() => { setPage(0); }, [filterAction, filterTable, debouncedSearch]);
 
   const handleExport = async () => {
-    const { data } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false }).limit(1000);
+    const { data } = await settingsHubService.getAuditLogsForExport();
     if (!data) return;
     const rows = data.map(l => ({
       'التاريخ': format(new Date(l.created_at), 'yyyy-MM-dd HH:mm:ss'),

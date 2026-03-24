@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
+import { settingsHubService } from '@/services/settingsHubService';
 
 const getStrength = (pw: string) => {
   if (!pw) return 0;
@@ -62,7 +62,7 @@ export default function ProfileSettingsContent() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('profiles').select('name, avatar_url').eq('id', user.id).single()
+    settingsHubService.getProfileByUserId(user.id)
       .then(({ data }) => {
         if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
       });
@@ -87,13 +87,12 @@ export default function ProfileSettingsContent() {
       if (avatarFile) {
         const ext = avatarFile.name.split('.').pop();
         const path = `${user.id}/avatar.${ext}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars').upload(path, avatarFile, { upsert: true });
+        const { data: uploadData, error: uploadError } = await settingsHubService.uploadAvatar(path, avatarFile);
         if (uploadError) throw uploadError;
-        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(uploadData.path);
+        const { data: urlData } = settingsHubService.getAvatarPublicUrl(uploadData.path);
         avatar_url = urlData.publicUrl;
       }
-      const { error } = await supabase.from('profiles').update({ name: profile.name.trim(), avatar_url }).eq('id', user.id);
+      const { error } = await settingsHubService.updateProfileByUserId(user.id, { name: profile.name.trim(), avatar_url });
       if (error) throw error;
       setProfile(p => ({ ...p, avatar_url }));
       setAvatarFile(null);
@@ -116,7 +115,7 @@ export default function ProfileSettingsContent() {
       return;
     }
     setSavingPw(true);
-    const { error } = await supabase.auth.updateUser({ password: pw.next });
+    const { error } = await settingsHubService.updatePassword(pw.next);
     setSavingPw(false);
     if (error) { setPwError(error.message); return; }
     toast({ title: isRTL ? 'تم تغيير كلمة المرور ✓' : 'Password changed successfully ✓' });
