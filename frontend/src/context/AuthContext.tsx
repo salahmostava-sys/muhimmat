@@ -98,12 +98,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // عند العودة للتبويب بعد خمول طويل: تجديد الجلسة لتفادي طلبات فاشلة و«اختفاء» البيانات
+  // عند العودة للتبويب: تجديد الجلسة بحد أدنى بين المحاولات (أونلاين، ليس كل ثانية)
   useEffect(() => {
+    let lastRefreshAt = 0;
+    const minMs = 45_000;
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastRefreshAt < minMs) return;
+      lastRefreshAt = now;
       void supabase.auth.refreshSession().catch(() => {
-        /* يُعاد المحاولة تلقائياً عبر onAuthStateChange */
+        /* يُعاد المحاولة عبر onAuthStateChange */
       });
     };
     document.addEventListener('visibilitychange', onVisibility);

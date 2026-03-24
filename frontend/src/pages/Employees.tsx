@@ -342,10 +342,22 @@ const Employees = () => {
     fetchEmployees();
   }, [fetchEmployees]);
 
+  // إعادة جلب البيانات فقط بعد إخفاء الصفحة فترة (أونلاين) — بدون إعادة تحميل عند كل focus لتفادي الوميض والتعارض
   useEffect(() => {
-    const onFocus = () => fetchEmployees();
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    let hiddenAt: number | null = null;
+    const minAwayMs = 90_000;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (document.visibilityState !== 'visible' || hiddenAt === null) return;
+      const away = Date.now() - hiddenAt;
+      hiddenAt = null;
+      if (away >= minAwayMs) void fetchEmployees();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, [fetchEmployees]);
 
   // Reset page when filters/sort change
