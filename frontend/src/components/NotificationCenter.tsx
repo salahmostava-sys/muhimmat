@@ -184,11 +184,12 @@ export default function NotificationCenter() {
 
       {/* ── Bell button ─────────────────────────────────────── */}
       <button
+        type="button"
         onClick={() => { setOpen(v => !v); if (!open) fetchAlerts(); }}
-        className="relative h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+        className="relative h-9 w-9 flex items-center justify-center rounded-full border border-border/60 bg-card/80 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
         title={isRTL ? 'الإشعارات' : 'Notifications'}
       >
-        <Bell size={16} className={cn(unread > 0 && 'text-foreground')} />
+        <Bell size={17} className={cn(unread > 0 && 'text-foreground')} />
 
         {/* Badge */}
         {unread > 0 && (

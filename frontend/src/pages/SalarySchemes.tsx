@@ -66,10 +66,15 @@ const monthNameOnly = (my: string) => {
 const buildMonthsOfYear = (year: number) =>
   Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
 
-const snapshotYearOptions = () => {
-  const y = new Date().getFullYear();
-  return [y - 1, y, y + 1, y + 2, y + 3];
-};
+/** نطاق السنوات الثابت في واجهة تثبيت الشهور */
+const SNAPSHOT_YEAR_MIN = 2025;
+const SNAPSHOT_YEAR_MAX = 2030;
+
+const snapshotYearOptions = (): number[] =>
+  Array.from({ length: SNAPSHOT_YEAR_MAX - SNAPSHOT_YEAR_MIN + 1 }, (_, i) => SNAPSHOT_YEAR_MIN + i);
+
+const clampSnapshotYear = (y: number) =>
+  Math.min(SNAPSHOT_YEAR_MAX, Math.max(SNAPSHOT_YEAR_MIN, y));
 
 const tierTypeLabels: Record<TierType, string> = {
   total_multiplier: 'إجمالي × سعر',
@@ -451,7 +456,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
 
                 {/* Snapshot section — شبكة أشهر أفقية + سنة + تثبيت / إلغاء تثبيت */}
                 {(() => {
-                  const y = snapshotYearByScheme[s.id] ?? new Date().getFullYear();
+                  const y = clampSnapshotYear(snapshotYearByScheme[s.id] ?? new Date().getFullYear());
                   const yearMonths = buildMonthsOfYear(y);
                   const sel = pinSelectionByScheme[s.id] || [];
                   const pinnedSet = new Set((snapshots[s.id] || []).map(sn => sn.month_year));

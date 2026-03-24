@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, Search, CheckCircle, Clock, X, Download } from 'lucide-react';
+import { Bell, Search, CheckCircle, Clock, X, Download, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -118,6 +118,191 @@ const pushEmployeeExpiryAlerts = (
   }
 };
 
+type VehicleExpiryRow = {
+  id: string;
+  plate_number: string;
+  insurance_expiry: string | null;
+  authorization_expiry: string | null;
+};
+
+const FETCH_ALERTS_TIMEOUT_MS = 45_000;
+
+const DB_BACKED_EMPLOYEE_ALERT_TYPES = new Set(['employee_absconded', 'employee_terminated']);
+
+const isDbBackedEmployeeAlertType = (type: string) => DB_BACKED_EMPLOYEE_ALERT_TYPES.has(type);
+
+const pushVehicleExpiryAlerts = (
+  out: Alert[],
+  vehicles: VehicleExpiryRow[] | null | undefined,
+  threshold: string,
+  today: Date
+) => {
+  if (!vehicles?.length) return;
+  for (const v of vehicles) {
+    if (v.insurance_expiry && v.insurance_expiry <= threshold) {
+      const days = differenceInDays(parseISO(v.insurance_expiry), today);
+      out.push({
+        id: `ins-${v.id}`,
+        type: 'insurance',
+        entityName: `مركبة ${v.plate_number}`,
+        dueDate: v.insurance_expiry,
+        daysLeft: days,
+        severity: getStandardSeverity(days),
+        resolved: false,
+      });
+    }
+    if (v.authorization_expiry && v.authorization_expiry <= threshold) {
+      const days = differenceInDays(parseISO(v.authorization_expiry), today);
+      out.push({
+        id: `auth-${v.id}`,
+        type: 'authorization',
+        entityName: `مركبة ${v.plate_number}`,
+        dueDate: v.authorization_expiry,
+        daysLeft: days,
+        severity: getStandardSeverity(days),
+        resolved: false,
+      });
+    }
+  }
+};
+
+const pushPlatformAccountAlerts = (
+  out: Alert[],
+  rows: PlatformAccountAlertRow[],
+  today: Date
+) => {
+  for (const acc of rows) {
+    if (!acc.iqama_expiry_date) continue;
+    const days = differenceInDays(parseISO(acc.iqama_expiry_date), today);
+    const appName = acc.apps?.name ?? 'منصة';
+    const expiryFormatted = format(parseISO(acc.iqama_expiry_date), 'dd/MM/yyyy');
+    out.push({
+      id: `pla-${acc.id}`,
+      type: 'platform_account',
+      entityName: `إقامة الحساب ${acc.account_username} على منصة ${appName} ستنتهي في ${expiryFormatted}، قد يتوقف الحساب.`,
+      dueDate: acc.iqama_expiry_date,
+      daysLeft: days,
+      severity: getStandardSeverity(days),
+      resolved: false,
+    });
+  }
+};
+
+const pushPersistedDbAlerts = (out: Alert[], rows: PersistedAlertRow[], today: Date) => {
+  for (const a of rows) {
+    const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
+    const daysLeft = differenceInDays(parseISO(dueDate), today);
+    const details = a.details ?? {};
+    const detailsEmployeeName = typeof details.employee_name === 'string' ? details.employee_name : null;
+    const entityName = detailsEmployeeName ?? a.message ?? '—';
+    out.push({
+      id: a.id,
+      type: a.type,
+      entityName,
+      dueDate,
+      daysLeft,
+      severity: getStandardSeverity(daysLeft),
+      resolved: !!a.is_resolved,
+    });
+  }
+};
+
+function buildAlertsFromResponses(
+  employeesRes: { data: EmployeeAlertRow[] | null },
+  vehiclesRes: { data: VehicleExpiryRow[] | null },
+  platformAccountsRes: { data: PlatformAccountAlertRow[] | null },
+  dbAlertsRes: { data: PersistedAlertRow[] | null },
+  threshold: string,
+  today: Date
+): Alert[] {
+  const generatedAlerts: Alert[] = [];
+  (employeesRes.data as EmployeeAlertRow[] | null)?.forEach((emp) =>
+    pushEmployeeExpiryAlerts(generatedAlerts, emp, threshold, today)
+  );
+  pushVehicleExpiryAlerts(generatedAlerts, vehiclesRes.data, threshold, today);
+  pushPlatformAccountAlerts(generatedAlerts, (platformAccountsRes.data ?? []) as PlatformAccountAlertRow[], today);
+  pushPersistedDbAlerts(generatedAlerts, (dbAlertsRes.data ?? []) as PersistedAlertRow[], today);
+  generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
+  return generatedAlerts;
+}
+
+async function fetchAlertsDataWithTimeout(threshold: string, iqamaThreshold: string, timeoutMs: number) {
+  const fetchAll = Promise.all([
+    supabase
+      .from('employees')
+      .select('id, name, residency_expiry, probation_end_date')
+      .eq('status', 'active')
+      .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
+    supabase
+      .from('vehicles')
+      .select('id, plate_number, insurance_expiry, authorization_expiry')
+      .in('status', ['active', 'maintenance', 'rental'])
+      .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
+    supabase
+      .from('platform_accounts')
+      .select('id, account_username, iqama_expiry_date, app_id, apps(name)')
+      .eq('status', 'active')
+      .not('iqama_expiry_date', 'is', null)
+      .lte('iqama_expiry_date', iqamaThreshold),
+    supabase
+      .from('alerts')
+      .select('id, type, due_date, is_resolved, message, details')
+      .order('created_at', { ascending: false })
+      .limit(500),
+  ]);
+
+  const timeoutError = () =>
+    new Error('انتهت مهلة تحميل البيانات. تحقق من الاتصال ثم أعد فتح الصفحة.');
+
+  return Promise.race([
+    fetchAll,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(timeoutError()), timeoutMs);
+    }),
+  ]);
+}
+
+function isUnresolvedAlertMatchingFilters(
+  a: Alert,
+  typeFilter: string,
+  severityFilter: string,
+  search: string
+): boolean {
+  if (a.resolved) return false;
+  if (typeFilter !== 'all' && a.type !== typeFilter) return false;
+  if (severityFilter !== 'all' && a.severity !== severityFilter) return false;
+  return a.entityName.includes(search);
+}
+
+const SEVERITY_SORT_ORDER: Record<string, number> = { urgent: 0, warning: 1, info: 2 };
+
+const compareAlertsBySeverity = (a: Alert, b: Alert) =>
+  (SEVERITY_SORT_ORDER[a.severity] ?? 3) - (SEVERITY_SORT_ORDER[b.severity] ?? 3);
+
+const alertRowBorderClass = (severity: Alert['severity']) => {
+  if (severity === 'urgent') return 'border-destructive/30';
+  if (severity === 'warning') return 'border-warning/30';
+  return 'border-border/50';
+};
+
+const alertIconContainerClass = (severity: Alert['severity']) => {
+  if (severity === 'urgent') return 'bg-destructive/10';
+  if (severity === 'warning') return 'bg-warning/10';
+  return 'bg-info/10';
+};
+
+const daysLeftTextClass = (daysLeft: number) => {
+  if (daysLeft <= 7) return 'text-destructive';
+  if (daysLeft <= 30) return 'text-warning';
+  return 'text-muted-foreground';
+};
+
+const printSeverityColor = (severity: Alert['severity']) => {
+  if (severity === 'urgent') return '#dc2626';
+  if (severity === 'warning') return '#d97706';
+  return '#2563eb';
+};
+
 const Alerts = () => {
   const [localAlerts, setLocalAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,105 +330,24 @@ const Alerts = () => {
     const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
     const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
 
-    const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await Promise.all([
-      supabase
-        .from('employees')
-        .select('id, name, residency_expiry, probation_end_date')
-        .eq('status', 'active')
-        .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
-
-      supabase
-        .from('vehicles')
-        .select('id, plate_number, insurance_expiry, authorization_expiry')
-        .in('status', ['active', 'maintenance', 'rental'])
-        .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
-
-      supabase
-        .from('platform_accounts')
-        .select('id, account_username, iqama_expiry_date, app_id, apps(name)')
-        .eq('status', 'active')
-        .not('iqama_expiry_date', 'is', null)
-        .lte('iqama_expiry_date', iqamaThreshold),
-      supabase
-        .from('alerts')
-        .select('id, type, due_date, is_resolved, message, details')
-        .order('created_at', { ascending: false })
-        .limit(500),
-    ]);
-
-    const generatedAlerts: Alert[] = [];
-
-    (employeesRes.data as EmployeeAlertRow[] | null)?.forEach((emp) =>
-      pushEmployeeExpiryAlerts(generatedAlerts, emp, threshold, today)
-    );
-
-    vehiclesRes.data?.forEach(v => {
-      if (v.insurance_expiry && v.insurance_expiry <= threshold) {
-        const days = differenceInDays(parseISO(v.insurance_expiry), today);
-        generatedAlerts.push({
-          id: `ins-${v.id}`,
-          type: 'insurance',
-          entityName: `مركبة ${v.plate_number}`,
-          dueDate: v.insurance_expiry,
-          daysLeft: days,
-          severity: getStandardSeverity(days),
-          resolved: false,
-        });
+    try {
+      const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await fetchAlertsDataWithTimeout(
+        threshold,
+        iqamaThreshold,
+        FETCH_ALERTS_TIMEOUT_MS
+      );
+      setLocalAlerts(
+        buildAlertsFromResponses(employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today)
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      if (!silent) {
+        toast({ title: 'تعذر تحميل التنبيهات', description: msg, variant: 'destructive' });
       }
-      if (v.authorization_expiry && v.authorization_expiry <= threshold) {
-        const days = differenceInDays(parseISO(v.authorization_expiry), today);
-        generatedAlerts.push({
-          id: `auth-${v.id}`,
-          type: 'authorization',
-          entityName: `مركبة ${v.plate_number}`,
-          dueDate: v.authorization_expiry,
-          daysLeft: days,
-          severity: getStandardSeverity(days),
-          resolved: false,
-        });
-      }
-    });
-
-    ((platformAccountsRes.data ?? []) as PlatformAccountAlertRow[]).forEach((acc) => {
-      if (!acc.iqama_expiry_date) return;
-      const days = differenceInDays(parseISO(acc.iqama_expiry_date), today);
-      const appName = acc.apps?.name ?? 'منصة';
-      const expiryFormatted = format(parseISO(acc.iqama_expiry_date), 'dd/MM/yyyy');
-      generatedAlerts.push({
-        id: `pla-${acc.id}`,
-        type: 'platform_account',
-        entityName: `إقامة الحساب ${acc.account_username} على منصة ${appName} ستنتهي في ${expiryFormatted}، قد يتوقف الحساب.`,
-        dueDate: acc.iqama_expiry_date,
-        daysLeft: days,
-        severity: getStandardSeverity(days),
-        resolved: false,
-      });
-    });
-
-    ((dbAlertsRes.data ?? []) as PersistedAlertRow[]).forEach((a) => {
-      const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
-      const daysLeft = differenceInDays(parseISO(dueDate), today);
-      const severity = getStandardSeverity(daysLeft);
-
-      const details = a.details ?? {};
-      const detailsEmployeeName = typeof details.employee_name === 'string' ? details.employee_name : null;
-      const entityName = detailsEmployeeName ?? a.message ?? '—';
-
-      generatedAlerts.push({
-        id: a.id,
-        type: a.type,
-        entityName,
-        dueDate,
-        daysLeft,
-        severity,
-        resolved: !!a.is_resolved,
-      });
-    });
-
-    generatedAlerts.sort((a, b) => a.daysLeft - b.daysLeft);
-    setLocalAlerts(generatedAlerts);
-    if (!silent) setLoading(false);
-  }, [iqamaAlertDays]);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [iqamaAlertDays, toast]);
 
   useEffect(() => {
     loadAlerts(false);
@@ -256,12 +360,24 @@ const Alerts = () => {
     void loadAlerts(true);
   }, [rtTick, loadAlerts]);
 
-  const filtered = localAlerts.filter(a => {
-    const matchType = typeFilter === 'all' || a.type === typeFilter;
-    const matchSeverity = severityFilter === 'all' || a.severity === severityFilter;
-    const matchSearch = a.entityName.includes(search);
-    return matchType && matchSeverity && matchSearch && !a.resolved;
-  });
+  /** عند العودة للتبويب بعد إبقائه في الخلفية (يثبّت الجلسة ويعيد جلب التنبيهات بصمت) */
+  useEffect(() => {
+    let debounce: ReturnType<typeof setTimeout>;
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(debounce);
+      debounce = setTimeout(() => void loadAlerts(true), 400);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearTimeout(debounce);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [loadAlerts]);
+
+  const filtered = localAlerts.filter(a =>
+    isUnresolvedAlertMatchingFilters(a, typeFilter, severityFilter, search)
+  );
 
   const resolved = localAlerts.filter(a => a.resolved);
 
@@ -271,7 +387,7 @@ const Alerts = () => {
     toast({ title: 'تم الحسم', description: `تم حسم تنبيه: ${resolveDialog.entityName}` });
 
     // Persist DB-backed employee alerts
-    if (resolveDialog.type === 'employee_absconded' || resolveDialog.type === 'employee_terminated') {
+    if (isDbBackedEmployeeAlertType(resolveDialog.type)) {
       const { error } = await supabase
         .from('alerts')
         .update({ is_resolved: true, resolved_by: user?.id ?? null })
@@ -298,7 +414,7 @@ const Alerts = () => {
     toast({ title: 'تم التأجيل', description: `تم تأجيل التنبيه ${days} يوم` });
 
     // Persist DB-backed employee alerts
-    if (deferDialog.type === 'employee_absconded' || deferDialog.type === 'employee_terminated') {
+    if (isDbBackedEmployeeAlertType(deferDialog.type)) {
       const due = newDate.toISOString().split('T')[0];
       const { error } = await supabase
         .from('alerts')
@@ -315,7 +431,7 @@ const Alerts = () => {
 
   const handlePrint = () => {
     const severityLabels2: Record<string, string> = { urgent: 'عاجل', warning: 'تحذير', info: 'معلومة' };
-    const rows = filtered.map(a => `<tr><td>${escapeHtml(alertTypeLabels[a.type] || a.type)}</td><td>${escapeHtml(a.entityName)}</td><td>${escapeHtml(a.dueDate || '—')}</td><td style="text-align:center">${escapeHtml(a.daysLeft ?? '—')}</td><td style="text-align:center;font-weight:700;color:${a.severity === 'urgent' ? '#dc2626' : a.severity === 'warning' ? '#d97706' : '#2563eb'}">${escapeHtml(severityLabels2[a.severity] || a.severity)}</td></tr>`).join('');
+    const rows = filtered.map(a => `<tr><td>${escapeHtml(alertTypeLabels[a.type] || a.type)}</td><td>${escapeHtml(a.entityName)}</td><td>${escapeHtml(a.dueDate || '—')}</td><td style="text-align:center">${escapeHtml(a.daysLeft ?? '—')}</td><td style="text-align:center;font-weight:700;color:${printSeverityColor(a.severity)}">${escapeHtml(severityLabels2[a.severity] || a.severity)}</td></tr>`).join('');
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير التنبيهات</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير التنبيهات التلقائية</h2><p class="sub">المجموع: ${filtered.length} تنبيه — ${new Date().toLocaleDateString('ar-SA')}</p><table><thead><tr><th>النوع</th><th>الجهة</th><th>تاريخ الاستحقاق</th><th>المتبقي (يوم)</th><th>الأولوية</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
@@ -323,10 +439,9 @@ const Alerts = () => {
   };
 
   const handleExport = () => {
-    const severityOrder: Record<string, number> = { urgent: 0, warning: 1, info: 2 };
     const rows = [...localAlerts]
       .filter(a => !a.resolved)
-      .sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3))
+      .sort(compareAlertsBySeverity)
       .map(a => ({
         'الأولوية': severityLabels[a.severity] || a.severity,
         'النوع': alertTypeLabels[a.type] || a.type,
@@ -436,7 +551,8 @@ const Alerts = () => {
       {/* Alert list */}
       <div className="space-y-3">
         {loading ? (
-          <div className="bg-card rounded-xl border border-border/50 p-12 text-center">
+          <div className="bg-card rounded-xl border border-border/50 p-12 flex flex-col items-center justify-center gap-3 text-center min-h-[200px]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">جارٍ تحميل التنبيهات...</p>
           </div>
         ) : filtered.length === 0 ? (
@@ -445,12 +561,9 @@ const Alerts = () => {
             <p className="text-muted-foreground">لا توجد تنبيهات مطابقة</p>
             <p className="text-xs text-muted-foreground mt-1">جميع المستندات سارية المفعول ✅</p>
           </div>
-        ) : filtered.sort((a, b) => {
-          const order = { urgent: 0, warning: 1, info: 2 };
-          return (order[a.severity as keyof typeof order] || 0) - (order[b.severity as keyof typeof order] || 0);
-        }).map(a => (
-          <div key={a.id} className={`bg-card rounded-xl border shadow-card p-4 flex items-center gap-4 hover:shadow-md transition-shadow ${a.severity === 'urgent' ? 'border-destructive/30' : a.severity === 'warning' ? 'border-warning/30' : 'border-border/50'}`}>
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${a.severity === 'urgent' ? 'bg-destructive/10' : a.severity === 'warning' ? 'bg-warning/10' : 'bg-info/10'}`}>
+        ) : [...filtered].sort(compareAlertsBySeverity).map(a => (
+          <div key={a.id} className={`bg-card rounded-xl border shadow-card p-4 flex items-center gap-4 hover:shadow-md transition-shadow ${alertRowBorderClass(a.severity)}`}>
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${alertIconContainerClass(a.severity)}`}>
               {typeIcons[a.type] || '📌'}
             </div>
             <div className="flex-1 min-w-0">
@@ -462,7 +575,7 @@ const Alerts = () => {
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 تاريخ الاستحقاق: <span className="font-medium">{a.dueDate}</span>
-                <span className={`mr-3 font-bold ${a.daysLeft <= 7 ? 'text-destructive' : a.daysLeft <= 30 ? 'text-warning' : 'text-muted-foreground'}`}>
+                <span className={`mr-3 font-bold ${daysLeftTextClass(a.daysLeft)}`}>
                   {a.daysLeft < 0 ? `منتهي منذ ${Math.abs(a.daysLeft)} يوم` : `متبقي ${a.daysLeft} يوم`}
                 </span>
               </p>
