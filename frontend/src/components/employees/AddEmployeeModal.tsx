@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { differenceInDays, parseISO } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
+import { validateUploadFile } from '@/lib/validation';
 
 
 interface EmployeeData {
@@ -294,6 +295,12 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       const updates: Record<string, string> = {};
       for (const u of uploads) {
         if (u.file) {
+          const validation = validateUploadFile(u.file, {
+            allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+          });
+          if (!validation.valid) {
+            throw new Error(validation.error);
+          }
           const ext = u.file.name.split('.').pop();
           const storagePath = `${u.path}.${ext}`;
           const { data: upData, error: upError } = await supabase.storage
