@@ -719,12 +719,12 @@ const MonthSummary = () => {
   useEffect(() => {
     let isMounted = true;
     const my = monthYear(year, month);
-    (supabase as any)
+    supabase
       .from('locked_months')
       .select('month_year')
       .eq('month_year', my)
       .maybeSingle()
-      .then(({ data }: { data: any }) => {
+      .then(({ data }) => {
         if (!isMounted) return;
         setIsMonthLocked(!!data);
       });
