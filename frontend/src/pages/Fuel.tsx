@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { fuelService } from '@/services/fuelService';
 import { usePermissions } from '@/hooks/usePermissions';
 import * as XLSX from '@e965/xlsx';
 import { format, endOfMonth } from 'date-fns';
@@ -54,17 +54,7 @@ async function saveVehicleMileageDaily(
   payload: { employee_id: string; date: string; km_total: number; fuel_cost: number; notes: string | null },
   editId?: string
 ) {
-  const row = {
-    employee_id: payload.employee_id,
-    date: payload.date,
-    km_total: payload.km_total,
-    fuel_cost: payload.fuel_cost,
-    notes: payload.notes,
-  };
-  if (editId) {
-    return supabase.from('vehicle_mileage_daily').update(row).eq('id', editId);
-  }
-  return supabase.from('vehicle_mileage_daily').upsert(row, { onConflict: 'employee_id,date' });
+  return fuelService.upsertDailyMileage(payload, editId);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -165,10 +155,7 @@ const ImportModal = ({
       fuel_cost: r.fuel_cost,
       notes: r.notes || null,
     }));
-    const { error } = await supabase.from('vehicle_mileage').upsert(payload, {
-      onConflict: replaceExisting ? 'employee_id,month_year' : undefined,
-      ignoreDuplicates: !replaceExisting,
-    });
+    const { error } = await fuelService.saveMonthlyMileageImport(payload, replaceExisting);
     setSaving(false);
     if (error) return toast({ title: 'خطأ في الاستيراد', description: error.message, variant: 'destructive' });
     toast({ title: `تم استيراد ${payload.length} سجل بنجاح` });
@@ -349,9 +336,9 @@ const FuelPage = () => {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('employees').select('id, name, personal_photo_url').eq('status', 'active').order('name'),
-      supabase.from('apps').select('id, name').eq('is_active', true).order('name'),
-      supabase.from('employee_apps').select('employee_id, app_id').eq('status', 'active'),
+      fuelService.getActiveEmployees(),
+      fuelService.getActiveApps(),
+      fuelService.getActiveEmployeeAppLinks(),
     ]).then(([empRes, appRes, linkRes]) => {
       if (empRes.data) setEmployees(empRes.data as Employee[]);
       if (appRes.data) setApps(appRes.data as AppRow[]);
@@ -368,17 +355,9 @@ const FuelPage = () => {
     const ms = `${monthYear}-01`;
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
     const [dailyRes, ordersRes, assignmentsRes] = await Promise.all([
-      supabase
-        .from('vehicle_mileage_daily')
-        .select('employee_id, km_total, fuel_cost, employees(name, personal_photo_url)')
-        .gte('date', ms)
-        .lte('date', me),
-      supabase.from('daily_orders').select('employee_id, orders_count')
-        .gte('date', ms).lte('date', me),
-      supabase.from('vehicle_assignments')
-        .select('employee_id, vehicles(plate_number, type, brand, model)')
-        .is('end_date', null)
-        .order('start_date', { ascending: false }),
+      fuelService.getMonthlyDailyMileage(ms, me),
+      fuelService.getMonthlyOrders(ms, me),
+      fuelService.getActiveVehicleAssignments(),
     ]);
 
     const orderMap: Record<string, number> = {};
@@ -425,15 +404,13 @@ const FuelPage = () => {
     setLoading(true);
     const ms = `${monthYear}-01`;
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    let q = supabase
-      .from('vehicle_mileage_daily')
-      .select('*, employees(name, personal_photo_url)')
-      .gte('date', ms)
-      .lte('date', me)
-      .order('date', { ascending: false });
-
+    const { data, error } = await fuelService.getDailyMileageByMonth(ms, me);
+    if (error) {
+      toast({ title: 'خطأ في جلب البيانات', description: (error as any).message, variant: 'destructive' });
+    }
+    let mapped = (data || []).map((r: any) => ({ ...r, employee: r.employees as Employee | undefined }));
     if (selectedEmployee && selectedEmployee !== '_all_') {
-      q = q.eq('employee_id', selectedEmployee);
+      mapped = mapped.filter((r: any) => r.employee_id === selectedEmployee);
     } else if (employeeIdsOnPlatform) {
       const ids = Array.from(employeeIdsOnPlatform);
       if (ids.length === 0) {
@@ -441,14 +418,8 @@ const FuelPage = () => {
         setLoading(false);
         return;
       }
-      q = q.in('employee_id', ids);
+      mapped = mapped.filter((r: any) => ids.includes(r.employee_id));
     }
-
-    const { data, error } = await q;
-    if (error) {
-      toast({ title: 'خطأ في جلب البيانات', description: (error as any).message, variant: 'destructive' });
-    }
-    const mapped = (data || []).map(r => ({ ...r, employee: r.employees as Employee | undefined }));
     setDailyRows(mapped as DailyRow[]);
     setLoading(false);
   }, [monthYear, selectedEmployee, employeeIdsOnPlatform, toast]);
@@ -465,7 +436,7 @@ const FuelPage = () => {
 
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
-    const { error } = await supabase.from('vehicle_mileage_daily').delete().eq('id', id);
+    const { error } = await fuelService.deleteDailyMileage(id);
     if (error) return toast({ title: 'خطأ في الحذف', description: (error as any).message, variant: 'destructive' });
     toast({ title: 'تم الحذف' });
     fetchDaily();

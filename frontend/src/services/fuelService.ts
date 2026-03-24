@@ -1,20 +1,119 @@
-// fuelService.ts
+import { supabase } from '@/integrations/supabase/client';
 
-import { supabase } from '../supabaseClient';
+export interface MileageDailyPayload {
+  employee_id: string;
+  date: string;
+  km_total: number;
+  fuel_cost: number;
+  notes: string | null;
+}
 
-export const fetchFuelData = async (startDate: string, endDate: string) => {
-    // Querying fuel data
+export interface MileageMonthlyPayload {
+  employee_id: string;
+  month_year: string;
+  km_total: number;
+  fuel_cost: number;
+  notes: string | null;
+}
+
+export const fuelService = {
+  getActiveEmployees: async () => {
     const { data, error } = await supabase
-        .from('fuel_data')
-        .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate);
+      .from('employees')
+      .select('id, name, personal_photo_url')
+      .eq('status', 'active')
+      .order('name');
+    return { data, error };
+  },
 
-    if (error) {
-        throw new Error(`Error fetching fuel data: ${error.message}`);
+  getActiveApps: async () => {
+    const { data, error } = await supabase
+      .from('apps')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name');
+    return { data, error };
+  },
+
+  getActiveEmployeeAppLinks: async () => {
+    const { data, error } = await supabase
+      .from('employee_apps')
+      .select('employee_id, app_id')
+      .eq('status', 'active');
+    return { data, error };
+  },
+
+  getMonthlyDailyMileage: async (monthStart: string, monthEnd: string) => {
+    const { data, error } = await supabase
+      .from('vehicle_mileage_daily')
+      .select('employee_id, km_total, fuel_cost, employees(name, personal_photo_url)')
+      .gte('date', monthStart)
+      .lte('date', monthEnd);
+    return { data, error };
+  },
+
+  getMonthlyOrders: async (monthStart: string, monthEnd: string) => {
+    const { data, error } = await supabase
+      .from('daily_orders')
+      .select('employee_id, orders_count')
+      .gte('date', monthStart)
+      .lte('date', monthEnd);
+    return { data, error };
+  },
+
+  getActiveVehicleAssignments: async () => {
+    const { data, error } = await supabase
+      .from('vehicle_assignments')
+      .select('employee_id, vehicles(plate_number, type, brand, model)')
+      .is('end_date', null)
+      .order('start_date', { ascending: false });
+    return { data, error };
+  },
+
+  getDailyMileageByMonth: async (monthStart: string, monthEnd: string) => {
+    const { data, error } = await supabase
+      .from('vehicle_mileage_daily')
+      .select('*, employees(name, personal_photo_url)')
+      .gte('date', monthStart)
+      .lte('date', monthEnd)
+      .order('date', { ascending: false });
+    return { data, error };
+  },
+
+  upsertDailyMileage: async (payload: MileageDailyPayload, editId?: string) => {
+    if (editId) {
+      const { error } = await supabase
+        .from('vehicle_mileage_daily')
+        .update(payload)
+        .eq('id', editId);
+      return { error };
     }
+    const { error } = await supabase
+      .from('vehicle_mileage_daily')
+      .upsert(payload, { onConflict: 'employee_id,date' });
+    return { error };
+  },
 
-    return data;
+  deleteDailyMileage: async (id: string) => {
+    const { error } = await supabase
+      .from('vehicle_mileage_daily')
+      .delete()
+      .eq('id', id);
+    return { error };
+  },
+
+  saveMonthlyMileageImport: async (rows: MileageMonthlyPayload[], replaceExisting: boolean) => {
+    if (replaceExisting) {
+      const { error } = await supabase
+        .from('vehicle_mileage')
+        .upsert(rows, { onConflict: 'employee_id,month_year' });
+      return { error };
+    }
+    const { error } = await supabase
+      .from('vehicle_mileage')
+      .insert(rows as any, { ignoreDuplicates: true });
+    return { error };
+  },
 };
 
-// Other service functions would go here.  
+export default fuelService;

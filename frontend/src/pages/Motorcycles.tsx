@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
+import { vehicleService } from '@/services/vehicleService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO } from 'date-fns';
@@ -142,12 +142,9 @@ const VehicleFormModal = ({
       serial_number: form.serial_number.trim() || null,
       notes: form.notes || null,
     };
-    let error;
-    if (editVehicle) {
-      ({ error } = await supabase.from('vehicles').update(payload).eq('id', editVehicle.id));
-    } else {
-      ({ error } = await supabase.from('vehicles').insert(payload));
-    }
+    const { error } = editVehicle
+      ? await vehicleService.update(editVehicle.id, payload)
+      : await vehicleService.create(payload as any);
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
     toast({ title: editVehicle ? 'تم تحديث المركبة' : 'تم إضافة المركبة بنجاح' });
@@ -342,7 +339,7 @@ const Motorcycles = () => {
         const y = cell(row, 'year', 'سنة الصنع');
         const yearNum = y !== undefined ? parseInt(String(y), 10) : NaN;
         const plateEn = cell(row, 'plate_number_en', 'رقم اللوحة en');
-        await supabase.from('vehicles').upsert({
+        await vehicleService.upsert({
           plate_number: String(plate).trim(),
           plate_number_en: plateEn !== undefined ? String(plateEn).trim() || null : null,
           type: parseVehicleType(cell(row, 'type', 'النوع')),
@@ -357,7 +354,7 @@ const Motorcycles = () => {
           chassis_number: cell(row, 'chassis_number', 'رقم الهيكل') != null ? String(cell(row, 'chassis_number', 'رقم الهيكل')).trim() || null : null,
           serial_number: cell(row, 'serial_number', 'الرقم التسلسلي') != null ? String(cell(row, 'serial_number', 'الرقم التسلسلي')).trim() || null : null,
           notes: cell(row, 'notes', 'ملاحظات') != null ? String(cell(row, 'notes', 'ملاحظات')) : null,
-        }, { onConflict: 'plate_number' });
+        });
         success++;
       }
       toast({ title: `تم استيراد ${success} مركبة ✅` });
@@ -377,28 +374,9 @@ const Motorcycles = () => {
 
   const fetchVehicles = useCallback(async () => {
     setLoading(true);
-    const { data: rows, error } = await supabase.from('vehicles').select('*').order('plate_number').limit(1000);
+    const { data: rows, error } = await vehicleService.getAllWithCurrentRider();
     if (error) { toast({ title: 'خطأ في التحميل', description: error.message, variant: 'destructive' }); setLoading(false); return; }
-
-    // Fetch current active vehicle assignments (no end_date = still active)
-    const { data: assignments } = await supabase
-      .from('vehicle_assignments')
-      .select('vehicle_id, employees(name)')
-      .is('end_date', null)
-      .is('returned_at', null);
-
-    const assignMap: Record<string, string> = {};
-    if (assignments) {
-      (assignments as any[]).forEach(a => {
-        if (a.vehicle_id && a.employees?.name) {
-          assignMap[a.vehicle_id] = a.employees.name;
-        }
-      });
-    }
-
-    if (rows) {
-      setData(rows.map(v => ({ ...v, current_rider: assignMap[v.id] ?? null })) as Vehicle[]);
-    }
+    if (rows) setData(rows as Vehicle[]);
     setLoading(false);
   }, [toast]);
 
@@ -460,7 +438,7 @@ const Motorcycles = () => {
 
   const handleDelete = async (v: Vehicle) => {
     if (!confirm(`هل تريد حذف المركبة ${v.plate_number}؟`)) return;
-    const { error } = await supabase.from('vehicles').delete().eq('id', v.id);
+    const { error } = await vehicleService.delete(v.id);
     if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     toast({ title: 'تم حذف المركبة' });
     fetchVehicles();

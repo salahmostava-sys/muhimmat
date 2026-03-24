@@ -2,10 +2,18 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface VehiclePayload {
   plate_number: string;
+  plate_number_en?: string | null;
+  type?: 'motorcycle' | 'car';
   brand?: string;
   model?: string;
   year?: number;
   status?: string;
+  has_fuel_chip?: boolean;
+  insurance_expiry?: string | null;
+  registration_expiry?: string | null;
+  authorization_expiry?: string | null;
+  chassis_number?: string | null;
+  serial_number?: string | null;
   assigned_employee_id?: string | null;
   notes?: string;
 }
@@ -23,7 +31,10 @@ export interface VehicleAssignmentPayload {
   vehicle_id: string;
   employee_id: string;
   start_date: string;
+  start_at?: string | null;
+  returned_at?: string | null;
   end_date?: string | null;
+  reason?: string | null;
   notes?: string;
 }
 
@@ -34,6 +45,29 @@ export const vehicleService = {
       .select('*')
       .order('plate_number');
     return { data, error };
+  },
+
+  getAllWithCurrentRider: async () => {
+    const [vehiclesRes, assignmentsRes] = await Promise.all([
+      supabase.from('vehicles').select('*').order('plate_number').limit(1000),
+      supabase
+        .from('vehicle_assignments')
+        .select('vehicle_id, employees(name)')
+        .is('end_date', null)
+        .is('returned_at', null),
+    ]);
+
+    const assignMap: Record<string, string> = {};
+    (assignmentsRes.data || []).forEach((a: any) => {
+      if (a.vehicle_id && a.employees?.name) assignMap[a.vehicle_id] = a.employees.name;
+    });
+
+    const data = (vehiclesRes.data || []).map((v: any) => ({
+      ...v,
+      current_rider: assignMap[v.id] ?? null,
+    }));
+
+    return { data, error: vehiclesRes.error || assignmentsRes.error };
   },
 
   getById: async (id: string) => {
@@ -123,6 +157,32 @@ export const vehicleService = {
       .from('vehicle_assignments')
       .select('*, vehicles(plate_number, brand), employees(name)')
       .order('start_date', { ascending: false });
+    return { data, error };
+  },
+
+  getAssignmentsWithRelations: async (limit = 200) => {
+    const { data, error } = await supabase
+      .from('vehicle_assignments')
+      .select('*, vehicles(plate_number, type), employees(name)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return { data, error };
+  },
+
+  getActiveAssignments: async () => {
+    const { data, error } = await supabase
+      .from('vehicle_assignments')
+      .select('vehicle_id')
+      .is('returned_at', null);
+    return { data, error };
+  },
+
+  getActiveEmployees: async () => {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('name');
     return { data, error };
   },
 
