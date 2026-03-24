@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Plus, Trash2, Search, Loader2, AlertTriangle, CheckCircle2,
   Calendar, Layers, ChevronUp, ChevronDown, ChevronsUpDown, Check, X,
@@ -160,7 +161,32 @@ const EmployeeTiers = () => {
   const [tiers, setTiers]       = useState<TierRow[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [apps, setApps]         = useState<AppRow[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const {
+    data: tiersData,
+    isLoading: loading,
+    error: tiersError,
+    refetch: refetchTiersData,
+  } = useQuery({
+    queryKey: ['employee-tiers', 'page-data'],
+    queryFn: async () => {
+      const [{ data: tiersRows }, { data: employeeRows }, { data: appsRows }] = await Promise.all([
+        employeeTierService.getTiers(),
+        employeeTierService.getEmployees(),
+        employeeTierService.getActiveApps(),
+      ]);
+
+      return {
+        employees: (employeeRows || []) as Employee[],
+        apps: (appsRows || []) as AppRow[],
+        tiers: ((tiersRows || []) as TierRow[]).map((t) => ({
+          ...t,
+          app_ids: Array.isArray(t.app_ids) ? t.app_ids : (t.app_ids ? JSON.parse(t.app_ids) : []),
+        })),
+      };
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
   const [search, setSearch]     = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortField, setSortField] = useState<string | null>(null);
@@ -185,25 +211,18 @@ const EmployeeTiers = () => {
   const processedAbscondedRef = useRef<Set<string>>(new Set());
 
   /* ── Fetch ── */
-  const fetchAll = async () => {
-    setLoading(true);
-    const [{ data: tiersData }, { data: empsData }, { data: appsData }] = await Promise.all([
-      employeeTierService.getTiers(),
-      employeeTierService.getEmployees(),
-      employeeTierService.getActiveApps(),
-    ]);
-    setEmployees((empsData || []) as Employee[]);
-    setApps((appsData || []) as AppRow[]);
-    if (tiersData) {
-      setTiers((tiersData as TierRow[]).map(t => ({
-        ...t,
-        app_ids: Array.isArray(t.app_ids) ? t.app_ids : (t.app_ids ? JSON.parse(t.app_ids) : []),
-      })));
-    }
-    setLoading(false);
-  };
+  useEffect(() => {
+    if (!tiersData) return;
+    setEmployees(tiersData.employees);
+    setApps(tiersData.apps);
+    setTiers(tiersData.tiers);
+  }, [tiersData]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (!tiersError) return;
+    const message = tiersError instanceof Error ? tiersError.message : 'تعذر تحميل البيانات';
+    toast({ title: 'خطأ', description: message, variant: 'destructive' });
+  }, [tiersError, toast]);
 
   /* ── Watch for absconded employees and trigger alert ── */
   useEffect(() => {
@@ -242,7 +261,7 @@ const EmployeeTiers = () => {
         }
       }
 
-      fetchAll();
+      void refetchTiersData();
     };
 
     if (employees.length > 0 && tiers.length > 0) checkAbsconded();
@@ -279,7 +298,7 @@ const EmployeeTiers = () => {
       setEditRows(prev => { const n = { ...prev }; delete n[tier.id]; return n; });
     }
     setSavingId(null);
-    fetchAll();
+    void refetchTiersData();
   };
 
   const cancelRow = (id: string) =>
@@ -309,7 +328,7 @@ const EmployeeTiers = () => {
       setNewRow({ sim_number: '', employee_id: '', package_type: '', renewal_date: '', delivery_status: STATUS_DELIVERED, app_ids: [] });
     }
     setSavingNew(false);
-    fetchAll();
+    void refetchTiersData();
   };
 
   /* ── Delete ── */
@@ -322,7 +341,7 @@ const EmployeeTiers = () => {
     await employeeTierService.deleteTier(deleteId);
     toast({ title: 'تم الحذف' });
     setDeleteId(null);
-    fetchAll();
+    void refetchTiersData();
   };
 
   /* ── Sort ── */

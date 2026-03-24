@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { invalidateAppColorsCache } from '@/hooks/useAppColors';
+import { useAppsData } from '@/hooks/useAppsData';
 import { usePermissions } from '@/hooks/usePermissions';
 import { appService } from '@/services/appService';
 
@@ -232,40 +233,32 @@ const Apps = () => {
   const { toast } = useToast();
   const { permissions } = usePermissions('apps');
   const [apps, setApps] = useState<AppData[]>([]);
+  const {
+    data: appsData = [],
+    isLoading: loadingApps,
+    error: appsError,
+    refetch: refetchApps,
+  } = useAppsData();
   const [selectedApp, setSelectedApp] = useState<AppData | null>(null);
   const [appEmployees, setAppEmployees] = useState<EmployeeInApp[]>([]);
   const [search, setSearch] = useState('');
-  const [loadingApps, setLoadingApps] = useState(true);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [modalApp, setModalApp] = useState<AppData | null | undefined>(undefined);
   const [deleteApp, setDeleteApp] = useState<AppData | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchApps = async () => {
-    setLoadingApps(true);
-    const { data } = await appService.getAll();
-    if (!data) { setLoadingApps(false); return; }
+  useEffect(() => {
+    setApps(appsData as AppData[]);
+  }, [appsData]);
 
-    const appsWithCounts = await Promise.all(
-      data.map(async (app) => {
-        const { count } = await appService.countActiveEmployeeApps(app.id);
-        return {
-          id: app.id,
-          name: app.name,
-          name_en: app.name_en,
-          brand_color: app.brand_color || '#6366f1',
-          text_color: app.text_color || '#ffffff',
-          is_active: app.is_active,
-          employeeCount: count || 0,
-          custom_columns: (app.custom_columns as CustomColumn[]) || [],
-        };
-      })
-    );
-    setApps(appsWithCounts);
-    setLoadingApps(false);
-  };
-
-  useEffect(() => { fetchApps(); }, []);
+  useEffect(() => {
+    if (!appsError) return;
+    const message =
+      appsError instanceof Error
+        ? appsError.message
+        : 'حدث خطأ غير متوقع أثناء تحميل التطبيقات';
+    toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+  }, [appsError, toast]);
 
   const handleSelectApp = async (app: AppData) => {
     if (selectedApp?.id === app.id) { setSelectedApp(null); setAppEmployees([]); return; }
@@ -308,7 +301,7 @@ const Apps = () => {
     }
     invalidateAppColorsCache();
     toast({ title: app.is_active ? 'تم تعطيل التطبيق' : 'تم تفعيل التطبيق' });
-    fetchApps();
+    void refetchApps();
   };
 
   const handleDeleteConfirm = async () => {
@@ -325,7 +318,7 @@ const Apps = () => {
     if (selectedApp?.id === deleteApp.id) { setSelectedApp(null); setAppEmployees([]); }
     setDeleteApp(null);
     setDeleting(false);
-    fetchApps();
+    void refetchApps();
   };
 
   const filteredEmployees = appEmployees.filter(e => e.name.includes(search));
@@ -508,7 +501,10 @@ const Apps = () => {
         <AppModal
           app={modalApp}
           onClose={() => setModalApp(undefined)}
-          onSaved={() => { fetchApps(); if (selectedApp) handleSelectApp(selectedApp); }}
+          onSaved={() => {
+            void refetchApps();
+            if (selectedApp) void handleSelectApp(selectedApp);
+          }}
         />
       )}
 

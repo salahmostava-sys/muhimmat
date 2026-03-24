@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Search, Edit, Trash2, Wrench, FolderOpen, Loader2, Upload } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useMaintenanceData } from '@/hooks/useMaintenanceData';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { vehicleService } from '@/services/vehicleService';
@@ -191,7 +192,12 @@ const MaintenanceLogs = () => {
 
   const [logs, setLogs] = useState<MaintenanceLog[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: maintenanceData,
+    isLoading: loading,
+    error: maintenanceError,
+    refetch: refetchMaintenanceData,
+  } = useMaintenanceData();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [paidByFilter, setPaidByFilter] = useState('all');
@@ -201,19 +207,20 @@ const MaintenanceLogs = () => {
   const [deleteTarget, setDeleteTarget] = useState<MaintenanceLog | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const [logsRes, vehiclesRes] = await Promise.all([
-      vehicleService.getMaintenanceLogs(),
-      vehicleService.getForSelect(),
-    ]);
-    if (logsRes.data) setLogs(logsRes.data as MaintenanceLog[]);
-    else if (logsRes.error) toast({ title: 'خطأ في تحميل البيانات', description: logsRes.error.message, variant: 'destructive' });
-    if (vehiclesRes.data) setVehicles(vehiclesRes.data);
-    setLoading(false);
-  }, [toast]);
+  useEffect(() => {
+    if (!maintenanceData) return;
+    setLogs(maintenanceData.logs as MaintenanceLog[]);
+    setVehicles(maintenanceData.vehicles as Vehicle[]);
+  }, [maintenanceData]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!maintenanceError) return;
+    const message =
+      maintenanceError instanceof Error
+        ? maintenanceError.message
+        : 'حدث خطأ غير متوقع أثناء تحميل البيانات';
+    toast({ title: 'خطأ في تحميل البيانات', description: message, variant: 'destructive' });
+  }, [maintenanceError, toast]);
 
   // Summary stats
   const currentMonth = format(new Date(), 'yyyy-MM');
@@ -241,7 +248,7 @@ const MaintenanceLogs = () => {
     setDeleteTarget(null);
     if (error) { toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'تم حذف سجل الصيانة' });
-    fetchData();
+    void refetchMaintenanceData();
   };
 
   const handleExport = () => {
@@ -461,7 +468,7 @@ const MaintenanceLogs = () => {
       <MaintenanceFormModal
         open={showForm}
         onClose={() => setShowForm(false)}
-        onSaved={fetchData}
+        onSaved={() => { void refetchMaintenanceData(); }}
         editLog={editLog}
         vehicles={vehicles}
       />

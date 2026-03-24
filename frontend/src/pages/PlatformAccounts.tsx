@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Plus, Edit, Search, UserPlus, Loader2, X,
   ShieldCheck, History, ChevronDown, ChevronRight,
@@ -80,7 +81,54 @@ const PlatformAccounts = () => {
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [apps, setApps] = useState<App[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: pageData,
+    isLoading: loading,
+    error: pageDataError,
+    refetch: refetchPageData,
+  } = useQuery({
+    queryKey: ['platform-accounts', 'page-data'],
+    queryFn: async () => {
+      const monthYearNow = format(new Date(), 'yyyy-MM');
+      const [appsRes, empRes, accRes, assignRes, monthAssignRes] = await Promise.all([
+        platformAccountService.getApps(),
+        platformAccountService.getEmployees(),
+        platformAccountService.getAccounts(),
+        accountAssignmentService.getActiveAssignments(),
+        accountAssignmentService.getAssignmentsForMonthYear(monthYearNow),
+      ]);
+
+      const appsData: App[] = (appsRes.data ?? []) as App[];
+      const empData: Employee[] = (empRes.data ?? []) as Employee[];
+      const rawAccounts = (accRes.data ?? []) as PlatformAccount[];
+      const activeAssignments = (assignRes.data ?? []) as Assignment[];
+      const monthRows = (monthAssignRes.data ?? []) as { account_id: string }[];
+
+      const countByAccount = new Map<string, number>();
+      monthRows.forEach((r) => {
+        countByAccount.set(r.account_id, (countByAccount.get(r.account_id) ?? 0) + 1);
+      });
+
+      const appMap = Object.fromEntries(appsData.map((a) => [a.id, a]));
+      const empMap = Object.fromEntries(empData.map((e) => [e.id, e]));
+
+      const enriched: PlatformAccount[] = rawAccounts.map((a) => {
+        const active = activeAssignments.find((x) => x.account_id === a.id);
+        return {
+          ...a,
+          app_name: appMap[a.app_id]?.name ?? '—',
+          app_color: appMap[a.app_id]?.brand_color ?? '#6366f1',
+          app_text_color: appMap[a.app_id]?.text_color ?? '#ffffff',
+          current_employee: active ? empMap[active.employee_id] ?? null : null,
+          assignments_this_month_count: countByAccount.get(a.id) ?? 0,
+        };
+      });
+
+      return { appsData, empData, enriched };
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
 
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -109,51 +157,18 @@ const PlatformAccounts = () => {
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  useEffect(() => {
+    if (!pageData) return;
+    setApps(pageData.appsData);
+    setEmployees(pageData.empData);
+    setAccounts(pageData.enriched);
+  }, [pageData]);
 
-      const monthYearNow = format(new Date(), 'yyyy-MM');
-      const [appsRes, empRes, accRes, assignRes, monthAssignRes] = await Promise.all([
-        platformAccountService.getApps(),
-        platformAccountService.getEmployees(),
-        platformAccountService.getAccounts(),
-        accountAssignmentService.getActiveAssignments(),
-        accountAssignmentService.getAssignmentsForMonthYear(monthYearNow),
-      ]);
-
-    const appsData: App[] = (appsRes.data ?? []) as App[];
-    const empData: Employee[] = (empRes.data ?? []) as Employee[];
-    const rawAccounts = (accRes.data ?? []) as PlatformAccount[];
-    const activeAssignments = (assignRes.data ?? []) as Assignment[];
-    const monthRows = (monthAssignRes.data ?? []) as { account_id: string }[];
-
-    const countByAccount = new Map<string, number>();
-    monthRows.forEach((r) => {
-      countByAccount.set(r.account_id, (countByAccount.get(r.account_id) ?? 0) + 1);
-    });
-
-    const appMap = Object.fromEntries(appsData.map(a => [a.id, a]));
-    const empMap = Object.fromEntries(empData.map(e => [e.id, e]));
-
-    const enriched: PlatformAccount[] = rawAccounts.map(a => {
-      const active = activeAssignments.find(x => x.account_id === a.id);
-      return {
-        ...a,
-        app_name: appMap[a.app_id]?.name ?? '—',
-        app_color: appMap[a.app_id]?.brand_color ?? '#6366f1',
-        app_text_color: appMap[a.app_id]?.text_color ?? '#ffffff',
-        current_employee: active ? empMap[active.employee_id] ?? null : null,
-        assignments_this_month_count: countByAccount.get(a.id) ?? 0,
-      };
-    });
-
-    setApps(appsData);
-    setEmployees(empData);
-    setAccounts(enriched);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!pageDataError) return;
+    const message = pageDataError instanceof Error ? pageDataError.message : 'تعذر تحميل البيانات';
+    toast({ title: 'خطأ', description: message, variant: 'destructive' });
+  }, [pageDataError, toast]);
 
   // ── Account CRUD ───────────────────────────────────────────────────────────
 
@@ -239,7 +254,7 @@ const PlatformAccounts = () => {
     if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); return; }
     toast({ title: editingAccount ? 'تم التعديل' : 'تم الإضافة', description: `حساب "${payload.account_username}"` });
     setAccountDialog(false);
-    fetchData();
+    void refetchPageData();
   };
 
   // ── Assign rider ───────────────────────────────────────────────────────────
@@ -297,7 +312,7 @@ const PlatformAccounts = () => {
     setSavingAssign(false);
     toast({ title: 'تم التعيين', description: 'تم تعيين المندوب بنجاح' });
     setAssignDialog(false);
-    fetchData();
+    void refetchPageData();
   };
 
   // ── History ────────────────────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Shield, RefreshCw, Save, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -60,19 +61,14 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
   const { permissions: settingsPerm } = usePermissions('settings');
 
   const [rows, setRows] = useState<UserRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState<string | null>(null);
-  const [permUserId, setPermUserId] = useState<string | null>(null);
-  const [matrix, setMatrix] = useState<Record<string, PagePermission>>({});
-  const [matrixLoading, setMatrixLoading] = useState(false);
-  const [savingMatrix, setSavingMatrix] = useState(false);
-
-  const isAdmin = authRole === 'admin';
-  const canEdit = settingsPerm.can_edit && isAdmin;
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: usersRows = [],
+    isLoading: loading,
+    error: usersError,
+    refetch: refetchUsersData,
+  } = useQuery({
+    queryKey: ['users-and-permissions', 'rows'],
+    queryFn: async () => {
       const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
         userPermissionService.getProfiles(),
         userPermissionService.getUserRoles(),
@@ -86,29 +82,38 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
         roleMap[r.user_id] = (r.role as AppRole) || 'viewer';
       });
 
-      const built: UserRow[] = ((profiles || []) as ProfileRow[]).map((p) => ({
+      return ((profiles || []) as ProfileRow[]).map((p) => ({
         id: p.id,
         name: p.name || 'بدون اسم',
         isActive: p.is_active ?? true,
         role: roleMap[p.id] || 'viewer',
-      }));
+      })) as UserRow[];
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [permUserId, setPermUserId] = useState<string | null>(null);
+  const [matrix, setMatrix] = useState<Record<string, PagePermission>>({});
+  const [matrixLoading, setMatrixLoading] = useState(false);
+  const [savingMatrix, setSavingMatrix] = useState(false);
 
-      setRows(built);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'تعذر تحميل بيانات المستخدمين والصلاحيات';
-      toast({
-        title: 'خطأ في تحميل المستخدمين',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const isAdmin = authRole === 'admin';
+  const canEdit = settingsPerm.can_edit && isAdmin;
 
   useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+    setRows(usersRows);
+  }, [usersRows]);
+
+  useEffect(() => {
+    if (!usersError) return;
+    const message = usersError instanceof Error ? usersError.message : 'تعذر تحميل بيانات المستخدمين والصلاحيات';
+    toast({
+      title: 'خطأ في تحميل المستخدمين',
+      description: message,
+      variant: 'destructive',
+    });
+  }, [usersError, toast]);
 
   const selectedUser = useMemo(() => rows.find((r) => r.id === permUserId) ?? null, [rows, permUserId]);
 
@@ -247,7 +252,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
             تعيين أدوار المستخدمين، ثم صلاحيات كل صفحة (عرض / تعديل / حذف) عند الحاجة لتجاوز افتراضات الدور.
           </p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => void fetchData()}>
+        <Button variant="outline" className="gap-2" onClick={() => void refetchUsersData()}>
           <RefreshCw size={14} />
           تحديث
         </Button>

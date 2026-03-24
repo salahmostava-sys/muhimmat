@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, RotateCcw, ClipboardList, CheckCircle, Clock, FolderOpen, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useVehicleAssignmentData } from '@/hooks/useVehicleAssignmentData';
 
 type Vehicle = {
   id: string;
@@ -251,7 +252,12 @@ const VehicleAssignment = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: assignmentData,
+    isLoading: loading,
+    error: assignmentError,
+    refetch: refetchAssignmentData,
+  } = useVehicleAssignmentData();
   const [search, setSearch] = useState('');
   const [showActive, setShowActive] = useState<'all' | 'active' | 'returned'>('all');
   const isShowActiveKey = (v: string): v is 'all' | 'active' | 'returned' =>
@@ -260,20 +266,21 @@ const VehicleAssignment = () => {
   const [returnAssignment, setReturnAssignment] = useState<Assignment | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const [assignRes, vehicleRes, empRes] = await Promise.all([
-      vehicleService.getAssignmentsWithRelations(200),
-      vehicleService.getAll(),
-      vehicleService.getActiveEmployees(),
-    ]);
-    if (!assignRes.error && assignRes.data) setAssignments(assignRes.data as Assignment[]);
-    if (!vehicleRes.error && vehicleRes.data) setVehicles(vehicleRes.data as Vehicle[]);
-    if (!empRes.error && empRes.data) setEmployees(empRes.data as Employee[]);
-    setLoading(false);
-  }, []);
+  useEffect(() => {
+    if (!assignmentData) return;
+    setAssignments(assignmentData.assignments as Assignment[]);
+    setVehicles(assignmentData.vehicles as Vehicle[]);
+    setEmployees(assignmentData.employees as Employee[]);
+  }, [assignmentData]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    if (!assignmentError) return;
+    const message =
+      assignmentError instanceof Error
+        ? assignmentError.message
+        : 'حدث خطأ غير متوقع أثناء تحميل البيانات';
+    toast({ title: 'خطأ في تحميل البيانات', description: message, variant: 'destructive' });
+  }, [assignmentError, toast]);
 
   // Vehicles that are TRULY free:
   // 1. Status must be 'active'
@@ -510,14 +517,14 @@ const VehicleAssignment = () => {
       <AssignmentFormModal
         open={showAssignModal}
         onClose={() => setShowAssignModal(false)}
-        onSaved={fetchData}
+        onSaved={() => { void refetchAssignmentData(); }}
         freeVehicles={freeVehicles}
         employees={employees}
       />
       <ReturnModal
         open={!!returnAssignment}
         onClose={() => setReturnAssignment(null)}
-        onSaved={fetchData}
+        onSaved={() => { void refetchAssignmentData(); }}
         assignment={returnAssignment}
       />
     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Search, Plus, Upload, Download, FolderOpen, Edit2, Trash2,
   Fuel, TrendingUp, DollarSign, Package,
@@ -355,32 +356,60 @@ const FuelPage = () => {
     return list.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
   }, [employees, employeeIdsOnPlatform, monthOrdersMap, search]);
 
-  useEffect(() => {
-    Promise.all([
-      fuelService.getActiveEmployees(),
-      fuelService.getActiveApps(),
-      fuelService.getActiveEmployeeAppLinks(),
-    ]).then(([empRes, appRes, linkRes]) => {
-      if (empRes.data) setEmployees(empRes.data as Employee[]);
-      if (appRes.data) setApps(appRes.data as AppRow[]);
-      if (linkRes.data) setEmployeeAppLinks(linkRes.data as { employee_id: string; app_id: string }[]);
-    });
-  }, []);
+  const { data: fuelBaseData, error: fuelBaseError } = useQuery({
+    queryKey: ['fuel', 'base-data'],
+    queryFn: async () => {
+      const [empRes, appRes, linkRes] = await Promise.all([
+        fuelService.getActiveEmployees(),
+        fuelService.getActiveApps(),
+        fuelService.getActiveEmployeeAppLinks(),
+      ]);
+      if (empRes.error) throw empRes.error;
+      if (appRes.error) throw appRes.error;
+      if (linkRes.error) throw linkRes.error;
+      return {
+        employees: (empRes.data || []) as Employee[],
+        apps: (appRes.data || []) as AppRow[],
+        links: (linkRes.data || []) as { employee_id: string; app_id: string }[],
+      };
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
-    let mounted = true;
-    const monthStart = `${monthYear}-01`;
-    const monthEnd = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
-    fuelService.getMonthlyOrders(monthStart, monthEnd).then(({ data }) => {
-      if (!mounted) return;
-      const map: Record<string, number> = {};
-      (data || []).forEach((o: { employee_id: string; orders_count: number }) => {
-        map[o.employee_id] = (map[o.employee_id] || 0) + (Number(o.orders_count) || 0);
-      });
-      setMonthOrdersMap(map);
+    if (!fuelBaseData) return;
+    setEmployees(fuelBaseData.employees);
+    setApps(fuelBaseData.apps);
+    setEmployeeAppLinks(fuelBaseData.links);
+  }, [fuelBaseData]);
+
+  useEffect(() => {
+    if (!fuelBaseError) return;
+    const message = fuelBaseError instanceof Error ? fuelBaseError.message : 'تعذر تحميل البيانات الأساسية';
+    toast({ title: 'خطأ في تحميل البيانات', description: message, variant: 'destructive' });
+  }, [fuelBaseError, toast]);
+
+  const { data: monthlyOrdersData = [] } = useQuery({
+    queryKey: ['fuel', 'monthly-orders', monthYear],
+    queryFn: async () => {
+      const monthStart = `${monthYear}-01`;
+      const monthEnd = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
+      const { data, error } = await fuelService.getMonthlyOrders(monthStart, monthEnd);
+      if (error) throw error;
+      return (data || []) as { employee_id: string; orders_count: number }[];
+    },
+    retry: 2,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    const map: Record<string, number> = {};
+    monthlyOrdersData.forEach((o) => {
+      map[o.employee_id] = (map[o.employee_id] || 0) + (Number(o.orders_count) || 0);
     });
-    return () => { mounted = false; };
-  }, [monthYear]);
+    setMonthOrdersMap(map);
+  }, [monthlyOrdersData]);
 
   useEffect(() => {
     setNewEntry(ne => ({ ...ne, date: defaultEntryDate }));

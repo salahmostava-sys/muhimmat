@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, Plus, CreditCard, FolderOpen, Upload, Edit2, FileText, Printer, AlertTriangle, Check, X, RotateCcw, UserPlus, Trash2 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -726,7 +727,28 @@ const Advances = () => {
   const { permissions } = usePermissions('advances');
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string; sponsorship_status?: string | null }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: advancesPageData,
+    isLoading: loading,
+    error: advancesPageError,
+    refetch: refetchAdvancesData,
+  } = useQuery({
+    queryKey: ['advances', 'page-data'],
+    queryFn: async () => {
+      const [advRes, empRes] = await Promise.all([
+        advanceService.getAll(),
+        advanceService.getEmployees(),
+      ]);
+      if (advRes.error) throw advRes.error;
+      if (empRes.error) throw empRes.error;
+      return {
+        advances: (advRes.data || []) as Advance[],
+        employees: (empRes.data || []) as { id: string; name: string; sponsorship_status?: string | null }[],
+      };
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showWrittenOff, setShowWrittenOff] = useState(false);
@@ -791,22 +813,22 @@ const Advances = () => {
     e.target.value = '';
   };
 
-  const fetchAll = async () => {
-    setLoading(true);
-    const [advRes, empRes] = await Promise.all([
-      advanceService.getAll(),
-      advanceService.getEmployees(),
-    ]);
-    if (advRes.data) setAdvances(advRes.data as Advance[]);
-    if (empRes.data) setEmployees(empRes.data as { id: string; name: string; sponsorship_status?: string | null }[]);
-    setLoading(false);
-  };
+  const fetchAll = () => { void refetchAdvancesData(); };
 
   useEffect(() => {
-    let isMounted = true;
-    fetchAll();
-    return () => { isMounted = false; };
-  }, []);
+    if (!advancesPageData) return;
+    setAdvances(advancesPageData.advances);
+    setEmployees(advancesPageData.employees);
+  }, [advancesPageData]);
+
+  useEffect(() => {
+    if (!advancesPageError) return;
+    const message =
+      advancesPageError instanceof Error
+        ? advancesPageError.message
+        : 'تعذر تحميل بيانات السلف';
+    toast({ title: 'خطأ في التحميل', description: message, variant: 'destructive' });
+  }, [advancesPageError, toast]);
 
   // Compute absconded employees with active debt
   const abscondedWithDebt = useMemo(() => {

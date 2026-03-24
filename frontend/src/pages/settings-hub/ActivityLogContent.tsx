@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLanguage } from '@/context/LanguageContext';
 import {
   Download, Search, RefreshCw, X, Activity,
@@ -96,7 +97,6 @@ const hasPayload = (log: AuditLog) =>
 export default function ActivityLogContent() {
   const { isRTL } = useLanguage();
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
@@ -110,9 +110,13 @@ export default function ActivityLogContent() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    try {
+  const {
+    data: logsData,
+    isLoading: loading,
+    refetch: refetchLogs,
+  } = useQuery({
+    queryKey: ['activity-log', page, filterAction, filterTable, debouncedSearch],
+    queryFn: async () => {
       const { data, count, error } = await settingsHubService.getAuditLogs(
         page * PAGE_SIZE,
         (page + 1) * PAGE_SIZE - 1,
@@ -122,25 +126,31 @@ export default function ActivityLogContent() {
       );
       if (error) throw error;
 
-      const userIds = [...new Set((data || []).map(l => l.user_id).filter(Boolean))] as string[];
+      const userIds = [...new Set((data || []).map((l) => l.user_id).filter(Boolean))] as string[];
       const profileMap: Record<string, { name: string | null; email: string | null }> = {};
       if (userIds.length > 0) {
         const { data: profiles } = await settingsHubService.getAuditProfilesByIds(userIds);
-        profiles?.forEach(p => { profileMap[p.id] = { name: p.name, email: p.email }; });
+        profiles?.forEach((p) => { profileMap[p.id] = { name: p.name, email: p.email }; });
       }
 
-      setLogs((data || []).map(l => ({
-        ...l,
-        old_value: l.old_value as Record<string, unknown> | null,
-        new_value: l.new_value as Record<string, unknown> | null,
-        profile: l.user_id ? profileMap[l.user_id] ?? null : null,
-      })));
-      setTotalCount(count || 0);
-    } catch { setLogs([]); }
-    setLoading(false);
-  }, [page, filterAction, filterTable, debouncedSearch]);
+      return {
+        rows: (data || []).map((l) => ({
+          ...l,
+          old_value: l.old_value as Record<string, unknown> | null,
+          new_value: l.new_value as Record<string, unknown> | null,
+          profile: l.user_id ? profileMap[l.user_id] ?? null : null,
+        })),
+        total: count || 0,
+      };
+    },
+    retry: 2,
+    staleTime: 15_000,
+  });
 
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => {
+    setLogs(logsData?.rows || []);
+    setTotalCount(logsData?.total || 0);
+  }, [logsData]);
   useEffect(() => { setPage(0); }, [filterAction, filterTable, debouncedSearch]);
   useEffect(() => { setExpandedId(null); }, [page]);
 
@@ -183,7 +193,7 @@ export default function ActivityLogContent() {
           </p>
         </div>
         <div className="flex items-center gap-2 mr-auto">
-          <Button variant="outline" size="sm" className="gap-2 h-8" onClick={fetchLogs}>
+          <Button variant="outline" size="sm" className="gap-2 h-8" onClick={() => void refetchLogs()}>
             <RefreshCw size={13} /> تحديث
           </Button>
           <Button variant="outline" size="sm" className="gap-2 h-8" onClick={handleExport}>

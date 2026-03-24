@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, FolderOpen, Upload, Edit, Trash2, Bike, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import * as XLSX from '@e965/xlsx';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useMotorcyclesData } from '@/hooks/useMotorcyclesData';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleStatus = 'active' | 'maintenance' | 'breakdown' | 'rental' | 'ended' | 'inactive';
@@ -313,7 +314,12 @@ const Motorcycles = () => {
   const { toast } = useToast();
   const { permissions } = usePermissions('vehicles');
   const [data, setData] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: vehiclesData = [],
+    isLoading: loading,
+    error: vehiclesError,
+    refetch: refetchVehicles,
+  } = useMotorcyclesData();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -358,7 +364,7 @@ const Motorcycles = () => {
         success++;
       }
       toast({ title: `تم استيراد ${success} مركبة ✅` });
-      fetchVehicles();
+      void refetchVehicles();
     };
     reader.readAsBinaryString(file);
     e.target.value = '';
@@ -372,15 +378,18 @@ const Motorcycles = () => {
     XLSX.writeFile(wb, 'template_vehicles.xlsx');
   };
 
-  const fetchVehicles = useCallback(async () => {
-    setLoading(true);
-    const { data: rows, error } = await vehicleService.getAllWithCurrentRider();
-    if (error) { toast({ title: 'خطأ في التحميل', description: error.message, variant: 'destructive' }); setLoading(false); return; }
-    if (rows) setData(rows as Vehicle[]);
-    setLoading(false);
-  }, [toast]);
+  useEffect(() => {
+    setData(vehiclesData as Vehicle[]);
+  }, [vehiclesData]);
 
-  useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
+  useEffect(() => {
+    if (!vehiclesError) return;
+    const message =
+      vehiclesError instanceof Error
+        ? vehiclesError.message
+        : 'حدث خطأ غير متوقع أثناء تحميل المركبات';
+    toast({ title: 'خطأ في التحميل', description: message, variant: 'destructive' });
+  }, [vehiclesError, toast]);
 
   const filtered = data.filter(v => {
     const q = search.toLowerCase();
@@ -441,7 +450,7 @@ const Motorcycles = () => {
     const { error } = await vehicleService.delete(v.id);
     if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     toast({ title: 'تم حذف المركبة' });
-    fetchVehicles();
+    void refetchVehicles();
   };
 
   return (
@@ -680,7 +689,7 @@ const Motorcycles = () => {
       <VehicleFormModal
         open={showForm}
         onClose={() => { setShowForm(false); setEditVehicle(null); }}
-        onSaved={fetchVehicles}
+        onSaved={() => { void refetchVehicles(); }}
         editVehicle={editVehicle}
       />
     </div>

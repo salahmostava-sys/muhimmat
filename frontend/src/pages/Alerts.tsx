@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Bell, Search, CheckCircle, Clock, X, Download, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -305,7 +306,6 @@ const printSeverityColor = (severity: Alert['severity']) => {
 
 const Alerts = () => {
   const [localAlerts, setLocalAlerts] = useState<Alert[]>([]);
-  const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -323,42 +323,44 @@ const Alerts = () => {
     setRtTick((n) => n + 1);
   });
 
-  const loadAlerts = useCallback(async (silent: boolean) => {
-    if (!silent) setLoading(true);
-    const today = new Date();
-    const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
-    const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
-
-    try {
+  const {
+    data: alertsData = [],
+    isLoading: loading,
+    error: alertsError,
+    refetch: refetchAlerts,
+  } = useQuery({
+    queryKey: ['alerts', 'page-data', iqamaAlertDays],
+    queryFn: async () => {
+      const today = new Date();
+      const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      const threshold = format(endOfCurrentMonth, 'yyyy-MM-dd');
+      const iqamaThreshold = format(addDays(today, iqamaAlertDays), 'yyyy-MM-dd');
       const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = await fetchAlertsDataWithTimeout(
         threshold,
         iqamaThreshold,
         FETCH_ALERTS_TIMEOUT_MS
       );
-      setLocalAlerts(
-        buildAlertsFromResponses(employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today)
-      );
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
-      if (!silent) {
-        toast({ title: 'تعذر تحميل التنبيهات', description: msg, variant: 'destructive' });
-      }
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [iqamaAlertDays, toast]);
+      return buildAlertsFromResponses(employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today);
+    },
+    retry: 2,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
   useEffect(() => {
-    loadAlerts(false);
-    const interval = setInterval(() => loadAlerts(true), 60_000);
-    return () => clearInterval(interval);
-  }, [iqamaAlertDays, loadAlerts]);
+    setLocalAlerts(alertsData);
+  }, [alertsData]);
+
+  useEffect(() => {
+    if (!alertsError) return;
+    const msg = alertsError instanceof Error ? alertsError.message : 'حدث خطأ غير متوقع';
+    toast({ title: 'تعذر تحميل التنبيهات', description: msg, variant: 'destructive' });
+  }, [alertsError, toast]);
 
   useEffect(() => {
     if (rtTick === 0) return;
-    void loadAlerts(true);
-  }, [rtTick, loadAlerts]);
+    void refetchAlerts();
+  }, [rtTick, refetchAlerts]);
 
   /** عند العودة للتبويب بعد إبقائه في الخلفية (يثبّت الجلسة ويعيد جلب التنبيهات بصمت) */
   useEffect(() => {
@@ -366,14 +368,14 @@ const Alerts = () => {
     const onVis = () => {
       if (document.visibilityState !== 'visible') return;
       clearTimeout(debounce);
-      debounce = setTimeout(() => void loadAlerts(true), 400);
+      debounce = setTimeout(() => void refetchAlerts(), 400);
     };
     document.addEventListener('visibilitychange', onVis);
     return () => {
       clearTimeout(debounce);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [loadAlerts]);
+  }, [refetchAlerts]);
 
   const filtered = localAlerts.filter(a =>
     isUnresolvedAlertMatchingFilters(a, typeFilter, severityFilter, search)

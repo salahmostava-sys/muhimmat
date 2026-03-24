@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Settings, Plus, Pencil, Trash2, Check, X, Pin, Loader2, Lock, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -94,7 +95,55 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const [tiers, setTiersMap] = useState<Record<string, Tier[]>>({});
   const [snapshots, setSnapshots] = useState<Record<string, Snapshot[]>>({});
   const [apps, setApps] = useState<AppItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: schemeData,
+    isLoading: loading,
+    error: schemeDataError,
+    refetch: refetchSchemeData,
+  } = useQuery({
+    queryKey: ['salary-schemes', 'page-data'],
+    queryFn: async () => {
+      const [{ data: sData, error: sErr }, { data: tData, error: tErr }, { data: snData, error: snErr }, { data: aData, error: aErr }] = await Promise.all([
+        salarySchemeService.getSchemes(),
+        salarySchemeService.getTiers(),
+        salarySchemeService.getSnapshots(),
+        appService.getActiveWithScheme(),
+      ]);
+
+      if (sErr) throw sErr;
+      if (tErr) throw tErr;
+      if (snErr) throw snErr;
+      if (aErr) throw aErr;
+
+      const tiersMap: Record<string, Tier[]> = {};
+      for (const t of (tData || []) as SalarySchemeTierRow[]) {
+        if (!tiersMap[t.scheme_id]) tiersMap[t.scheme_id] = [];
+        tiersMap[t.scheme_id].push({
+          from: t.from_orders,
+          to: t.to_orders ?? 9999,
+          pricePerOrder: t.price_per_order,
+          tierType: (t.tier_type as TierType) || 'total_multiplier',
+          incrementalThreshold: t.incremental_threshold ?? undefined,
+          incrementalPrice: t.incremental_price ?? undefined,
+        });
+      }
+
+      const snapshotsMap: Record<string, Snapshot[]> = {};
+      for (const s of (snData || []) as { scheme_id: string; month_year: string }[]) {
+        if (!snapshotsMap[s.scheme_id]) snapshotsMap[s.scheme_id] = [];
+        snapshotsMap[s.scheme_id].push({ month_year: s.month_year });
+      }
+
+      return {
+        schemes: (sData || []) as Scheme[],
+        apps: (aData || []) as AppItem[],
+        tiersMap,
+        snapshotsMap,
+      };
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
   const [snapshotLoading, setSnapshotLoading] = useState<string | null>(null);
   /** سنة عرض شبكة الأشهر لكل سكيمة */
   const [snapshotYearByScheme, setSnapshotYearByScheme] = useState<Record<string, number>>({});
@@ -118,44 +167,19 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const [assignAppId, setAssignAppId] = useState('');
   const [assigning, setAssigning] = useState(false);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    const [{ data: sData }, { data: tData }, { data: snData }, { data: aData }] = await Promise.all([
-      salarySchemeService.getSchemes(),
-      salarySchemeService.getTiers(),
-      salarySchemeService.getSnapshots(),
-      appService.getActiveWithScheme(),
-    ]);
+  useEffect(() => {
+    if (!schemeData) return;
+    setSchemes(schemeData.schemes);
+    setApps(schemeData.apps);
+    setTiersMap(schemeData.tiersMap);
+    setSnapshots(schemeData.snapshotsMap);
+  }, [schemeData]);
 
-    if (sData) setSchemes(sData as Scheme[]);
-    if (aData) setApps(aData as AppItem[]);
-    if (tData) {
-      const map: Record<string, Tier[]> = {};
-      for (const t of tData as SalarySchemeTierRow[]) {
-        if (!map[t.scheme_id]) map[t.scheme_id] = [];
-        map[t.scheme_id].push({
-          from: t.from_orders,
-          to: t.to_orders ?? 9999,
-          pricePerOrder: t.price_per_order,
-          tierType: (t.tier_type as TierType) || 'total_multiplier',
-          incrementalThreshold: t.incremental_threshold ?? undefined,
-          incrementalPrice: t.incremental_price ?? undefined,
-        });
-      }
-      setTiersMap(map);
-    }
-    if (snData) {
-      const map: Record<string, Snapshot[]> = {};
-      for (const s of snData as { scheme_id: string; month_year: string }[]) {
-        if (!map[s.scheme_id]) map[s.scheme_id] = [];
-        map[s.scheme_id].push({ month_year: s.month_year });
-      }
-      setSnapshots(map);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    if (!schemeDataError) return;
+    const message = schemeDataError instanceof Error ? schemeDataError.message : 'تعذر تحميل بيانات السكيّمات';
+    toast({ title: 'خطأ في التحميل', description: message, variant: 'destructive' });
+  }, [schemeDataError, toast]);
 
   const getAssignedApps = (schemeId: string) => apps.filter(a => a.scheme_id === schemeId);
 
@@ -233,7 +257,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
 
       toast({ title: editing ? 'تم التعديل' : 'تمت الإضافة', description: editing ? 'تم تعديل السكيمة بنجاح' : 'تمت إضافة السكيمة بنجاح' });
       setShowModal(false);
-      fetchAll();
+      void refetchSchemeData();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ', description: message, variant: 'destructive' });
@@ -249,7 +273,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
       if (error) throw error;
       toast({ title: '✅ تم الربط', description: `تم ربط السكيمة بالمنصة بنجاح` });
       setShowAssignModal(false);
-      fetchAll();
+      void refetchSchemeData();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ', description: message, variant: 'destructive' });
@@ -260,7 +284,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const handleUnassignApp = async (appId: string) => {
     await appService.assignScheme(appId, null);
     toast({ title: 'تم إلغاء الربط' });
-    fetchAll();
+    void refetchSchemeData();
   };
 
   const handleArchive = async (id: string, currentStatus: string) => {

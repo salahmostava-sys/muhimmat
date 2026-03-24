@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, AlertTriangle, XCircle, FileWarning, CheckCircle, RefreshCw, CheckCircle2, Pencil, Trash2, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,7 +107,32 @@ const ViolationResolver = () => {
 
   // ── Violations management table ──
   const [violations, setViolations] = useState<ViolationRecord[]>([]);
-  const [violationsLoading, setViolationsLoading] = useState(false);
+  const {
+    data: violationsData = [],
+    isLoading: violationsLoading,
+    error: violationsError,
+    refetch: refetchViolations,
+  } = useQuery({
+    queryKey: ['violation-resolver', 'violations'],
+    queryFn: async () => {
+      const { data, error } = await violationService.getViolations();
+      if (error) throw error;
+      return ((data as ViolationDataRow[] | null) || []).map((v) => ({
+        id: v.id,
+        employee_id: v.employee_id,
+        employee_name: v.employees?.name || '—',
+        national_id: v.employees?.national_id || null,
+        violation_details: v.note || '—',
+        incident_date: v.incident_date,
+        amount: Number(v.amount) || 0,
+        apply_month: v.apply_month,
+        status: v.approval_status,
+        linked_advance_id: v.linked_advance_id ?? null,
+      })) as ViolationRecord[];
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editViolationId, setEditViolationId] = useState<string | null>(null);
@@ -133,35 +159,22 @@ const ViolationResolver = () => {
     [isAdvanceLegacyNote]
   );
 
-  const fetchViolations = useCallback(async () => {
-    setViolationsLoading(true);
-    const { data, error } = await violationService.getViolations();
-
-    if (error) {
-      setViolationsLoading(false);
-      return;
-    }
-
-    setViolations(
-      (data as ViolationDataRow[] | null || []).map((v) => ({
-        id: v.id,
-        employee_id: v.employee_id,
-        employee_name: v.employees?.name || '—',
-        national_id: v.employees?.national_id || null,
-        violation_details: v.note || '—',
-        incident_date: v.incident_date,
-        amount: Number(v.amount) || 0,
-        apply_month: v.apply_month,
-        status: v.approval_status,
-        linked_advance_id: v.linked_advance_id ?? null,
-      }))
-    );
-    setViolationsLoading(false);
-  }, []);
+  const fetchViolations = useCallback(() => {
+    void refetchViolations();
+  }, [refetchViolations]);
 
   useEffect(() => {
-    fetchViolations();
-  }, [fetchViolations]);
+    setViolations(violationsData);
+  }, [violationsData]);
+
+  useEffect(() => {
+    if (!violationsError) return;
+    const message =
+      violationsError instanceof Error
+        ? violationsError.message
+        : 'تعذر تحميل سجل المخالفات';
+    toast({ title: 'خطأ في التحميل', description: message, variant: 'destructive' });
+  }, [violationsError, toast]);
 
   // ── Vehicle autocomplete ──────────────────────────────────────────────────
   const fetchSuggestions = useCallback(async (q: string) => {
