@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Search, Save, Package, Upload, FolderOpen, ChevronLeft, ChevronRight, Loader2, ChevronDown, ChevronUp, X, Check, Target, TrendingUp } from 'lucide-react';
@@ -150,7 +151,6 @@ const SpreadsheetGrid = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [apps, setApps] = useState<App[]>([]);
   const [data, setData] = useState<DailyData>({});
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedEmp, setExpandedEmp] = useState<Set<string>>(new Set());
   const [cellPopover, setCellPopover] = useState<PopoverState | null>(null);
@@ -160,64 +160,95 @@ const SpreadsheetGrid = () => {
   const [lockingMonth, setLockingMonth] = useState(false);
   const canEditMonth = permissions.can_edit && !isMonthLocked;
 
-  useEffect(() => {
-    let isMounted = true;
-    Promise.all([
-      orderService.getActiveEmployees(),
-      orderService.getActiveApps(),
-      orderService.getEmployeeAppAssignments(),
-    ])
-      .then(([empRes, appRes, empAppsRes]) => {
-        if (!isMounted) return;
-        if (empRes.data) setEmployees(empRes.data as Employee[]);
-        if (appRes.data) setApps(appRes.data as App[]);
-        if (empAppsRes.data) {
-          const map: Record<string, Set<string>> = {};
-          for (const row of empAppsRes.data) {
-            if (!map[row.app_id]) map[row.app_id] = new Set();
-            map[row.app_id].add(row.employee_id);
-          }
-          setAppEmployeeIds(map);
-        }
-      })
-      .catch((error: Error) => {
-        if (!isMounted) return;
-        toast({
-          title: 'فشل تحميل بيانات الطلبات',
-          description: error.message,
-          variant: 'destructive',
-        });
-      });
-    return () => { isMounted = false; };
-  }, [toast]);
+  const {
+    data: spreadsheetBaseData,
+    error: spreadsheetBaseError,
+    isLoading: spreadsheetBaseLoading,
+  } = useQuery({
+    queryKey: ['orders', 'spreadsheet', 'base-data'],
+    queryFn: async () => {
+      const [empRes, appRes, empAppsRes] = await Promise.all([
+        orderService.getActiveEmployees(),
+        orderService.getActiveApps(),
+        orderService.getEmployeeAppAssignments(),
+      ]);
+      if (empRes.error) throw empRes.error;
+      if (appRes.error) throw appRes.error;
+      if (empAppsRes.error) throw empAppsRes.error;
+      return {
+        employees: (empRes.data || []) as Employee[],
+        apps: (appRes.data || []) as App[],
+        employeeApps: empAppsRes.data || [],
+      };
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
+
+  const {
+    data: spreadsheetMonthRows = [],
+    error: spreadsheetMonthError,
+    isLoading: spreadsheetMonthLoading,
+  } = useQuery({
+    queryKey: ['orders', 'spreadsheet', 'month-raw', year, month],
+    queryFn: async () => {
+      const { data: rows, error } = await orderService.getMonthRaw(year, month);
+      if (error) throw error;
+      return rows || [];
+    },
+    retry: 2,
+    staleTime: 15_000,
+  });
+
+  const { data: spreadsheetMonthLock, error: spreadsheetLockError } = useQuery({
+    queryKey: ['orders', 'spreadsheet', 'month-lock', year, month],
+    queryFn: async () => {
+      const my = monthYear(year, month);
+      return orderService.getMonthLockStatus(my);
+    },
+    retry: 2,
+    staleTime: 15_000,
+  });
+
+  const loading = spreadsheetBaseLoading || spreadsheetMonthLoading;
 
   useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    orderService.getMonthRaw(year, month).then(({ data: rows }) => {
-      if (!isMounted) return;
-      const d: DailyData = {};
-      rows?.forEach(r => {
-        const day = new Date(r.date + 'T00:00:00').getDate();
-        d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
-      });
-      setData(d);
-      setLoading(false);
+    if (!spreadsheetBaseData) return;
+    setEmployees(spreadsheetBaseData.employees);
+    setApps(spreadsheetBaseData.apps);
+    const map: Record<string, Set<string>> = {};
+    for (const row of spreadsheetBaseData.employeeApps) {
+      if (!map[row.app_id]) map[row.app_id] = new Set();
+      map[row.app_id].add(row.employee_id);
+    }
+    setAppEmployeeIds(map);
+  }, [spreadsheetBaseData]);
+
+  useEffect(() => {
+    const d: DailyData = {};
+    spreadsheetMonthRows.forEach((r) => {
+      const day = new Date(r.date + 'T00:00:00').getDate();
+      d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
     });
-    return () => { isMounted = false; };
-  }, [year, month]);
+    setData(d);
+  }, [spreadsheetMonthRows]);
 
   useEffect(() => {
-    let isMounted = true;
-    const my = monthYear(year, month);
-    orderService.getMonthLockStatus(my).then(({ locked }) => {
-        if (!isMounted) return;
-        setIsMonthLocked(locked);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [year, month]);
+    if (spreadsheetMonthLock) {
+      setIsMonthLocked(spreadsheetMonthLock.locked);
+    }
+  }, [spreadsheetMonthLock]);
+
+  useEffect(() => {
+    const error = spreadsheetBaseError || spreadsheetMonthError || spreadsheetLockError;
+    if (!error) return;
+    const message = error instanceof Error ? error.message : 'فشل تحميل بيانات الطلبات';
+    toast({
+      title: 'فشل تحميل بيانات الطلبات',
+      description: message,
+      variant: 'destructive',
+    });
+  }, [spreadsheetBaseError, spreadsheetMonthError, spreadsheetLockError, toast]);
 
   const baseEmployees = useMemo(() => {
     if (platformFilter === 'all') return employees;
@@ -756,68 +787,112 @@ const MonthSummary = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [apps, setApps] = useState<App[]>([]);
   const [data, setData] = useState<DailyData>({});
-  const [loading, setLoading] = useState(true);
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'total' | `app:${string}`>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
+  const {
+    data: summaryBaseData,
+    error: summaryBaseError,
+    isLoading: summaryBaseLoading,
+  } = useQuery({
+    queryKey: ['orders', 'summary', 'base-data'],
+    queryFn: async () => {
+      const [empRes, appRes] = await Promise.all([
+        orderService.getActiveEmployees(),
+        orderService.getActiveApps(),
+      ]);
+      if (empRes.error) throw empRes.error;
+      if (appRes.error) throw appRes.error;
+      return {
+        employees: (empRes.data || []) as Employee[],
+        apps: (appRes.data || []) as App[],
+      };
+    },
+    retry: 2,
+    staleTime: 60_000,
+  });
+
+  const { data: summaryTargetsRows = [], error: summaryTargetsError } = useQuery({
+    queryKey: ['orders', 'summary', 'targets', year, month],
+    queryFn: async () => {
+      const my = monthYear(year, month);
+      const { data: rows, error } = await orderService.getAppTargets(my);
+      if (error) throw error;
+      return (rows || []) as AppTargetRow[];
+    },
+    retry: 2,
+    staleTime: 15_000,
+  });
+
+  const { data: summaryLockData, error: summaryLockError } = useQuery({
+    queryKey: ['orders', 'summary', 'month-lock', year, month],
+    queryFn: async () => {
+      const my = monthYear(year, month);
+      return orderService.getMonthLockStatus(my);
+    },
+    retry: 2,
+    staleTime: 15_000,
+  });
+
+  const {
+    data: summaryMonthRows = [],
+    error: summaryMonthError,
+    isLoading: summaryMonthLoading,
+  } = useQuery({
+    queryKey: ['orders', 'summary', 'month-raw', year, month],
+    queryFn: async () => {
+      const { data: rows, error } = await orderService.getMonthRaw(year, month);
+      if (error) throw error;
+      return rows || [];
+    },
+    retry: 2,
+    staleTime: 15_000,
+  });
+
+  const loading = summaryBaseLoading || summaryMonthLoading;
+
   useEffect(() => {
-    let isMounted = true;
-    Promise.all([
-      orderService.getActiveEmployees(),
-      orderService.getActiveApps(),
-    ]).then(([empRes, appRes]) => {
-      if (!isMounted) return;
-      if (empRes.data) setEmployees(empRes.data as Employee[]);
-      if (appRes.data) setApps(appRes.data as App[]);
-    });
-    return () => { isMounted = false; };
-  }, []);
+    if (!summaryBaseData) return;
+    setEmployees(summaryBaseData.employees);
+    setApps(summaryBaseData.apps);
+  }, [summaryBaseData]);
 
   // Load targets when month changes
   useEffect(() => {
-    let isMounted = true;
-    const my = monthYear(year, month);
     setTargets({});
-    orderService.getAppTargets(my)
-      .then(({ data: rows }) => {
-        if (!isMounted) return;
-        const t: Record<string, string> = {};
-        if (rows) (rows as AppTargetRow[]).forEach(r => { t[r.app_id] = String(r.target_orders); });
-        setTargets(t);
-      });
-    return () => { isMounted = false; };
-  }, [year, month]);
+    const t: Record<string, string> = {};
+    summaryTargetsRows.forEach((r) => { t[r.app_id] = String(r.target_orders); });
+    setTargets(t);
+  }, [summaryTargetsRows]);
 
   useEffect(() => {
-    let isMounted = true;
-    const my = monthYear(year, month);
-    orderService.getMonthLockStatus(my).then(({ locked }) => {
-        if (!isMounted) return;
-        setIsMonthLocked(locked);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [year, month]);
+    if (summaryLockData) {
+      setIsMonthLocked(summaryLockData.locked);
+    }
+  }, [summaryLockData]);
 
   useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    orderService.getMonthRaw(year, month).then(({ data: rows }) => {
-        if (!isMounted) return;
-        const d: DailyData = {};
-        rows?.forEach(r => {
-          const day = new Date(r.date + 'T00:00:00').getDate();
-          d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
-        });
-        setData(d);
-        setLoading(false);
-      });
-    return () => { isMounted = false; };
-  }, [year, month]);
+    const d: DailyData = {};
+    summaryMonthRows.forEach((r) => {
+      const day = new Date(r.date + 'T00:00:00').getDate();
+      d[`${r.employee_id}::${r.app_id}::${day}`] = r.orders_count;
+    });
+    setData(d);
+  }, [summaryMonthRows]);
+
+  useEffect(() => {
+    const error = summaryBaseError || summaryTargetsError || summaryLockError || summaryMonthError;
+    if (!error) return;
+    const message = error instanceof Error ? error.message : 'فشل تحميل ملخص الشهر';
+    toast({
+      title: 'فشل تحميل ملخص الشهر',
+      description: message,
+      variant: 'destructive',
+    });
+  }, [summaryBaseError, summaryTargetsError, summaryLockError, summaryMonthError, toast]);
 
   const saveTarget = async (appId: string, value: string) => {
     if (isMonthLocked) return;

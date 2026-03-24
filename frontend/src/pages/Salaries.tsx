@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { escapeHtml } from '@/lib/security';
 import { Input } from '@/components/ui/input';
@@ -602,43 +603,69 @@ const Salaries = () => {
     setAppCustomColumns(newCustomCols);
   }, [appColorsList]);
 
-  // ─── Data fetching ─────────────────────────────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    const fetchAllData = async () => {
-      setLoadingData(true);
-      setPreviewBackendError(null);
+  const {
+    data: salaryBaseContext,
+    error: salaryBaseContextError,
+    isLoading: salaryBaseContextLoading,
+  } = useQuery({
+    queryKey: ['salaries', 'base-context', selectedMonth],
+    queryFn: async () => {
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
-      let monthlyContextTimeoutId: ReturnType<typeof setTimeout> | undefined;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        monthlyContextTimeoutId = setTimeout(
+        timeoutId = setTimeout(
           () => reject(new Error('انتهت مهلة تحميل بيانات الرواتب. حاول مرة أخرى.')),
           15000
         );
       });
+
       let monthlyContext: Awaited<ReturnType<typeof salaryDataService.getMonthlyContext>>;
       try {
         monthlyContext = await Promise.race([monthlyContextPromise, timeoutPromise]);
-      } catch (error) {
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+
+      const { data: previewData, error: previewError } = await salaryDataService.getSalaryPreviewForMonth(selectedMonth);
+      if (previewError) {
+        throw new Error(`PREVIEW_BACKEND: ${previewError.message}`);
+      }
+
+      return {
+        monthlyContext,
+        previewData: previewData || [],
+      };
+    },
+    retry: 1,
+    staleTime: 20_000,
+  });
+
+  // ─── Data fetching ─────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    const fetchAllData = async () => {
+      if (salaryBaseContextLoading) {
+        setLoadingData(true);
+        return;
+      }
+      setLoadingData(true);
+      setPreviewBackendError(null);
+      if (salaryBaseContextError) {
         if (!cancelled) {
           setLoadingData(false);
           toast({
             title: 'تعذر تحميل البيانات',
-            description: error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
+            description: salaryBaseContextError instanceof Error ? salaryBaseContextError.message : 'حدث خطأ غير متوقع أثناء تحميل الرواتب',
             variant: 'destructive',
           });
         }
         return;
-      } finally {
-        if (monthlyContextTimeoutId) clearTimeout(monthlyContextTimeoutId);
       }
+      if (!salaryBaseContext) return;
       if (cancelled) return;
       try {
+        const { monthlyContext, previewData } = salaryBaseContext;
         const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
-        const { data: previewData, error: previewError } = await salaryDataService.getSalaryPreviewForMonth(selectedMonth);
-        if (previewError) {
-          throw new Error(`PREVIEW_BACKEND: ${previewError.message}`);
-        }
 
       const savedMap: Record<string, { is_approved: boolean; net_salary: number }> = {};
       savedRecords?.forEach(r => {
@@ -922,7 +949,7 @@ const Salaries = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedMonth, salariesDraftKey, toast]);
+  }, [selectedMonth, salariesDraftKey, salaryBaseContext, salaryBaseContextError, salaryBaseContextLoading, toast]);
 
   // Auto-save editable salary draft per month/user.
   useEffect(() => {
