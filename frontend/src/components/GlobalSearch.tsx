@@ -114,18 +114,18 @@ export default function GlobalSearch() {
   return (
     <div className="relative" ref={containerRef}>
       <div className={cn(
-        'flex items-center gap-2 h-8 px-3 rounded-lg border border-input bg-background text-sm transition-all',
-        'focus-within:ring-1 focus-within:ring-ring focus-within:border-primary',
-        open ? 'w-56' : 'w-36 md:w-48'
+        'flex items-center gap-2 h-9 px-3 rounded-full border border-border/70 bg-card/90 text-sm transition-all shadow-sm',
+        'focus-within:ring-2 focus-within:ring-ring/30 focus-within:border-primary/50',
+        open ? 'w-full sm:w-56' : 'w-full sm:w-40 md:w-52'
       )}>
-        <Search size={13} className="text-muted-foreground flex-shrink-0" />
+        <Search size={15} className="text-muted-foreground flex-shrink-0" />
         <input
           ref={inputRef}
           value={query}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder={isRTL ? 'بحث... (Ctrl+K)' : 'Search... (Ctrl+K)'}
-          className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-muted-foreground text-xs"
+          className="flex-1 min-w-0 bg-transparent outline-none text-foreground placeholder:text-muted-foreground text-sm"
           dir={isRTL ? 'rtl' : 'ltr'}
         />
         {query && (

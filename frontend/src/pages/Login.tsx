@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
 import { dashboardService } from '@/services/dashboardService';
+
+const LOGIN_REMEMBER_KEY = 'muhimmat_login_remember';
+const LOGIN_EMAIL_KEY = 'muhimmat_login_email';
 
 interface SystemSettings {
   project_name_ar: string;
@@ -22,12 +26,25 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [settings, setSettings] = useState<SystemSettings | null>(null);
 
   useEffect(() => {
     dashboardService.getSystemSettings().then(({ data }) => { if (data) setSettings(data as SystemSettings); });
+  }, []);
+
+  useEffect(() => {
+    try {
+      const storedRemember = localStorage.getItem(LOGIN_REMEMBER_KEY);
+      const wantRemember = storedRemember !== '0';
+      setRememberMe(wantRemember);
+      const savedEmail = localStorage.getItem(LOGIN_EMAIL_KEY);
+      if (wantRemember && savedEmail) setEmail(savedEmail);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const projectName = settings
@@ -52,6 +69,17 @@ const Login = () => {
         setLoginError('البريد الإلكتروني أو كلمة المرور غير صحيحة');
       }
     } else {
+      try {
+        if (rememberMe) {
+          localStorage.setItem(LOGIN_REMEMBER_KEY, '1');
+          localStorage.setItem(LOGIN_EMAIL_KEY, email.trim());
+        } else {
+          localStorage.setItem(LOGIN_REMEMBER_KEY, '0');
+          localStorage.removeItem(LOGIN_EMAIL_KEY);
+        }
+      } catch {
+        /* ignore */
+      }
       navigate('/', { replace: true });
     }
   };
@@ -76,20 +104,20 @@ const Login = () => {
             <img
               src={settings.logo_url}
               alt="logo"
-              className="w-24 h-16 rounded-2xl object-cover mb-3 shadow-lg border border-border"
+              className="w-[8.5rem] h-[5.5rem] sm:w-40 sm:h-28 rounded-2xl object-contain mb-4 shadow-lg border border-border bg-card p-1"
             />
           ) : (
             <div
-              className="w-16 h-16 rounded-2xl mb-3 flex items-center justify-center text-3xl shadow-lg"
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl mb-4 flex items-center justify-center text-5xl sm:text-6xl shadow-lg"
               style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7))' }}
             >
               🚀
             </div>
           )}
-          <h1 className="text-[22px] font-extrabold text-foreground text-center leading-tight">
+          <h1 className="text-2xl sm:text-[26px] font-extrabold text-foreground text-center leading-tight">
             {projectName}
           </h1>
-          <p className="text-[13px] text-muted-foreground text-center mt-1">
+          <p className="text-sm sm:text-[15px] text-muted-foreground text-center mt-1.5">
             {projectSubtitle}
           </p>
         </div>
@@ -102,11 +130,11 @@ const Login = () => {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm text-muted-foreground mb-1.5">
+              <label className="block text-base font-medium text-muted-foreground mb-2">
                 البريد الإلكتروني
               </label>
               <div className="relative">
-                <Mail size={15} className="absolute top-1/2 -translate-y-1/2 text-muted-foreground right-3" />
+                <Mail size={18} className="absolute top-1/2 -translate-y-1/2 text-muted-foreground right-3.5 pointer-events-none" />
                 <Input
                   type="email"
                   value={email}
@@ -115,17 +143,17 @@ const Login = () => {
                   required
                   dir="ltr"
                   autoComplete="email"
-                  className="h-11 pr-9"
+                  className="h-12 pr-11 text-base sm:text-lg"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm text-muted-foreground mb-1.5">
+              <label className="block text-base font-medium text-muted-foreground mb-2">
                 كلمة المرور
               </label>
               <div className="relative">
-                <Lock size={15} className="absolute top-1/2 -translate-y-1/2 text-muted-foreground right-3" />
+                <Lock size={18} className="absolute top-1/2 -translate-y-1/2 text-muted-foreground right-3.5 pointer-events-none" />
                 <Input
                   type={showPw ? 'text' : 'password'}
                   value={password}
@@ -133,16 +161,32 @@ const Login = () => {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="h-11 pr-9 pl-10"
+                  className="h-12 pr-11 pl-11 text-base sm:text-lg"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(v => !v)}
-                  className="absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors left-3"
+                  className="absolute top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors left-3.5"
+                  aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
                 >
-                  {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 justify-start pt-0.5">
+              <label
+                htmlFor="remember-me"
+                className="text-base text-foreground cursor-pointer select-none leading-snug"
+              >
+                تذكرني على هذا الجهاز
+              </label>
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={v => setRememberMe(v === true)}
+                className="h-5 w-5 rounded-md"
+              />
             </div>
 
             {loginError && (
@@ -155,11 +199,11 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-xl font-bold text-[15px] text-primary-foreground transition-all duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2"
+              className="w-full h-12 rounded-xl font-bold text-base sm:text-lg text-primary-foreground transition-all duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2"
               style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.85))' }}
             >
               {loading
-                ? <><Loader2 size={16} className="animate-spin" /> جاري التحقق...</>
+                ? <><Loader2 size={18} className="animate-spin" /> جاري التحقق...</>
                 : 'تسجيل الدخول'
               }
             </button>

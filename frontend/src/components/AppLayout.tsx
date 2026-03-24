@@ -6,7 +6,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useMobileSidebar, MobileSidebarProvider } from '@/context/MobileSidebarContext';
 import { useTranslation } from 'react-i18next';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -50,19 +50,20 @@ const roleLabelsMap: Record<string, string> = {
   admin: 'مدير النظام', hr: 'موارد بشرية', finance: 'مالية',
   operations: 'عمليات', viewer: 'عارض',
 };
-const roleColors: Record<string, string> = {
-  admin: 'text-red-600',
-  hr: 'text-blue-600',
-  finance: 'text-emerald-600',
-  operations: 'text-orange-600',
-  viewer: 'text-muted-foreground',
+/** ألوان هادئة للدور في الهيدر (بدون أحمر يشبه الخطأ) */
+const roleBadgeClass: Record<string, string> = {
+  admin: 'text-primary bg-primary/12',
+  hr: 'text-blue-700 dark:text-blue-300 bg-blue-500/12',
+  finance: 'text-emerald-700 dark:text-emerald-300 bg-emerald-500/12',
+  operations: 'text-orange-700 dark:text-orange-300 bg-orange-500/12',
+  viewer: 'text-muted-foreground bg-muted',
 };
 
 const AppLayoutInner = ({ children }: AppLayoutProps) => {
   const { isRTL } = useLanguage();
   const { signOut, role, user } = useAuth();
   const { toggleTheme, isDark } = useTheme();
-  const { projectName } = useSystemSettings();
+  const { projectName, projectSubtitle, settings } = useSystemSettings();
   const { toggle } = useMobileSidebar();
   const { t } = useTranslation();
   const location = useLocation();
@@ -96,7 +97,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
   const displayName = profileName || displayEmail.split('@')[0];
   const initials = displayName.charAt(0).toUpperCase();
   const roleLabel = role ? roleLabelsMap[role] || role : '';
-  const roleColor = role ? roleColors[role] || 'text-muted-foreground' : '';
+  const roleBadgeCls = role ? roleBadgeClass[role] || 'text-muted-foreground bg-muted' : '';
 
   return (
     <div
@@ -116,7 +117,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
 
         {/* ── Glass Header ─────────────────────────────────── */}
         <header
-          className="h-[70px] flex items-center justify-between gap-2 px-4 lg:px-6 sticky top-0 z-40"
+          className="min-h-[64px] flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 px-4 lg:px-6 py-2.5 sticky top-0 z-40"
           style={{
             background: 'var(--header-glass-bg)',
             backdropFilter: 'blur(12px)',
@@ -125,39 +126,66 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
           }}
         >
 
-          {/* أدوات البحث والإشعارات — في RTL تظهر يمين الشاشة */}
-          <div className="flex items-center gap-1 lg:gap-1.5 min-w-0 flex-shrink">
-            <div className="hidden sm:block">
+          {/* شعار + اسم المشروع — يمين الشاشة في RTL */}
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 shrink-0 min-w-0 rounded-xl py-1 ps-1 -ms-1 hover:opacity-90 transition-opacity"
+            title={projectSubtitle || projectName}
+          >
+            {settings?.logo_url ? (
+              <img
+                src={settings.logo_url}
+                alt=""
+                className="h-10 w-10 sm:h-11 sm:w-11 rounded-full object-cover border-2 border-border/80 bg-card shadow-sm shrink-0"
+              />
+            ) : (
+              <div
+                className="h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center text-lg sm:text-xl shrink-0 border-2 border-border/80 shadow-sm bg-gradient-to-br from-primary to-primary/80 text-primary-foreground"
+              >
+                🚀
+              </div>
+            )}
+            <span className="hidden sm:inline font-bold text-foreground text-sm sm:text-base truncate max-w-[9rem] sm:max-w-[14rem]">
+              {projectName}
+            </span>
+          </Link>
+
+          {/* بحث في الوسط */}
+          <div className="order-last sm:order-none w-full sm:w-auto flex-1 flex justify-center min-w-0 basis-full sm:basis-auto">
+            <div className="w-full max-w-md lg:max-w-lg">
               <GlobalSearch />
             </div>
+          </div>
 
+          {/* إشعارات + ثيم + مسار + مستخدم */}
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0 ms-auto sm:ms-0">
             <NotificationCenter />
 
             <button
               onClick={toggleTheme}
-              className="h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0"
-              style={{ color: 'var(--ds-on-surface-variant)' }}
+              type="button"
+              className="h-9 w-9 flex items-center justify-center rounded-full border border-border/60 bg-card/80 text-muted-foreground hover:bg-muted transition-colors flex-shrink-0"
               title={isDark ? 'Light mode' : 'Dark mode'}
             >
               {isDark
-                ? <Sun size={15} className="text-warning" />
-                : <Moon size={15} />
+                ? <Sun size={16} className="text-warning" />
+                : <Moon size={16} />
               }
             </button>
-          </div>
 
-          {/* الملف الشخصي + خروج + مسار الصفحة — في RTL تظهر يسار الشاشة (أعلى اليسار) */}
-          <div className="flex items-center gap-2 lg:gap-4 min-w-0 justify-end">
-            <div className="hidden md:flex items-center gap-1.5 text-xs min-w-0" style={{ color: 'var(--ds-on-surface-variant)' }}>
-              <span className="font-medium truncate" style={{ color: 'var(--ds-on-surface-variant)' }}>{projectName}</span>
-              <Sep size={12} className="opacity-40 flex-shrink-0" />
+            <div
+              className="hidden md:flex items-center gap-1.5 text-[11px] min-w-0 max-w-[200px] lg:max-w-[240px] px-2 py-1 rounded-lg bg-muted/50 border border-border/50"
+              style={{ color: 'var(--ds-on-surface-variant)' }}
+            >
               <span className="font-semibold truncate" style={{ color: 'var(--ds-on-surface)' }}>{pageTitle}</span>
+              <Sep size={11} className="opacity-40 flex-shrink-0" />
+              <span className="truncate opacity-80">{projectName}</span>
             </div>
 
             <button
               type="button"
               onClick={toggle}
-              className="lg:hidden h-8 w-8 flex items-center justify-center rounded-lg transition-colors flex-shrink-0"
+              className="lg:hidden h-9 w-9 flex items-center justify-center rounded-full border border-border/60 bg-card/80 flex-shrink-0"
               style={{ color: 'var(--ds-on-surface-variant)' }}
               aria-label="Toggle sidebar"
             >
@@ -168,24 +196,34 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex items-center gap-2 h-9 ps-2 pe-2.5 rounded-xl transition-colors border border-transparent hover:border-[var(--ds-outline-variant)]"
-                  style={{ background: 'var(--ds-surface-container)' }}
+                  className={cn(
+                    'flex items-center gap-2 h-10 ps-1.5 pe-2.5 rounded-full transition-colors border shadow-sm',
+                    'border-border/70 bg-card/95 hover:bg-muted/70',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                  )}
                 >
                   <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ring-2 ring-background"
                     style={{ background: 'linear-gradient(135deg, #2642e6, #465fff)' }}
                   >
                     {initials || 'A'}
                   </div>
-                  <div className={`hidden sm:flex flex-col items-${isRTL ? 'end' : 'start'} leading-none text-start`}>
-                    <span className="text-xs font-semibold truncate max-w-[100px] lg:max-w-[140px]" style={{ color: 'var(--ds-on-surface)' }}>
+                  <div
+                    className={cn(
+                      'hidden sm:flex flex-col leading-tight min-w-0 max-w-[120px] lg:max-w-[160px]',
+                      isRTL ? 'items-end text-end' : 'items-start text-start'
+                    )}
+                  >
+                    <span className="text-xs font-semibold truncate" style={{ color: 'var(--ds-on-surface)' }}>
                       {displayName || t('systemAdmin')}
                     </span>
                     {roleLabel && (
-                      <span className={`text-[10px] font-medium ${roleColor}`}>{roleLabel}</span>
+                      <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-md mt-0.5 inline-block max-w-full truncate', roleBadgeCls)}>
+                        {roleLabel}
+                      </span>
                     )}
                   </div>
-                  <ChevronDown size={12} className="hidden sm:block flex-shrink-0" style={{ color: 'var(--ds-on-surface-variant)' }} />
+                  <ChevronDown size={14} className="hidden sm:block flex-shrink-0 opacity-60" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56" sideOffset={6}>
@@ -199,7 +237,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                         {displayEmail}
                       </p>
                       {roleLabel && (
-                        <span className={`text-[10px] font-semibold ${roleColor}`}>{roleLabel}</span>
+                        <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-md inline-block', roleBadgeCls)}>{roleLabel}</span>
                       )}
                     </div>
                   </div>
