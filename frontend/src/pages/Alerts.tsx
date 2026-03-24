@@ -35,6 +35,30 @@ export interface Alert {
   resolved: boolean;
 }
 
+type EmployeeAlertRow = {
+  id: string;
+  name: string;
+  residency_expiry: string | null;
+  probation_end_date: string | null;
+};
+
+type PlatformAccountAlertRow = {
+  id: string;
+  account_username: string;
+  iqama_expiry_date: string | null;
+  app_id: string;
+  apps?: { name?: string | null } | null;
+};
+
+type PersistedAlertRow = {
+  id: string;
+  type: string;
+  due_date: string | null;
+  is_resolved: boolean | null;
+  message: string | null;
+  details: Record<string, unknown> | null;
+};
+
 const severityStyles: Record<string, string> = { urgent: 'badge-urgent', warning: 'badge-warning', info: 'badge-info' };
 const severityLabels: Record<string, string> = { urgent: '🔴 عاجل', warning: '🟠 تحذير', info: '🔵 معلومات' };
 
@@ -87,7 +111,7 @@ const Alerts = () => {
           .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
 
         // Platform accounts with iqama expiring within configurable days
-        (supabase as any)
+        supabase
           .from('platform_accounts')
           .select('id, account_username, iqama_expiry_date, app_id, apps(name)')
           .eq('status', 'active')
@@ -103,7 +127,7 @@ const Alerts = () => {
       const generatedAlerts: Alert[] = [];
 
       // Employee residency & probation alerts
-      employeesRes.data?.forEach(emp => {
+      (employeesRes.data as EmployeeAlertRow[] | null)?.forEach(emp => {
         if (emp.residency_expiry && emp.residency_expiry <= threshold) {
           const daysLeft = differenceInDays(parseISO(emp.residency_expiry), today);
           generatedAlerts.push({
@@ -116,13 +140,13 @@ const Alerts = () => {
             resolved: false,
           });
         }
-        if ((emp as any).probation_end_date && (emp as any).probation_end_date <= threshold) {
-          const daysLeft = differenceInDays(parseISO((emp as any).probation_end_date), today);
+        if (emp.probation_end_date && emp.probation_end_date <= threshold) {
+          const daysLeft = differenceInDays(parseISO(emp.probation_end_date), today);
           generatedAlerts.push({
             id: `prob-${emp.id}`,
             type: 'probation',
             entityName: emp.name,
-            dueDate: (emp as any).probation_end_date,
+            dueDate: emp.probation_end_date,
             daysLeft,
             severity: daysLeft < 0 ? 'info' : daysLeft <= 7 ? 'urgent' : 'warning',
             resolved: false,
@@ -159,7 +183,7 @@ const Alerts = () => {
       });
 
       // Platform account iqama alerts
-      (platformAccountsRes.data ?? []).forEach((acc: any) => {
+      ((platformAccountsRes.data ?? []) as PlatformAccountAlertRow[]).forEach((acc) => {
         if (!acc.iqama_expiry_date) return;
         const days = differenceInDays(parseISO(acc.iqama_expiry_date), today);
         const appName = acc.apps?.name ?? 'منصة';
@@ -176,7 +200,7 @@ const Alerts = () => {
       });
 
       // Persisted alerts from `public.alerts` table (e.g. absconded/terminated employees)
-      (dbAlertsRes.data ?? []).forEach((a: any) => {
+      ((dbAlertsRes.data ?? []) as PersistedAlertRow[]).forEach((a) => {
         const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
         const daysLeft = differenceInDays(parseISO(dueDate), today);
         const severity =
@@ -186,7 +210,8 @@ const Alerts = () => {
                 : 'info';
 
         const details = a.details ?? {};
-        const entityName = details.employee_name ?? a.message ?? '—';
+        const detailsEmployeeName = typeof details.employee_name === 'string' ? details.employee_name : null;
+        const entityName = detailsEmployeeName ?? a.message ?? '—';
 
         generatedAlerts.push({
           id: a.id,

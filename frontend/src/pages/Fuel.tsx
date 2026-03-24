@@ -50,6 +50,12 @@ type ImportRow = {
   manual_employee_id?: string;
 };
 
+const toCellString = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+};
+
 /** Daily fuel/km — table public.vehicle_mileage_daily (not fuel_logs) */
 async function saveVehicleMileageDaily(
   payload: { employee_id: string; date: string; km_total: number; fuel_cost: number; notes: string | null },
@@ -131,10 +137,13 @@ const ImportModal = ({
   const buildPreview = () => {
     if (!mapping.name || !mapping.km) return toast({ title: 'حدد عمود الاسم والكيلومترات', variant: 'destructive' });
     const preview: ImportRow[] = rawData.map(r => {
-      const raw_name = String(r[mapping.name] || '').trim();
-      const km_total = parseFloat(String(r[mapping.km] || 0)) || 0;
-      const fuel_cost = mapping.fuel && mapping.fuel !== '__none__' ? parseFloat(String(r[mapping.fuel] || 0)) || 0 : 0;
-      const notes = mapping.notes && mapping.notes !== '__none__' ? String(r[mapping.notes] || '') : '';
+      const raw_name = toCellString(r[mapping.name]).trim();
+      const km_total = Number.parseFloat(toCellString(r[mapping.km])) || 0;
+      const fuel_cost =
+        mapping.fuel && mapping.fuel !== '__none__'
+          ? Number.parseFloat(toCellString(r[mapping.fuel])) || 0
+          : 0;
+      const notes = mapping.notes && mapping.notes !== '__none__' ? toCellString(r[mapping.notes]) : '';
       const exact = employees.find(e => e.name === raw_name);
       const partial = !exact ? employees.find(e => e.name.includes(raw_name) || raw_name.includes(e.name)) : null;
       return { raw_name, km_total, fuel_cost, notes, matched_employee: exact || partial || null };
@@ -448,8 +457,8 @@ const FuelPage = () => {
     if (!permissions.can_edit) return;
     if (!newEntry.employee_id) return toast({ title: 'اختر المندوب', variant: 'destructive' });
     if (!newEntry.date) return toast({ title: 'اختر التاريخ', variant: 'destructive' });
-    const km = parseFloat(newEntry.km_total) || 0;
-    const fuel = parseFloat(newEntry.fuel_cost) || 0;
+    const km = Number.parseFloat(newEntry.km_total) || 0;
+    const fuel = Number.parseFloat(newEntry.fuel_cost) || 0;
     if (!km && !fuel) return toast({ title: 'أدخل الكيلومترات أو تكلفة البنزين', variant: 'destructive' });
     if (employeeIdsOnPlatform && !employeeIdsOnPlatform.has(newEntry.employee_id)) {
       return toast({ title: 'المندوب غير مسجّل على هذه المنصة', variant: 'destructive' });
@@ -471,8 +480,8 @@ const FuelPage = () => {
 
   const saveEditedDaily = async (row: DailyRow) => {
     if (!permissions.can_edit || !editingDaily) return;
-    const km = parseFloat(editingDaily.km_total) || 0;
-    const fuel = parseFloat(editingDaily.fuel_cost) || 0;
+    const km = Number.parseFloat(editingDaily.km_total) || 0;
+    const fuel = Number.parseFloat(editingDaily.fuel_cost) || 0;
     if (!km && !fuel) return toast({ title: 'أدخل الكيلومترات أو تكلفة البنزين', variant: 'destructive' });
     setSavingEntry(true);
     const { error } = await saveVehicleMileageDaily(
