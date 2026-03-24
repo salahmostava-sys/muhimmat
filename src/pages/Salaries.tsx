@@ -881,7 +881,7 @@ const Salaries = () => {
           externalDeduction: extDeduction,
           status,
           preferredLanguage: ((emp as Record<string, unknown>).preferred_language as SlipLanguage) || 'ar',
-          phone: (emp as Record<string, unknown>).phone || null,
+          phone: ((emp as Record<string, unknown>).phone as string) || null,
           workDays: attendanceDays,
           fuelCost: fuelCostMap[emp.id] || 0,
           platformIncome: 0,
@@ -946,8 +946,8 @@ const Salaries = () => {
           va = a.platformOrders[sortField] || 0;
           vb = b.platformOrders[sortField] || 0;
         } else {
-          va = (a as Record<string, unknown>)[sortField] || 0;
-          vb = (b as Record<string, unknown>)[sortField] || 0;
+          va = (a as unknown as Record<string, unknown>)[sortField] || 0;
+          vb = (b as unknown as Record<string, unknown>)[sortField] || 0;
         }
     }
     if (va < vb) return sortDir === 'asc' ? -1 : 1;

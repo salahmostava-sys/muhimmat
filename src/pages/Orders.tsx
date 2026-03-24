@@ -190,12 +190,12 @@ const SpreadsheetGrid = () => {
   useEffect(() => {
     let isMounted = true;
     const my = monthYear(year, month);
-    supabase
+    (supabase as any)
       .from('locked_months')
       .select('month_year')
       .eq('month_year', my)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         if (!isMounted) return;
         setIsMonthLocked(!!data);
       });
@@ -383,7 +383,7 @@ const SpreadsheetGrid = () => {
     setLockingMonth(true);
     const { data: userRes } = await supabase.auth.getUser();
     const userId = userRes.user?.id ?? null;
-    const { error } = await supabase.from('locked_months').upsert(
+    const { error } = await (supabase as any).from('locked_months').upsert(
       { month_year: my, locked_at: new Date().toISOString(), locked_by: userId },
       { onConflict: 'month_year' }
     );
@@ -719,12 +719,12 @@ const MonthSummary = () => {
   useEffect(() => {
     let isMounted = true;
     const my = monthYear(year, month);
-    supabase
+    (supabase as any)
       .from('locked_months')
       .select('month_year')
       .eq('month_year', my)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         if (!isMounted) return;
         setIsMonthLocked(!!data);
       });

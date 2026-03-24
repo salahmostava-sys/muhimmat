@@ -350,7 +350,7 @@ const ViolationResolver = () => {
         amount,
         incident_date: editForm.incident_date,
         note: editForm.note,
-        approval_status: editForm.approval_status,
+        approval_status: editForm.approval_status as 'pending' | 'approved' | 'rejected',
       })
       .eq('id', editViolationId);
 
