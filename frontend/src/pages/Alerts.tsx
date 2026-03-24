@@ -72,6 +72,51 @@ const typeIcons: Record<string, string> = {
   employee_terminated: '🧾',
 };
 
+const getStandardSeverity = (daysLeft: number): Alert['severity'] => {
+  if (daysLeft <= 7) return 'urgent';
+  if (daysLeft <= 14) return 'warning';
+  return 'info';
+};
+
+const getProbationSeverity = (daysLeft: number): Alert['severity'] => {
+  if (daysLeft < 0) return 'info';
+  if (daysLeft <= 7) return 'urgent';
+  return 'warning';
+};
+
+const pushEmployeeExpiryAlerts = (
+  generatedAlerts: Alert[],
+  emp: EmployeeAlertRow,
+  threshold: string,
+  today: Date
+) => {
+  if (emp.residency_expiry && emp.residency_expiry <= threshold) {
+    const daysLeft = differenceInDays(parseISO(emp.residency_expiry), today);
+    generatedAlerts.push({
+      id: `res-${emp.id}`,
+      type: 'residency',
+      entityName: emp.name,
+      dueDate: emp.residency_expiry,
+      daysLeft,
+      severity: getStandardSeverity(daysLeft),
+      resolved: false,
+    });
+  }
+
+  if (emp.probation_end_date && emp.probation_end_date <= threshold) {
+    const daysLeft = differenceInDays(parseISO(emp.probation_end_date), today);
+    generatedAlerts.push({
+      id: `prob-${emp.id}`,
+      type: 'probation',
+      entityName: emp.name,
+      dueDate: emp.probation_end_date,
+      daysLeft,
+      severity: getProbationSeverity(daysLeft),
+      resolved: false,
+    });
+  }
+};
+
 const Alerts = () => {
   const [localAlerts, setLocalAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,32 +172,9 @@ const Alerts = () => {
       const generatedAlerts: Alert[] = [];
 
       // Employee residency & probation alerts
-      (employeesRes.data as EmployeeAlertRow[] | null)?.forEach(emp => {
-        if (emp.residency_expiry && emp.residency_expiry <= threshold) {
-          const daysLeft = differenceInDays(parseISO(emp.residency_expiry), today);
-          generatedAlerts.push({
-            id: `res-${emp.id}`,
-            type: 'residency',
-            entityName: emp.name,
-            dueDate: emp.residency_expiry,
-            daysLeft,
-            severity: daysLeft < 0 ? 'urgent' : daysLeft <= 7 ? 'urgent' : daysLeft <= 14 ? 'warning' : 'info',
-            resolved: false,
-          });
-        }
-        if (emp.probation_end_date && emp.probation_end_date <= threshold) {
-          const daysLeft = differenceInDays(parseISO(emp.probation_end_date), today);
-          generatedAlerts.push({
-            id: `prob-${emp.id}`,
-            type: 'probation',
-            entityName: emp.name,
-            dueDate: emp.probation_end_date,
-            daysLeft,
-            severity: daysLeft < 0 ? 'info' : daysLeft <= 7 ? 'urgent' : 'warning',
-            resolved: false,
-          });
-        }
-      });
+      (employeesRes.data as EmployeeAlertRow[] | null)?.forEach((emp) =>
+        pushEmployeeExpiryAlerts(generatedAlerts, emp, threshold, today)
+      );
 
       // Vehicle insurance & authorization alerts
       vehiclesRes.data?.forEach(v => {
@@ -164,7 +186,7 @@ const Alerts = () => {
             entityName: `مركبة ${v.plate_number}`,
             dueDate: v.insurance_expiry,
             daysLeft: days,
-            severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : 'warning',
+            severity: getStandardSeverity(days),
             resolved: false,
           });
         }
@@ -176,7 +198,7 @@ const Alerts = () => {
             entityName: `مركبة ${v.plate_number}`,
             dueDate: v.authorization_expiry,
             daysLeft: days,
-            severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : 'warning',
+            severity: getStandardSeverity(days),
             resolved: false,
           });
         }
@@ -194,7 +216,7 @@ const Alerts = () => {
           entityName: `إقامة الحساب ${acc.account_username} على منصة ${appName} ستنتهي في ${expiryFormatted}، قد يتوقف الحساب.`,
           dueDate: acc.iqama_expiry_date,
           daysLeft: days,
-          severity: days < 0 ? 'urgent' : days <= 7 ? 'urgent' : days <= 14 ? 'warning' : 'info',
+          severity: getStandardSeverity(days),
           resolved: false,
         });
       });
@@ -203,11 +225,7 @@ const Alerts = () => {
       ((dbAlertsRes.data ?? []) as PersistedAlertRow[]).forEach((a) => {
         const dueDate = a.due_date ?? format(today, 'yyyy-MM-dd');
         const daysLeft = differenceInDays(parseISO(dueDate), today);
-        const severity =
-          daysLeft < 0 ? 'urgent'
-            : daysLeft <= 7 ? 'urgent'
-              : daysLeft <= 14 ? 'warning'
-                : 'info';
+        const severity = getStandardSeverity(daysLeft);
 
         const details = a.details ?? {};
         const detailsEmployeeName = typeof details.employee_name === 'string' ? details.employee_name : null;
