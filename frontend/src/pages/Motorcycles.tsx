@@ -144,7 +144,7 @@ const VehicleFormModal = ({
     };
     const { error } = editVehicle
       ? await vehicleService.update(editVehicle.id, payload)
-      : await vehicleService.create(payload as any);
+      : await vehicleService.create(payload);
     setSaving(false);
     if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
     toast({ title: editVehicle ? 'تم تحديث المركبة' : 'تم إضافة المركبة بنجاح' });

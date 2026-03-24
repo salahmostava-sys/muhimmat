@@ -39,6 +39,7 @@ type MonthlyRow = {
 
 type Employee = { id: string; name: string; personal_photo_url?: string | null };
 type AppRow = { id: string; name: string };
+type DailyMileageResponseRow = DailyRow & { employees?: Employee };
 
 type ImportRow = {
   raw_name: string;
@@ -406,11 +407,11 @@ const FuelPage = () => {
     const me = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');
     const { data, error } = await fuelService.getDailyMileageByMonth(ms, me);
     if (error) {
-      toast({ title: 'خطأ في جلب البيانات', description: (error as any).message, variant: 'destructive' });
+      toast({ title: 'خطأ في جلب البيانات', description: error.message, variant: 'destructive' });
     }
-    let mapped = (data || []).map((r: any) => ({ ...r, employee: r.employees as Employee | undefined }));
+    let mapped = ((data || []) as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
     if (selectedEmployee && selectedEmployee !== '_all_') {
-      mapped = mapped.filter((r: any) => r.employee_id === selectedEmployee);
+      mapped = mapped.filter((r) => r.employee_id === selectedEmployee);
     } else if (employeeIdsOnPlatform) {
       const ids = Array.from(employeeIdsOnPlatform);
       if (ids.length === 0) {
@@ -418,7 +419,7 @@ const FuelPage = () => {
         setLoading(false);
         return;
       }
-      mapped = mapped.filter((r: any) => ids.includes(r.employee_id));
+      mapped = mapped.filter((r) => ids.includes(r.employee_id));
     }
     setDailyRows(mapped as DailyRow[]);
     setLoading(false);
@@ -437,7 +438,7 @@ const FuelPage = () => {
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
     const { error } = await fuelService.deleteDailyMileage(id);
-    if (error) return toast({ title: 'خطأ في الحذف', description: (error as any).message, variant: 'destructive' });
+    if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
     toast({ title: 'تم الحذف' });
     fetchDaily();
     fetchMonthly();

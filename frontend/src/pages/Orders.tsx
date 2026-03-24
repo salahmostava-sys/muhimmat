@@ -16,6 +16,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 type Employee = { id: string; name: string; salary_type: string; status: string; sponsorship_status: string | null };
 type App = { id: string; name: string; name_en: string | null };
 type DailyData = Record<string, number>;
+type AppTargetRow = { app_id: string; target_orders: number };
 
 const getDaysInMonth = (y: number, m: number) => new Date(y, m, 0).getDate();
 const monthLabel = (y: number, m: number) =>
@@ -694,7 +695,7 @@ const MonthSummary = () => {
       .then(({ data: rows }) => {
         if (!isMounted) return;
         const t: Record<string, string> = {};
-        if (rows) (rows as any[]).forEach(r => { t[r.app_id] = String(r.target_orders); });
+        if (rows) (rows as AppTargetRow[]).forEach(r => { t[r.app_id] = String(r.target_orders); });
         setTargets(t);
       });
     return () => { isMounted = false; };

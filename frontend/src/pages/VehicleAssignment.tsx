@@ -254,6 +254,8 @@ const VehicleAssignment = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showActive, setShowActive] = useState<'all' | 'active' | 'returned'>('all');
+  const isShowActiveKey = (v: string): v is 'all' | 'active' | 'returned' =>
+    v === 'all' || v === 'active' || v === 'returned';
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [returnAssignment, setReturnAssignment] = useState<Assignment | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -411,7 +413,7 @@ const VehicleAssignment = () => {
           ].map(opt => (
             <button
               key={opt.key}
-              onClick={() => setShowActive(opt.key as any)}
+              onClick={() => { if (isShowActiveKey(opt.key)) setShowActive(opt.key); }}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${showActive === opt.key ? 'bg-card shadow text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >
               {opt.label}
