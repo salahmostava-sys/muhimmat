@@ -117,8 +117,11 @@ const ViolationResolver = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
-  const [vSortField, setVSortField] = useState<'employee_name' | 'incident_date' | 'amount' | 'status'>('incident_date');
+  const [vSortField, setVSortField] = useState<'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status'>('incident_date');
   const [vSortDir, setVSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const isViolationConvertedToAdvance = (details: string) =>
+    /تم التحويل لسلفة|معرّف السلفة:/u.test(details || '');
 
   const fetchViolations = useCallback(async () => {
     setViolationsLoading(true);
@@ -379,11 +382,23 @@ const ViolationResolver = () => {
 
   const handleConvertToAdvance = async (v: ViolationRecord) => {
     if (!v.apply_month) return toast({ title: 'خطأ', description: 'بيانات القسط غير مكتملة', variant: 'destructive' });
+    if (isViolationConvertedToAdvance(v.violation_details)) {
+      toast({ title: 'تم التحويل مسبقاً', description: 'هذه المخالفة مسجّلة كسلفة بالفعل.', variant: 'destructive' });
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     const violationDate = v.incident_date || today;
+    const fullDetails = (v.violation_details || '').trim() || '—';
 
-    const details = (v.violation_details || '').replace(/^مخالفة مرورية\\s*[-–—:]*\\s*/u, '').trim() || '—';
-    const noteText = `مخالفة مرورية — ${details} — بتاريخ ${violationDate} — تم الخصم بتاريخ ${today}`;
+    const advanceNote = [
+      `مخالفة مرورية بتاريخ ${violationDate}.`,
+      `المبلغ: ${v.amount.toLocaleString()} ر.س — شهر الخصم: ${v.apply_month}`,
+      '',
+      'تفاصيل المخالفة (كاملة):',
+      fullDetails,
+      '',
+      `تم إنشاء السلفة بتاريخ ${today}.`,
+    ].join('\n');
 
     // Guard against converting the same fine multiple times
     const amountMin = v.amount - 0.01;
@@ -403,7 +418,7 @@ const ViolationResolver = () => {
         total_installments: 1,
         monthly_amount: v.amount,
         first_deduction_month: v.apply_month,
-        note: noteText,
+        note: advanceNote,
         status: 'active',
       });
 
@@ -420,14 +435,26 @@ const ViolationResolver = () => {
       status: 'pending',
     });
 
-    setConvertingId(null);
     if (instErr) {
+      setConvertingId(null);
       toast({ title: 'حدث خطأ', description: instErr.message, variant: 'destructive' });
       return;
     }
 
+    const appended = [
+      fullDetails,
+      '',
+      `[تم التحويل لسلفة بتاريخ ${today} — معرّف السلفة: ${advInserted.id}]`,
+    ].join('\n');
+
+    const { error: updErr } = await violationService.updateViolation(v.id, { note: appended });
+    setConvertingId(null);
+    if (updErr) {
+      toast({ title: 'تم إنشاء السلفة', description: 'تعذر تحديث حقل الملاحظات على سجل المخالفة — يمكنك مراجعته يدوياً.' });
+    }
+
     fetchViolations();
-    toast({ title: 'تم التحويل إلى سلفة ✅' });
+    toast({ title: 'تم تحويل لسلفة ✅', description: `رقم السلفة: ${advInserted.id.slice(0, 8)}…` });
   };
 
   const sortedViolations = useMemo(() => {
@@ -444,6 +471,9 @@ const ViolationResolver = () => {
       } else if (vSortField === 'status') {
         va = a.status || '';
         vb = b.status || '';
+      } else if (vSortField === 'violation_details') {
+        va = a.violation_details || '';
+        vb = b.violation_details || '';
       } else {
         va = a.employee_name || '';
         vb = b.employee_name || '';
@@ -455,7 +485,7 @@ const ViolationResolver = () => {
     return rows;
   }, [violations, vSortDir, vSortField]);
 
-  const toggleVSort = (field: 'employee_name' | 'incident_date' | 'amount' | 'status') => {
+  const toggleVSort = (field: 'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status') => {
     if (vSortField === field) setVSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
       setVSortField(field);
@@ -490,13 +520,21 @@ const ViolationResolver = () => {
       </div>
 
       <div className="max-w-5xl space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant={activeTab === 'search' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTab('search')}>
             الاستعلام
           </Button>
-          <Button variant={activeTab === 'saved' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTab('saved')}>
+          <Button
+            variant={activeTab === 'saved' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              setActiveTab('saved');
+              fetchViolations();
+            }}
+          >
             المخالفات المرحلة
           </Button>
+          <span className="text-xs text-muted-foreground hidden sm:inline">المرحلة = المخالفات المؤكدة ✓ المحفوظة دائماً هنا</span>
         </div>
 
         {activeTab === 'search' && (
@@ -654,11 +692,25 @@ const ViolationResolver = () => {
         {/* ── Results Table ── */}
         {results && results.length > 0 && (
           <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+            <div className="px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-foreground">
                 نتائج الاستعلام · {results.length} سجل
               </h2>
-              <span className="text-xs text-muted-foreground">اضغط على ✓ لتأكيد التسجيل لكل موظف</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">اضغط ✓ لتسجيل المخالفة ثم</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => {
+                    setActiveTab('saved');
+                    fetchViolations();
+                  }}
+                >
+                  ترحيل ← المخالفات المرحلة
+                </Button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
@@ -716,11 +768,19 @@ const ViolationResolver = () => {
         {/* ── Violations Management ── */}
         {activeTab === 'saved' && (
         <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-5 py-3 border-b border-border/50 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">
-              إدارة المخالفات المسجلة
-            </h2>
-            <span className="text-xs text-muted-foreground">{violationsLoading ? 'جارٍ التحميل...' : `${violations.length} سجل`}</span>
+          <div className="px-5 py-3 border-b border-border/50 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                المخالفات المرحلة (المحفوظة)
+              </h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">كل ما تم تأكيده من الاستعلام يظهر هنا — ترتيب الأعمدة بالضغط على العنوان</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setActiveTab('search')}>
+                ← رجوع للاستعلام
+              </Button>
+              <span className="text-xs text-muted-foreground">{violationsLoading ? 'جارٍ التحميل...' : `${violations.length} سجل`}</span>
+            </div>
           </div>
 
           {violationsLoading ? (
@@ -736,11 +796,21 @@ const ViolationResolver = () => {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 border-b border-border">
                   <tr>
-                    <th onClick={() => toggleVSort('employee_name')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">اسم الموظف</th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">تفاصيل المخالفة</th>
-                    <th onClick={() => toggleVSort('incident_date')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">التاريخ</th>
-                    <th onClick={() => toggleVSort('amount')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">المبلغ</th>
-                    <th onClick={() => toggleVSort('status')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer">الحالة</th>
+                    <th onClick={() => toggleVSort('employee_name')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
+                      اسم الموظف {vSortField === 'employee_name' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                    </th>
+                    <th onClick={() => toggleVSort('violation_details')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none min-w-[200px]">
+                      تفاصيل المخالفة {vSortField === 'violation_details' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                    </th>
+                    <th onClick={() => toggleVSort('incident_date')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
+                      التاريخ {vSortField === 'incident_date' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                    </th>
+                    <th onClick={() => toggleVSort('amount')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
+                      المبلغ {vSortField === 'amount' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                    </th>
+                    <th onClick={() => toggleVSort('status')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
+                      الحالة {vSortField === 'status' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                    </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">إجراءات</th>
                   </tr>
                 </thead>
@@ -752,12 +822,13 @@ const ViolationResolver = () => {
                         : v.status === 'rejected'
                           ? 'bg-destructive/10 text-destructive border-destructive/20'
                           : 'bg-muted text-muted-foreground border-border/50';
+                    const convertedAdv = isViolationConvertedToAdvance(v.violation_details);
 
                     return (
                       <tr key={v.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3 font-semibold whitespace-nowrap">{v.employee_name}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">
-                          <div className="max-w-[520px]">{v.violation_details || '—'}</div>
+                        <td className="px-4 py-3 text-muted-foreground text-xs align-top">
+                          <div className="max-w-[520px] whitespace-pre-wrap break-words">{v.violation_details || '—'}</div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground whitespace-nowrap text-xs">{v.incident_date || '—'}</td>
                         <td className="px-4 py-3 text-center font-medium whitespace-nowrap">{v.amount?.toLocaleString()} ر.س</td>
@@ -789,11 +860,12 @@ const ViolationResolver = () => {
                             <Button
                               size="sm"
                               className="h-8 px-2 text-xs gap-2"
-                              disabled={!perms.can_edit || convertingId === v.id}
+                              disabled={!perms.can_edit || convertingId === v.id || convertedAdv}
                               onClick={() => handleConvertToAdvance(v)}
+                              title={convertedAdv ? 'تم تحويل هذه المخالفة لسلفة' : 'تحويل لسلفة'}
                             >
                               <CreditCard size={14} />
-                              {convertingId === v.id ? '...' : 'تحويل لسلفة'}
+                              {convertingId === v.id ? '...' : convertedAdv ? 'تم التحويل لسلفة ✓' : 'تحويل لسلفة'}
                             </Button>
                           </div>
                         </td>
