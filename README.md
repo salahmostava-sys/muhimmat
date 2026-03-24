@@ -163,9 +163,6 @@ src/
 
 ## المتغيرات البيئية
 
-```env
-VITE_SUPABASE_URL=https://bumamlmemykmffxmtofk.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key_here
 ```
 
 > يكتشف `src/integrations/supabase/client.ts` تلقائياً إذا تم تبديل المتغيرين بالخطأ ويصحّح الترتيب.
