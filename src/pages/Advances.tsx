@@ -869,7 +869,7 @@ const Advances = () => {
   const fetchAll = async () => {
     setLoading(true);
     const [advRes, empRes] = await Promise.all([
-      supabase.from('advances').select('*, employees(name, national_id), advance_installments(*)').order('created_at', { ascending: false }),
+      advanceService.getAll(),
       supabase.from('employees').select('id, name, sponsorship_status').eq('status', 'active').order('name'),
     ]);
     if (advRes.data) setAdvances(advRes.data as Advance[]);
