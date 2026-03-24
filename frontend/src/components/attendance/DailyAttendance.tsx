@@ -26,6 +26,12 @@ interface AttendanceRecord {
 type Employee = { id: string; name: string; salary_type: string; job_title?: string | null };
 type App = { id: string; name: string; logo_url?: string | null };
 
+const toShortEmployeeName = (name: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return name;
+  return `${parts[0]} ${parts[1]}`;
+};
+
 const STATUS_COLORS: Record<string, string> = {
   present: "bg-green-100 text-green-800 border-green-300",
   absent:  "bg-red-100 text-red-800 border-red-300",
@@ -350,7 +356,7 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
           <table className="w-full" dir={isRTL ? "rtl" : "ltr"}>
             <thead className="ta-thead">
               <tr>
-                <th className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} bg-muted/40 min-w-[160px] text-start`}>
+                <th className={`ta-th sticky ${isRTL ? "right-0" : "left-0"} bg-muted/40 min-w-[120px] text-start`}>
                   المندوب
                 </th>
                 <th className="ta-th min-w-[200px]">الحالة</th>
@@ -389,10 +395,12 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
                     return (
                       <tr key={emp.id} className="ta-tr">
                         {/* Name */}
-                        <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card`}>
-                          <div className="flex items-center gap-3">
+                        <td className={`ta-td sticky ${isRTL ? "right-0" : "left-0"} bg-card max-w-[170px]`}>
+                          <div className="flex items-center gap-2">
                             <div>
-                              <p className="text-sm font-medium text-foreground whitespace-nowrap">{emp.name}</p>
+                              <p className="text-sm font-medium text-foreground whitespace-nowrap truncate" title={emp.name}>
+                                {toShortEmployeeName(emp.name)}
+                              </p>
                               <p className="text-xs text-muted-foreground">
                                 {emp.job_title || (emp.salary_type === "orders" ? "طلبات" : "دوام")}
                               </p>

@@ -1781,16 +1781,24 @@ const Salaries = () => {
         })()}
       </div>
 
-      {/* Setup Required Banner — platforms without scheme */}
-      {appsWithoutScheme.length > 0 && (
+      {/* Setup Required Banner — unified to avoid duplicate alerts */}
+      {(appsWithoutScheme.length > 0 || appsWithoutPricingRules.length > 0) && (
         <div className="flex items-center gap-3 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3">
-          <Settings2 size={18} className="text-warning flex-shrink-0" />
+          <AlertTriangle size={18} className="text-warning flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">إعداد مطلوب — منصات بدون سكيمة رواتب</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              المنصات التالية لا تملك سكيمة محددة وسيكون الراتب صفر:
-              <span className="font-semibold text-warning mr-1">{appsWithoutScheme.join(' · ')}</span>
-            </p>
+            <p className="text-sm font-semibold text-foreground">إعداد مطلوب للمنصات</p>
+            {appsWithoutScheme.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                بدون سكيمة رواتب:
+                <span className="font-semibold text-warning mr-1">{appsWithoutScheme.join(' · ')}</span>
+              </p>
+            )}
+            {appsWithoutPricingRules.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                بدون Pricing Rules:
+                <span className="font-semibold text-warning mr-1">{appsWithoutPricingRules.join(' · ')}</span>
+              </p>
+            )}
           </div>
           <Button
             size="sm"
@@ -1798,29 +1806,7 @@ const Salaries = () => {
             className="gap-1.5 text-xs border-warning/40 text-warning hover:bg-warning/10 flex-shrink-0"
             onClick={() => navigate('/settings/schemes')}
           >
-            <Settings2 size={13} /> إعداد الآن
-          </Button>
-        </div>
-      )}
-
-      {/* Setup Required Banner — platforms without pricing rules */}
-      {appsWithoutPricingRules.length > 0 && (
-        <div className="flex items-center gap-3 bg-destructive/10 border border-destructive/30 rounded-xl px-4 py-3">
-          <AlertTriangle size={18} className="text-destructive flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">إعداد مطلوب — منصات بدون قواعد Pricing Rules</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              المنصات التالية لا تملك قواعد تسعير، وسيتم استخدام الـ scheme كحل مؤقت:
-              <span className="font-semibold text-destructive mr-1">{appsWithoutPricingRules.join(' · ')}</span>
-            </p>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 flex-shrink-0"
-            onClick={() => navigate('/settings/schemes')}
-          >
-            <Settings2 size={13} /> إكمال الإعداد
+            <Settings2 size={13} /> فتح الإعداد
           </Button>
         </div>
       )}
@@ -2028,8 +2014,8 @@ const Salaries = () => {
                   <th colSpan={4} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-success/10 text-center border-l-2 border-success/40">✅ الإضافات</th>
                   <th colSpan={dedColCount} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/50 bg-destructive/10 text-center border-l-2 border-destructive/40">🔻 المستقطعات</th>
                   <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">الصافي والصرف</th>
-                  <th colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">معلومات الصرف</th>
-                  <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center">الإجراءات</th>
+                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l-2 border-border/60">معلومات الصرف</th>
+                  <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l-2 border-border/60">الإجراءات</th>
                 </tr>
                 <tr className="bg-muted/50">
                   <th className={`${thFrozenBase} w-10 text-center`} style={stickyLeft(0)}>#</th>
@@ -2087,12 +2073,8 @@ const Salaries = () => {
                   <th className={thBase}>الصافي</th>
                   <th className={thBase}>تحويل</th>
                   <th className={`${thBase} border-l border-border/50`}>متبقي</th>
-                  <th className={thBase}>طريقة الصرف</th>
                   <th className={`${thBase} border-l border-border/50`}>المدينة</th>
-                  <th className={thBase}>الحالة</th>
-                  <th className={thBase}>اعتماد</th>
-                  <th className={thBase}>صرف</th>
-                  <th className={thBase}>طباعة</th>
+                  <th className={`${thBase} border-l border-border/50`}>الإجراءات</th>
                 </tr>
               </thead>
               <tbody>
@@ -2210,16 +2192,6 @@ const Salaries = () => {
                         <EditableCell value={r.transfer} onChange={v => updateRow(r.id, { transfer: Math.min(v, c.netSalary) })} />
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>{c.remaining.toLocaleString()}</td>
-                      <td className={tdClass}>
-                        <select
-                          value={r.paymentMethod}
-                          onChange={e => updateRow(r.id, { paymentMethod: e.target.value as 'bank' | 'cash' })}
-                          className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.paymentMethod === 'bank' ? 'text-primary' : 'text-muted-foreground'}`}
-                        >
-                          <option value="bank">🏦 بنك</option>
-                          <option value="cash">💵 كاش</option>
-                        </select>
-                      </td>
                       <td className={`${tdClass} border-l border-border/20`}>
                         <select
                           value={r.city === 'مكة' ? 'makkah' : r.city === 'جدة' ? 'jeddah' : ''}
@@ -2229,51 +2201,47 @@ const Salaries = () => {
                             updateRow(r.id, { city: newCityLabel });
                             await employeeService.updateCity(r.employeeId, newCityVal);
                           }}
-                          className={`text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary ${r.city === 'مكة' ? 'text-purple-600 dark:text-purple-400' : 'text-blue-600 dark:text-blue-400'}`}
+                          className="text-xs px-1.5 py-0.5 rounded-md border border-border/50 bg-background cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
                         >
                           <option value="">—</option>
-                          <option value="makkah">🕌 مكة</option>
-                          <option value="jeddah">🌊 جدة</option>
+                          <option value="makkah">مكة</option>
+                          <option value="jeddah">جدة</option>
                         </select>
                       </td>
-                      <td className={tdClass}>
-                        <button
-                          onClick={() => {
-                            const next = r.status === 'pending' ? 'approved' : r.status === 'approved' ? 'pending' : r.status;
-                            if (r.status === 'paid') return; // can't toggle paid
-                            if (next === 'approved') approveRow(r.id);
-                            else updateRow(r.id, { status: 'pending' as const });
-                          }}
-                          className={`${statusStyles[r.status]} cursor-pointer hover:opacity-80 transition-opacity`}
-                          title={r.status === 'paid' ? 'مصروف — لا يمكن التعديل' : r.status === 'approved' ? 'اضغط لإعادة إلى معلّق' : 'اضغط للاعتماد'}
-                          disabled={r.status === 'paid'}
-                        >
-                          {statusLabels[r.status]}
-                        </button>
-                      </td>
-                      <td className={tdClass}>
-                        {r.status === 'pending' && (
-                          <button onClick={() => approveRow(r.id)} className="text-success hover:text-success/70 transition-colors" title="اعتماد">
-                            <CheckCircle size={14} />
-                          </button>
-                        )}
-                      </td>
-                      <td className={tdClass}>
-                        {r.status === 'approved' && (
-                          <button
-                            onClick={() => markAsPaid(r)}
-                            disabled={markingPaid === r.id}
-                            className="text-primary hover:text-primary/70 transition-colors text-xs font-semibold"
-                            title="تم الصرف"
-                          >
-                            {markingPaid === r.id ? '...' : '✅'}
-                          </button>
-                        )}
-                      </td>
-                      <td className={tdClass}>
-                        <button onClick={() => setPayslipRow(r)} className="text-muted-foreground hover:text-primary transition-colors" title="فتح كشف الراتب">
-                          <Printer size={14} />
-                        </button>
+                      <td className={`${tdClass} border-l border-border/20`}>
+                        <div className="flex items-center justify-center gap-2">
+                          <span className={statusStyles[r.status]}>{statusLabels[r.status]}</span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">⋮</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => setPayslipRow(r)}>
+                                <Printer size={13} className="ml-2" /> كشف الراتب
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'cash' })}>
+                                طريقة الصرف: كاش
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => updateRow(r.id, { paymentMethod: 'bank' })}>
+                                طريقة الصرف: بنك
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => updateRow(r.id, { status: 'pending' as const })}>
+                                الحالة: معلّق
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => approveRow(r.id)}>
+                                الحالة: معتمد
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => { if (r.status === 'approved') void markAsPaid(r); }}
+                                disabled={r.status !== 'approved' || markingPaid === r.id}
+                              >
+                                الحالة: مصروف
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -2324,7 +2292,7 @@ const Salaries = () => {
                   <td className={`${tfClass} text-foreground text-base`}>{totals.net.toLocaleString()}</td>
                   <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
                   <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
-                  <td className={tfClass} colSpan={6}></td>
+                  <td className={tfClass} colSpan={2}></td>
                 </tr>
               </tbody>
             </table>

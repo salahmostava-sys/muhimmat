@@ -983,7 +983,7 @@ const Advances = () => {
   };
 
   const handleTemplate = () => {
-    const headers = [['اسم المندوب', 'رقم الإقامة', 'مبلغ السلفة (ر.س)', 'تاريخ الاستحقاق (YYYY-MM-DD)', 'الأقساط', 'ملاحظات']];
+    const headers = [['اسم المندوب', 'رقم الإقامة', 'مبلغ السلفة (ر.س)', 'تاريخ الاستحقاق (YYYY-MM-DD)', 'ملاحظات']];
     const ws = XLSX.utils.aoa_to_sheet(headers);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'قالب السلف');
@@ -995,7 +995,7 @@ const Advances = () => {
     if (!table) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير السلف</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير السلف والأقساط</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>`);
+    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير السلف</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير السلف</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>`);
     if (!printWindow.document.body) return;
     // Append the live DOM table node to avoid string-interpolating table HTML.
     printWindow.document.body.appendChild(table.cloneNode(true));
@@ -1016,9 +1016,9 @@ const Advances = () => {
           <nav className="page-breadcrumb">
             <span>الرئيسية</span>
             <span className="page-breadcrumb-sep">/</span>
-            <span>السلف والأقساط</span>
+            <span>السلف</span>
           </nav>
-          <h1 className="page-title flex items-center gap-2"><CreditCard size={20} /> السلف والأقساط</h1>
+          <h1 className="page-title flex items-center gap-2"><CreditCard size={20} /> السلف</h1>
         </div>
         <div className="flex gap-2">
           <input ref={importRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportAdvances} />
