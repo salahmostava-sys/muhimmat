@@ -1,10 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
-  Bike, FileDown, Bell, Smartphone,
-  Settings, ChevronDown, Fuel, Settings2, X, FileWarning, Activity,
-  Layers, ChevronsLeft, ChevronsRight, ShieldCheck,
+  LayoutDashboard, Users, Clock, Package, Wallet,
+  ChevronDown, Settings2, X, ChevronsLeft, ChevronsRight,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -55,8 +53,6 @@ const AppSidebar = () => {
       items: [
         { label: t('employees'), icon: Users, path: '/employees' },
         { label: t('attendance'), icon: Clock, path: '/attendance' },
-        { label: t('alerts'), icon: Bell, path: '/alerts' },
-        { label: t('apps'), icon: Smartphone, path: '/apps' },
       ],
     },
     {
@@ -64,7 +60,6 @@ const AppSidebar = () => {
       sectionLabel: t('finance'),
       items: [
         { label: t('payroll'), icon: Wallet, path: '/salaries' },
-        { label: t('advances'), icon: CreditCard, path: '/advances' },
       ],
     },
     {
@@ -72,12 +67,6 @@ const AppSidebar = () => {
       sectionLabel: t('operations'),
       items: [
         { label: t('orders'), icon: Package, path: '/orders' },
-        { label: t('vehicles'), icon: Bike, path: '/motorcycles' },
-        { label: t('vehicleAssignment'), icon: FileDown, path: '/vehicle-assignment' },
-        { label: t('fuel'), icon: Fuel, path: '/fuel' },
-        { label: t('violationResolver'), icon: FileWarning, path: '/violation-resolver' },
-        { label: 'شرائح الشركة', icon: Layers, path: '/employee-tiers' },
-        { label: 'حسابات المنصات', icon: ShieldCheck, path: '/platform-accounts' },
       ],
     },
     {
