@@ -465,7 +465,7 @@ const FuelPage = () => {
 
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
-    const { error } = await (supabase as any).from('vehicle_mileage_daily').delete().eq('id', id);
+    const { error } = await supabase.from('vehicle_mileage_daily').delete().eq('id', id);
     if (error) return toast({ title: 'خطأ في الحذف', description: (error as any).message, variant: 'destructive' });
     toast({ title: 'تم الحذف' });
     fetchDaily();
