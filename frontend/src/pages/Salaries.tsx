@@ -17,6 +17,7 @@ import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { employeeService } from '@/services/employeeService';
 import { salaryService, type PricingRule, type SalarySchemeTier } from '@/services/salaryService';
 import { salaryDataService } from '@/services/salaryDataService';
+import { salarySlipService } from '@/services/salarySlipService';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -183,6 +184,20 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
       const finalHeight = Math.min(imgHeight, pageHeight);
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight);
       pdf.save(`salary-slip-${row.employeeName}-${selectedMonth}.pdf`);
+    } catch {
+      // Fallback to service-based PDF when DOM capture fails.
+      const simpleSlipBlob = salarySlipService.generateSalaryPDF(
+        { name: row.employeeName, nationalId: row.nationalId || null },
+        netSalary,
+        selectedMonth,
+        Object.values(row.platformOrders).reduce((sum, count) => sum + count, 0)
+      );
+      const blobUrl = URL.createObjectURL(simpleSlipBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `salary-slip-${row.employeeName}-${selectedMonth}.pdf`;
+      a.click();
+      URL.revokeObjectURL(blobUrl);
     } finally {
       setExporting(false);
     }
