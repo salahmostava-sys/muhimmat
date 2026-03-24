@@ -275,7 +275,7 @@ const PlatformAccounts = () => {
     }
 
     // 2. Insert new assignment
-    const { error } = await supabase.from('account_assignments').insert({
+    const { error } = await (supabase as any).from('account_assignments').insert({
       account_id: assignTarget!.id,
       employee_id: assignForm.employee_id,
       start_date: assignForm.start_date,
