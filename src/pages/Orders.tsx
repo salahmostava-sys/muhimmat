@@ -383,7 +383,7 @@ const SpreadsheetGrid = () => {
     setLockingMonth(true);
     const { data: userRes } = await supabase.auth.getUser();
     const userId = userRes.user?.id ?? null;
-    const { error } = await (supabase as any).from('locked_months').upsert(
+    const { error } = await supabase.from('locked_months').upsert(
       { month_year: my, locked_at: new Date().toISOString(), locked_by: userId },
       { onConflict: 'month_year' }
     );
