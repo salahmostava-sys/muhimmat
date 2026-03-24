@@ -28,7 +28,17 @@ const isValidMonth = (value: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
 const isUuid = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
+const logInfo = (message: string, meta: Record<string, unknown> = {}) => {
+  console.log(JSON.stringify({ level: 'info', message, ...meta, ts: new Date().toISOString() }));
+};
+
+const logError = (message: string, meta: Record<string, unknown> = {}) => {
+  console.error(JSON.stringify({ level: 'error', message, ...meta, ts: new Date().toISOString() }));
+};
+
 Deno.serve(async (req) => {
+  const requestId = crypto.randomUUID();
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -74,6 +84,40 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    const mode = payload.mode;
+    const rateLimitKey = `salary-engine:${callerUser.id}:${mode}`;
+    const { data: rateLimitRows, error: rateLimitError } = await adminClient.rpc('enforce_rate_limit', {
+      p_key: rateLimitKey,
+      p_limit: 30,
+      p_window_seconds: 60,
+    } as Record<string, unknown>);
+    if (rateLimitError) throw rateLimitError;
+
+    const rate = Array.isArray(rateLimitRows)
+      ? (rateLimitRows[0] as { allowed?: boolean; remaining?: number; reset_at?: string } | undefined)
+      : undefined;
+
+    if (!rate?.allowed) {
+      logError('Rate limit exceeded', {
+        request_id: requestId,
+        user_id: callerUser.id,
+        mode,
+        month_year: payload.month_year,
+      });
+      return new Response(JSON.stringify({ error: 'Too many requests. Please retry shortly.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 429,
+      });
+    }
+
+    logInfo('Salary engine request accepted', {
+      request_id: requestId,
+      user_id: callerUser.id,
+      mode,
+      month_year: payload.month_year,
+      remaining: rate.remaining ?? null,
+    });
 
     if (payload.mode === 'employee') {
       if (!isUuid(payload.employee_id)) {
@@ -123,6 +167,10 @@ Deno.serve(async (req) => {
     throw new Error('Invalid mode. Use "employee", "month", or "month_preview"');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    logError('Salary engine request failed', {
+      request_id: requestId,
+      error: message,
+    });
     return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
