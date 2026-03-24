@@ -19,8 +19,8 @@ const FALLBACK_COLORS = ['#2563eb', '#16a34a', '#9333ea', '#ea580c', '#0891b2', 
 
 export const invalidateAppColorsCache = () => {
   // Keep compatibility with pages that trigger a refresh signal after app updates.
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('app-colors:invalidate'));
+  if (typeof globalThis !== 'undefined') {
+    globalThis.dispatchEvent(new CustomEvent('app-colors:invalidate'));
   }
 };
 
@@ -62,14 +62,14 @@ export const useAppColors = () => {
       setApps(normalized);
       setLoading(false);
     };
-    run();
+    void run();
     const onInvalidate = () => {
-      run();
+      void run();
     };
-    window.addEventListener('app-colors:invalidate', onInvalidate);
+    globalThis.addEventListener('app-colors:invalidate', onInvalidate);
     return () => {
       mounted = false;
-      window.removeEventListener('app-colors:invalidate', onInvalidate);
+      globalThis.removeEventListener('app-colors:invalidate', onInvalidate);
     };
   }, []);
 

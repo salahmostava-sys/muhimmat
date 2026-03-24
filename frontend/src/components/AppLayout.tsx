@@ -72,9 +72,9 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
 
   useEffect(() => {
     const onStorage = () => setSidebarCollapsed(localStorage.getItem('sidebar_collapsed') === 'true');
-    window.addEventListener('storage', onStorage);
+    globalThis.addEventListener('storage', onStorage);
     const id = setInterval(onStorage, 200);
-    return () => { window.removeEventListener('storage', onStorage); clearInterval(id); };
+    return () => { globalThis.removeEventListener('storage', onStorage); clearInterval(id); };
   }, []);
 
   const pageKey = routeTitles[location.pathname] || 'dashboard';
@@ -203,11 +203,11 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
                     </div>
                   </div>
                 </div>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => window.location.href = '/settings?tab=profile'}>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => globalThis.location.assign('/settings?tab=profile')}>
                   <User size={14} />
                   <span>الملف الشخصي</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => window.location.href = '/settings'}>
+                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => globalThis.location.assign('/settings')}>
                   <Settings size={14} />
                   <span>إعدادات النظام</span>
                 </DropdownMenuItem>

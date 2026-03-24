@@ -17,14 +17,14 @@ const shouldHandleChunkError = (message: string) => {
 const reloadOnceForChunkError = () => {
   if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return;
   sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
-  window.location.reload();
+  globalThis.location.reload();
 };
 
-window.addEventListener("vite:preloadError", () => {
+globalThis.addEventListener("vite:preloadError", () => {
   reloadOnceForChunkError();
 });
 
-window.addEventListener("unhandledrejection", (event) => {
+globalThis.addEventListener("unhandledrejection", (event) => {
   const message =
     (event.reason && (event.reason.message || String(event.reason))) || "";
   if (shouldHandleChunkError(message)) {

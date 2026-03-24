@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
             size="sm"
             variant="outline"
             className="gap-2"
-            onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
+            onClick={() => { this.setState({ hasError: false, error: null }); globalThis.location.reload(); }}
           >
             <RefreshCw size={14} /> تحديث الصفحة
           </Button>
