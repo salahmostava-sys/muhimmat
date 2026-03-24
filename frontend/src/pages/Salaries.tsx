@@ -10,13 +10,12 @@ import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAppColors, AppColorData, CustomColumn } from '@/hooks/useAppColors';
-import { payrollService } from '@/services/payrollService';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { employeeService } from '@/services/employeeService';
-import { salaryService, type PricingRule } from '@/services/salaryService';
+import { salaryService, type PricingRule, type SalarySchemeTier } from '@/services/salaryService';
 import { salaryDataService } from '@/services/salaryDataService';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -745,14 +744,14 @@ const Salaries = () => {
             if (alreadyCalcForScheme) {
               platformSalaries[p] = 0; // already counted
             } else {
-              platformSalaries[p] = payrollService.calculateFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
+              platformSalaries[p] = salaryService.calculateFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
             }
           } else if (orders === 0) {
             platformSalaries[p] = 0;
           } else if (scheme.salary_scheme_tiers) {
-            platformSalaries[p] = payrollService.calculateTierSalary(
+            platformSalaries[p] = salaryService.calculateTierSalary(
               orders,
-              scheme.salary_scheme_tiers,
+              scheme.salary_scheme_tiers as SalarySchemeTier[],
               scheme.target_orders,
               scheme.target_bonus
             );
@@ -947,9 +946,9 @@ const Salaries = () => {
         // Fallback to scheme behavior when pricing_rules are not configured.
         const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
         if (scheme && scheme.salary_scheme_tiers) {
-          salary = payrollService.calculateTierSalary(
+          salary = salaryService.calculateTierSalary(
             value,
-            scheme.salary_scheme_tiers,
+            scheme.salary_scheme_tiers as SalarySchemeTier[],
             scheme.target_orders,
             scheme.target_bonus
           );
