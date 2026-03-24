@@ -675,9 +675,8 @@ const MonthSummary = () => {
   useEffect(() => {
     let isMounted = true;
     Promise.all([
-      supabase.from('employees').select('id, name, salary_type, status, sponsorship_status')
-        .eq('status', 'active').not('sponsorship_status', 'in', '("absconded","terminated")').order('name'),
-      supabase.from('apps').select('id, name, name_en').eq('is_active', true).order('name'),
+      orderService.getActiveEmployees(),
+      orderService.getActiveApps(),
     ]).then(([empRes, appRes]) => {
       if (!isMounted) return;
       if (empRes.data) setEmployees(empRes.data as Employee[]);
@@ -691,7 +690,7 @@ const MonthSummary = () => {
     let isMounted = true;
     const my = monthYear(year, month);
     setTargets({});
-    supabase.from('app_targets').select('app_id, target_orders').eq('month_year', my)
+    orderService.getAppTargets(my)
       .then(({ data: rows }) => {
         if (!isMounted) return;
         const t: Record<string, string> = {};
@@ -704,14 +703,9 @@ const MonthSummary = () => {
   useEffect(() => {
     let isMounted = true;
     const my = monthYear(year, month);
-    supabase
-      .from('locked_months')
-      .select('month_year')
-      .eq('month_year', my)
-      .maybeSingle()
-      .then(({ data }) => {
+    orderService.getMonthLockStatus(my).then(({ locked }) => {
         if (!isMounted) return;
-        setIsMonthLocked(!!data);
+        setIsMonthLocked(locked);
       });
     return () => {
       isMounted = false;
@@ -720,12 +714,8 @@ const MonthSummary = () => {
 
   useEffect(() => {
     let isMounted = true;
-    const days = getDaysInMonth(year, month);
     setLoading(true);
-    supabase.from('daily_orders')
-      .select('employee_id, app_id, date, orders_count')
-      .gte('date', dateStr(year, month, 1)).lte('date', dateStr(year, month, days))
-      .then(({ data: rows }) => {
+    orderService.getMonthRaw(year, month).then(({ data: rows }) => {
         if (!isMounted) return;
         const d: DailyData = {};
         rows?.forEach(r => {
@@ -743,10 +733,7 @@ const MonthSummary = () => {
     const targetOrders = parseInt(value) || 0;
     const my = monthYear(year, month);
     setSavingTarget(appId);
-    const { error } = await supabase.from('app_targets').upsert(
-      { app_id: appId, month_year: my, target_orders: targetOrders },
-      { onConflict: 'app_id,month_year' }
-    );
+    const { error } = await orderService.upsertAppTarget(appId, my, targetOrders);
     setSavingTarget(null);
     if (error) toast({ title: 'خطأ في حفظ التارجت', variant: 'destructive' });
     else toast({ title: '✅ تم حفظ التارجت' });

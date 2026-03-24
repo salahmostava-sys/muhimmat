@@ -8,6 +8,14 @@ export const employeeService = {
       .order('name', { ascending: true });
     return { data, error };
   },
+
+  async updateCity(employeeId: string, city: 'makkah' | 'jeddah') {
+    const { error } = await supabase
+      .from('employees')
+      .update({ city })
+      .eq('id', employeeId);
+    return { error };
+  },
 };
 
 export default employeeService;
