@@ -70,7 +70,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
   const isAdmin = authRole === 'admin';
   const canEdit = settingsPerm.can_edit && isAdmin;
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
@@ -104,11 +104,11 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     void fetchData();
-  }, []);
+  }, [fetchData]);
 
   const selectedUser = useMemo(() => rows.find((r) => r.id === permUserId) ?? null, [rows, permUserId]);
 

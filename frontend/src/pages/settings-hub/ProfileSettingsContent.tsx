@@ -85,7 +85,7 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Prof
       cancelled = true;
     };
      
-  }, [user]);
+  }, [isRTL, toast, user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

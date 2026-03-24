@@ -160,7 +160,7 @@ function mergePermissions(permissionSets) {
 
 function resolvePermission(permissions, resource, action) {
   if (!permissions || typeof permissions !== "object") return false;
-  if (permissions["*"] && permissions["*"][action] === true) return true;
+  if (permissions["*"]?.[action] === true) return true;
   return permissions[resource]?.[action] === true;
 }
 

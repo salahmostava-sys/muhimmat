@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Users, Car, CreditCard, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -20,7 +19,6 @@ export default function GlobalSearch() {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { isRTL } = useLanguage();
   const navigate = useNavigate();
 
   const search = useCallback(async (q: string) => {
@@ -67,7 +65,7 @@ export default function GlobalSearch() {
 
     setResults(out);
     setLoading(false);
-  }, [isRTL]);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => search(query), 300);

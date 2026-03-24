@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@/hooks/useRealtimePostgresChanges';
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { differenceInDays, parseISO, endOfMonth, format } from 'date-fns';
+import { differenceInDays, parseISO, format } from 'date-fns';
 
 const typeLabels: Record<string, string> = {
   residency: 'إقامة',

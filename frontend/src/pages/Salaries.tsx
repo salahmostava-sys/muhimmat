@@ -1184,7 +1184,7 @@ const Salaries = () => {
       }
     }, 150);
     return () => clearTimeout(timer);
-  }, [batchIndex, batchQueue, batchZip, selectedMonth]);
+  }, [batchIndex, batchQueue, batchZip, selectedMonth, toast]);
 
   const startBatchZipExport = () => {
     if (filtered.length === 0) { toast({ title: 'لا توجد بيانات للتصدير' }); return; }

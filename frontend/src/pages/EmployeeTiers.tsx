@@ -247,7 +247,7 @@ const EmployeeTiers = () => {
 
     if (employees.length > 0 && tiers.length > 0) checkAbsconded();
    
-  }, [employees, tiers.length]);
+  }, [employees, tiers]);
 
   /* ── Inline edit helpers ── */
   const getRow = (tier: TierRow) => editRows[tier.id] ? { ...tier, ...editRows[tier.id] } : tier;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const forceSignOut = async () => {
+  const forceSignOut = useCallback(async () => {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     const userId = currentUser?.id ?? user?.id ?? null;
     await supabase.auth.signOut();
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null);
     setSession(null);
     setRole(null);
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [forceSignOut]);
 
   // عند العودة للتبويب: تجديد الجلسة بحد أدنى بين المحاولات (أونلاين، ليس كل ثانية)
   useEffect(() => {
@@ -113,7 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, []);
+  }, [forceSignOut]);
 
   useEffect(() => {
     if (!user) return;
@@ -138,7 +138,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [forceSignOut, user]);
 
   // Re-check profile.is_active while logged in (narrows window where JWT still works after deactivation).
   useEffect(() => {
@@ -150,7 +150,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
     const id = setInterval(tick, 120_000);
     return () => clearInterval(id);
-  }, [user?.id]);
+  }, [forceSignOut, user?.id]);
 
   const signIn = async (email: string, password: string) => {
     const { error, data } = await supabase.auth.signInWithPassword({ email, password });

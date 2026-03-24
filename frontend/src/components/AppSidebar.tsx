@@ -6,7 +6,7 @@ import {
   Settings, ChevronDown, Fuel, Settings2, X, FileWarning,
   Layers, ChevronsLeft, ChevronsRight, ShieldCheck,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useMobileSidebar } from '@/context/MobileSidebarContext';
@@ -36,7 +36,7 @@ const AppSidebar = () => {
   const toggleGroup = (key: string) =>
     setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const isActive = (path: string) => {
+  const isActive = useCallback((path: string) => {
     const [pathPart, queryPart] = path.split('?');
     if (pathPart !== location.pathname) return false;
     if (!queryPart) return true;
@@ -46,9 +46,9 @@ const AppSidebar = () => {
       if (locationParams.get(key) !== value) return false;
     }
     return true;
-  };
+  }, [location.pathname, location.search]);
 
-  const navGroups = [
+  const navGroups = useMemo(() => [
     {
       key: 'hr',
       sectionLabel: t('hr'),
@@ -87,7 +87,7 @@ const AppSidebar = () => {
         { label: t('settings'), icon: Settings2, path: '/settings' },
       ],
     },
-  ];
+  ], [isRTL, t]);
 
   useEffect(() => {
     const activeGroup = navGroups.find(g => g.items.some(i => isActive(i.path)));
@@ -95,7 +95,7 @@ const AppSidebar = () => {
       setOpenGroups(prev => ({ ...prev, [activeGroup.key]: true }));
     }
    
-  }, [location.pathname]);
+  }, [location.pathname, isActive, navGroups, openGroups]);
 
   return (
     <>

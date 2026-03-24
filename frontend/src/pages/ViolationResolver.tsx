@@ -123,11 +123,15 @@ const ViolationResolver = () => {
   const [vSortField, setVSortField] = useState<'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status'>('incident_date');
   const [vSortDir, setVSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const isAdvanceLegacyNote = (details: string) =>
-    /تم التحويل لسلفة|معرّف السلفة:/u.test(details || '');
+  const isAdvanceLegacyNote = useCallback(
+    (details: string) => /تم التحويل لسلفة|معرّف السلفة:/u.test(details || ''),
+    []
+  );
 
-  const isViolationConvertedToAdvance = (v: ViolationRecord) =>
-    Boolean(v.linked_advance_id) || isAdvanceLegacyNote(v.violation_details);
+  const isViolationConvertedToAdvance = useCallback(
+    (v: ViolationRecord) => Boolean(v.linked_advance_id) || isAdvanceLegacyNote(v.violation_details),
+    [isAdvanceLegacyNote]
+  );
 
   const fetchViolations = useCallback(async () => {
     setViolationsLoading(true);
@@ -496,7 +500,7 @@ const ViolationResolver = () => {
       return 0;
     });
     return rows;
-  }, [violations, vSortDir, vSortField]);
+  }, [isViolationConvertedToAdvance, violations, vSortDir, vSortField]);
 
   const toggleVSort = (field: 'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status') => {
     if (vSortField === field) setVSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
