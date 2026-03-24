@@ -28,6 +28,10 @@ export const salaryDataService = {
     return salaryService.calculateSalaryForMonth({ monthYear, paymentMethod });
   },
 
+  async getSalaryPreviewForMonth(monthYear: string) {
+    return salaryService.getSalaryPreviewForMonth(monthYear);
+  },
+
   async getMonthlyContext(selectedMonth: string) {
     const [empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecordsRes, allAdvancesRes] =
       await Promise.all([

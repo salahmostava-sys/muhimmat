@@ -18,6 +18,10 @@ type SalaryEngineRequest =
       mode: 'month';
       month_year: string;
       payment_method?: string;
+    }
+  | {
+      mode: 'month_preview';
+      month_year: string;
     };
 
 const isValidMonth = (value: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
@@ -104,7 +108,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    throw new Error('Invalid mode. Use "employee" or "month"');
+    if (payload.mode === 'month_preview') {
+      const { data, error } = await adminClient.rpc('preview_salary_for_month', {
+        p_month_year: payload.month_year,
+      } as Record<string, unknown>);
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ data }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    throw new Error('Invalid mode. Use "employee", "month", or "month_preview"');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), {

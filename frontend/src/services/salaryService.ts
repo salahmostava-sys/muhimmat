@@ -20,6 +20,15 @@ export interface SalaryRpcParams {
   paymentMethod?: string;
 }
 
+export interface SalaryPreviewRow {
+  employee_id: string;
+  total_orders: number;
+  base_salary: number;
+  external_deduction: number;
+  advance_deduction: number;
+  net_salary: number;
+}
+
 export type PricingCalcType = 'per_order' | 'fixed' | 'hybrid';
 
 export interface PricingRule {
@@ -203,6 +212,18 @@ export const salaryService = {
     if (error) return { data: null, error };
     const payload = (data as { data?: unknown } | null)?.data ?? data;
     return { data: payload, error: null };
+  },
+
+  getSalaryPreviewForMonth: async (monthYear: string) => {
+    const { data, error } = await supabase.functions.invoke('salary-engine', {
+      body: {
+        mode: 'month_preview',
+        month_year: monthYear,
+      },
+    });
+    if (error) return { data: null, error };
+    const payload = ((data as { data?: unknown } | null)?.data ?? data) as SalaryPreviewRow[] | null;
+    return { data: payload || [], error: null };
   },
 
   getByMonth: async (monthYear: string) => {

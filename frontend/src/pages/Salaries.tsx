@@ -1042,17 +1042,36 @@ const Salaries = () => {
   const approveRow = async (id: string) => {
     const row = rows.find(r => r.id === id);
     if (!row) return;
-    const c = computeRow(row);
+    const manualDeduction = getManualDeductionTotal(row);
+    const { data: calcData, error: calcError } = await salaryDataService.calculateSalaryForEmployeeMonth(
+      row.employeeId,
+      selectedMonth,
+      row.paymentMethod,
+      manualDeduction,
+      null
+    );
+    if (calcError) {
+      toast({ title: 'تعذّر حساب الراتب من الخادم', description: calcError.message, variant: 'destructive' });
+      return;
+    }
+    const calc = (Array.isArray(calcData) ? calcData[0] : calcData) as Record<string, number> | undefined;
+    const baseSalary = Number(calc?.base_salary ?? 0);
+    const advanceDeduction = Number(calc?.advance_deduction ?? row.advanceDeduction ?? 0);
+    const externalDeduction = Number(calc?.external_deduction ?? row.externalDeduction ?? 0);
+    const totalAdditions = row.incentives + row.sickAllowance;
+    const totalDeductions = row.violations + manualDeduction + advanceDeduction + externalDeduction;
+    const netSalary = Math.max(baseSalary + totalAdditions - totalDeductions, 0);
+
     const { error } = await salaryDataService.upsertSalaryRecord({
       employee_id: row.employeeId,
       month_year: selectedMonth,
-      base_salary: c.totalPlatformSalary,
-      allowances: c.totalAdditions,
+      base_salary: baseSalary,
+      allowances: totalAdditions,
       attendance_deduction: row.violations,
-      advance_deduction: row.advanceDeduction,
-      external_deduction: row.externalDeduction,
-      manual_deduction: getManualDeductionTotal(row),
-      net_salary: c.netSalary,
+      advance_deduction: advanceDeduction,
+      external_deduction: externalDeduction,
+      manual_deduction: manualDeduction,
+      net_salary: netSalary,
       is_approved: true,
       approved_by: user?.id ?? null,
       approved_at: new Date().toISOString(),
@@ -1061,11 +1080,11 @@ const Salaries = () => {
       toast({ title: 'تعذّر حفظ الاعتماد', description: error.message, variant: 'destructive' });
       return;
     }
-    updateRow(id, { status: 'approved', isDirty: false });
+    updateRow(id, { status: 'approved', isDirty: false, advanceDeduction, externalDeduction });
     toast({ title: '✅ تم اعتماد الراتب' });
     if (row.phone) {
       const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
-      sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\nتم اعتماد راتبك لشهر ${monthLabel}\nصافي الراتب: ${computeRow(row).netSalary.toLocaleString()} ر.س\n\nللاستفسار تواصل مع الإدارة.`)
+      sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\nتم اعتماد راتبك لشهر ${monthLabel}\nصافي الراتب: ${netSalary.toLocaleString()} ر.س\n\nللاستفسار تواصل مع الإدارة.`)
         .then(ok => { if (!ok) toast({ title: 'تعذّر إرسال إشعار واتساب' }); });
     }
   };
@@ -1074,20 +1093,35 @@ const Salaries = () => {
   const markAsPaid = async (row: SalaryRow) => {
     setMarkingPaid(row.id);
     try {
-      const c = computeRow(row);
+      const manualDeduction = getManualDeductionTotal(row);
+      const { data: calcData, error: calcError } = await salaryDataService.calculateSalaryForEmployeeMonth(
+        row.employeeId,
+        selectedMonth,
+        row.paymentMethod,
+        manualDeduction,
+        null
+      );
+      if (calcError) throw calcError;
+      const calc = (Array.isArray(calcData) ? calcData[0] : calcData) as Record<string, number> | undefined;
+      const baseSalary = Number(calc?.base_salary ?? 0);
+      const advanceDeduction = Number(calc?.advance_deduction ?? row.advanceDeduction ?? 0);
+      const externalDeduction = Number(calc?.external_deduction ?? row.externalDeduction ?? 0);
+      const totalAdditions = row.incentives + row.sickAllowance;
+      const totalDeductions = row.violations + manualDeduction + advanceDeduction + externalDeduction;
+      const netSalary = Math.max(baseSalary + totalAdditions - totalDeductions, 0);
       const nowStr = new Date().toISOString();
 
       // 1. Upsert into salary_records
       const { error: srError } = await salaryDataService.upsertSalaryRecord({
         employee_id: row.employeeId,
         month_year: selectedMonth,
-        base_salary: c.totalPlatformSalary,
-        allowances: c.totalAdditions,
+        base_salary: baseSalary,
+        allowances: totalAdditions,
         attendance_deduction: row.violations,
-        advance_deduction: row.advanceDeduction,
-        external_deduction: row.externalDeduction,
-        manual_deduction: getManualDeductionTotal(row),
-        net_salary: c.netSalary,
+        advance_deduction: advanceDeduction,
+        external_deduction: externalDeduction,
+        manual_deduction: manualDeduction,
+        net_salary: netSalary,
         is_approved: true,
         approved_by: user?.id ?? null,
         approved_at: nowStr,
@@ -1114,11 +1148,11 @@ const Salaries = () => {
         }
       }
 
-      updateRow(row.id, { status: 'paid', isDirty: false });
+      updateRow(row.id, { status: 'paid', isDirty: false, advanceDeduction, externalDeduction });
       toast({ title: '✅ تم الصرف وحفظ سجل الراتب' });
       if (row.phone) {
         const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
-        sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\n✅ تم صرف راتبك لشهر ${monthLabel}\nالمبلغ: ${computeRow(row).netSalary.toLocaleString()} ر.س\n\nشكراً لجهودك.`)
+        sendWhatsAppMessage(row.phone, `مرحباً ${row.employeeName} 👋\n\n✅ تم صرف راتبك لشهر ${monthLabel}\nالمبلغ: ${netSalary.toLocaleString()} ر.س\n\nشكراً لجهودك.`)
           .then(ok => { if (!ok) toast({ title: 'تعذّر إرسال إشعار واتساب' }); });
       }
     } catch (err: unknown) {
@@ -1132,20 +1166,40 @@ const Salaries = () => {
     const pendingRows = filtered.filter(r => r.status === 'pending');
     if (pendingRows.length === 0) return;
 
+    const { data: monthCalcData, error: monthCalcError } = await salaryDataService.calculateSalaryForMonth(selectedMonth);
+    if (monthCalcError) {
+      toast({ title: 'خطأ أثناء الحساب من الخادم', description: monthCalcError.message, variant: 'destructive' });
+      return;
+    }
+    const monthCalcMap = new Map<string, Record<string, number>>(
+      (Array.isArray(monthCalcData) ? monthCalcData : []).map((item) => [
+        String((item as Record<string, unknown>).employee_id),
+        item as Record<string, number>,
+      ])
+    );
+
     // Upsert all to salary_records
     const nowStr = new Date().toISOString();
     const records = pendingRows.map(row => {
-      const c = computeRow(row);
+      const calc = monthCalcMap.get(row.employeeId);
+      const manualDeduction = getManualDeductionTotal(row);
+      const baseSalary = Number(calc?.base_salary ?? 0);
+      const advanceDeduction = Number(calc?.advance_deduction ?? row.advanceDeduction ?? 0);
+      const externalDeduction = Number(calc?.external_deduction ?? row.externalDeduction ?? 0);
+      const totalAdditions = row.incentives + row.sickAllowance;
+      const totalDeductions = row.violations + manualDeduction + advanceDeduction + externalDeduction;
+      const netSalary = Math.max(baseSalary + totalAdditions - totalDeductions, 0);
+
       return {
         employee_id: row.employeeId,
         month_year: selectedMonth,
-        base_salary: c.totalPlatformSalary,
-        allowances: c.totalAdditions,
+        base_salary: baseSalary,
+        allowances: totalAdditions,
         attendance_deduction: row.violations,
-        advance_deduction: row.advanceDeduction,
-        external_deduction: row.externalDeduction,
-        manual_deduction: getManualDeductionTotal(row),
-        net_salary: c.netSalary,
+        advance_deduction: advanceDeduction,
+        external_deduction: externalDeduction,
+        manual_deduction: manualDeduction,
+        net_salary: netSalary,
         is_approved: true,
         approved_by: user?.id ?? null,
         approved_at: nowStr,
