@@ -313,7 +313,7 @@ const VehicleAssignment = () => {
     if (!printWindow.document.body) return;
     // Append the live DOM table node to avoid string-interpolating table HTML.
     printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     printWindow.document.close();
   };
 

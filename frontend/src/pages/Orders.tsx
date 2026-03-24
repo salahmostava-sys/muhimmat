@@ -200,11 +200,11 @@ const SpreadsheetGrid = () => {
   const dayArr = Array.from({ length: days }, (_, i) => i + 1);
   const today = now.getFullYear() === year && (now.getMonth() + 1) === month ? now.getDate() : -1;
 
-  const getVal = (empId: string, appId: string, day: number) => data[`${empId}::${appId}::${day}`] ?? 0;
-  const getActiveApps = (empId: string) => apps.filter(app => dayArr.some(d => getVal(empId, app.id, d) > 0));
-  const empDayTotal = (empId: string, day: number) => apps.reduce((s, a) => s + getVal(empId, a.id, day), 0);
-  const empMonthTotal = (empId: string) => dayArr.reduce((s, d) => s + empDayTotal(empId, d), 0);
-  const empAppMonthTotal = (empId: string, appId: string) => dayArr.reduce((s, d) => s + getVal(empId, appId, d), 0);
+  const getVal = useCallback((empId: string, appId: string, day: number) => data[`${empId}::${appId}::${day}`] ?? 0, [data]);
+  const getActiveApps = useCallback((empId: string) => apps.filter(app => dayArr.some(d => getVal(empId, app.id, d) > 0)), [apps, dayArr, getVal]);
+  const empDayTotal = useCallback((empId: string, day: number) => apps.reduce((s, a) => s + getVal(empId, a.id, day), 0), [apps, getVal]);
+  const empMonthTotal = useCallback((empId: string) => dayArr.reduce((s, d) => s + empDayTotal(empId, d), 0), [dayArr, empDayTotal]);
+  const empAppMonthTotal = useCallback((empId: string, appId: string) => dayArr.reduce((s, d) => s + getVal(empId, appId, d), 0), [dayArr, getVal]);
 
   const sortedEmployees = useMemo(() => {
     const sorted = [...filteredEmployees].sort((a, b) => {
@@ -230,7 +230,7 @@ const SpreadsheetGrid = () => {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [filteredEmployees, sortField, sortDir, dayArr.length, data]);
+  }, [filteredEmployees, sortField, sortDir, empMonthTotal, empAppMonthTotal]);
 
   const handleSort = (field: 'name' | 'total' | `app:${string}`) => {
     if (sortField === field) {
@@ -344,7 +344,7 @@ const SpreadsheetGrid = () => {
     if (!printWindow.document.body) return;
     // Append the live DOM table node to avoid string-interpolating table HTML.
     printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script></body></html>`);
+    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
     printWindow.document.close();
   };
 
@@ -743,8 +743,8 @@ const MonthSummary = () => {
   const days = getDaysInMonth(year, month);
   const dayArr = Array.from({ length: days }, (_, i) => i + 1);
 
-  const empTotal = (empId: string) =>
-    dayArr.reduce((s, d) => s + apps.reduce((ss, a) => ss + (data[`${empId}::${a.id}::${d}`] ?? 0), 0), 0);
+  const empTotal = useCallback((empId: string) =>
+    dayArr.reduce((s, d) => s + apps.reduce((ss, a) => ss + (data[`${empId}::${a.id}::${d}`] ?? 0), 0), 0), [dayArr, apps, data]);
 
   const appGrandTotal = (appId: string) =>
     employees.reduce((s, e) => s + dayArr.reduce((ss, d) => ss + (data[`${e.id}::${appId}::${d}`] ?? 0), 0), 0);
@@ -773,7 +773,7 @@ const MonthSummary = () => {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return sorted;
-  }, [employees, sortField, sortDir, data, dayArr.length]);
+  }, [employees, sortField, sortDir, data, dayArr, empTotal]);
 
   const handleSort = (field: 'name' | 'total' | `app:${string}`) => {
     if (sortField === field) setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
