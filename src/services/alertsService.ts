@@ -23,11 +23,7 @@ export const alertsService = {
         .eq('status', 'active')
         .not('iqama_expiry_date', 'is', null)
         .lte('iqama_expiry_date', iqamaThreshold),
-      supabase
-        .from('alerts')
-        .select('id, type, due_date, is_resolved, message, details')
-        .order('created_at', { ascending: false })
-        .limit(500),
+      Promise.resolve({ data: [], error: null }),
     ]);
 
     const timeoutError = () =>
@@ -56,14 +52,8 @@ export const alertsService = {
     ]),
 
   resolveAlert: async (alertId: string, resolvedBy: string | null) =>
-    supabase
-      .from('alerts')
-      .update({ is_resolved: true, resolved_by: resolvedBy })
-      .eq('id', alertId),
+    Promise.resolve({ data: null, error: null }),
 
   deferAlert: async (alertId: string, dueDate: string) =>
-    supabase
-      .from('alerts')
-      .update({ due_date: dueDate })
-      .eq('id', alertId),
+    Promise.resolve({ data: null, error: null }),
 };
