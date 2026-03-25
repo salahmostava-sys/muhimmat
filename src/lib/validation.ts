@@ -3,6 +3,8 @@ export type FileValidationOptions = {
   maxSizeBytes?: number;
 };
 
+export type FileValidationResult = { valid: true; error?: never } | { valid: false; error: string };
+
 export const DEFAULT_ALLOWED_UPLOAD_TYPES = [
   'image/png',
   'image/jpeg',
@@ -14,7 +16,7 @@ export const DEFAULT_MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB
 export function validateUploadFile(
   file: File,
   options: FileValidationOptions = {}
-): { valid: true } | { valid: false; error: string } {
+): FileValidationResult {
   const allowedTypes = options.allowedTypes ?? DEFAULT_ALLOWED_UPLOAD_TYPES;
   const maxSizeBytes = options.maxSizeBytes ?? DEFAULT_MAX_UPLOAD_BYTES;
 
