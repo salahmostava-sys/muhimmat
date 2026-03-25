@@ -106,7 +106,8 @@ export function AlertsList() {
         }
       });
 
-      setAlerts(generated.toSorted((a, b) => a.daysLeft - b.daysLeft).slice(0, 8));
+      // Clone before sort to avoid mutating arrays flagged by Sonar.
+      setAlerts([...generated].sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 8));
     };
 
     fetchAlerts();

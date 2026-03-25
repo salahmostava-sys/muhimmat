@@ -191,7 +191,7 @@ const Login = () => {
                   aria-label="كلمة المرور"
                   aria-invalid={!!loginError}
                   aria-errormessage={loginError ? 'login-error' : undefined}
-                  className={`${inputClass} w-full pl-16 pr-5`}
+                  className={`${inputClass} w-full pl-[2.5rem] pr-5`}
                 />
               </div>
             </div>
