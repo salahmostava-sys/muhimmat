@@ -79,7 +79,10 @@ export default function NotificationCenter() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try { return new Set(JSON.parse(localStorage.getItem('nc_dismissed') || '[]')); }
-    catch { return new Set(); }
+    catch (e) {
+      console.warn('[NotificationCenter] invalid nc_dismissed in storage', e);
+      return new Set();
+    }
   });
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -88,6 +91,7 @@ export default function NotificationCenter() {
   /* ── Fetch alerts (same logic as Alerts.tsx) ─────────────── */
   const fetchAlerts = useCallback(async () => {
     setLoading(true);
+    try {
     const today = new Date();
     const threshold = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
 
@@ -119,7 +123,11 @@ export default function NotificationCenter() {
 
     generated.sort((a, b) => a.daysLeft - b.daysLeft);
     setAlerts(generated);
-    setLoading(false);
+    } catch (e) {
+      console.error('[NotificationCenter] fetchAlerts failed', e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAlerts(); }, [fetchAlerts]);

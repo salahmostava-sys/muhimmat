@@ -42,8 +42,8 @@ const Login = () => {
       setRememberMe(wantRemember);
       const savedEmail = localStorage.getItem(LOGIN_EMAIL_KEY);
       if (wantRemember && savedEmail) setEmail(savedEmail);
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.warn('[Login] could not read remembered email from storage', e);
     }
   }, []);
 
@@ -77,8 +77,8 @@ const Login = () => {
           localStorage.setItem(LOGIN_REMEMBER_KEY, '0');
           localStorage.removeItem(LOGIN_EMAIL_KEY);
         }
-      } catch {
-        /* ignore */
+      } catch (e) {
+        console.warn('[Login] could not persist remember-me preference', e);
       }
       navigate('/', { replace: true });
     }

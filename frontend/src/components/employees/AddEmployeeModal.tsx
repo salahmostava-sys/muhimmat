@@ -268,7 +268,10 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
     try {
       const days = differenceInDays(parseISO(form.residency_expiry), new Date());
       return { days, valid: days >= 0 };
-    } catch { return null; }
+    } catch (e) {
+      console.warn('[AddEmployeeModal] could not parse residency_expiry', e);
+      return null;
+    }
   })();
 
   const toggleApp = (app: string) => {

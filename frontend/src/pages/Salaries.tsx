@@ -199,7 +199,8 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
       const finalHeight = Math.min(imgHeight, pageHeight);
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, finalHeight);
       pdf.save(`salary-slip-${row.employeeName}-${selectedMonth}.pdf`);
-    } catch {
+    } catch (e) {
+      console.warn('[Salaries] DOM PDF capture failed, using fallback slip', e);
       // Fallback to service-based PDF when DOM capture fails.
       const simpleSlipBlob = salarySlipService.generateSalaryPDF(
         { name: row.employeeName, nationalId: row.nationalId || null },
@@ -936,8 +937,8 @@ const Salaries = () => {
             return patch ? { ...row, ...patch, isDirty: true } : row;
           });
         }
-      } catch {
-        // Ignore malformed draft payloads safely.
+      } catch (e) {
+        console.warn('[Salaries] ignored malformed salaries draft in localStorage', e);
       }
 
         if (cancelled) return;

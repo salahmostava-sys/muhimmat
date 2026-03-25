@@ -89,7 +89,10 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   // Custom statuses from localStorage
   const [customStatuses, setCustomStatuses] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem("custom_attendance_statuses") || "[]"); }
-    catch { return []; }
+    catch (e) {
+      console.warn('[DailyAttendance] invalid custom_attendance_statuses in storage', e);
+      return [];
+    }
   });
   const [addingCustomFor, setAddingCustomFor] = useState<string | null>(null);
   const [customInput, setCustomInput]         = useState("");
@@ -110,38 +113,43 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
   useEffect(() => {
     const fetchBase = async () => {
       setLoading(true);
-      const [empRes, appRes, empAppsRes] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("id, name, salary_type, job_title, sponsorship_status")
-          .eq("status", "active")
-          .order("name"),
-        supabase
-          .from("apps")
-          .select("id, name, logo_url")
-          .eq("is_active", true)
-          .order("name"),
-        supabase
-          .from("employee_apps")
-          .select("employee_id, app_id"),
-      ]);
+      try {
+        const [empRes, appRes, empAppsRes] = await Promise.all([
+          supabase
+            .from("employees")
+            .select("id, name, salary_type, job_title, sponsorship_status")
+            .eq("status", "active")
+            .order("name"),
+          supabase
+            .from("apps")
+            .select("id, name, logo_url")
+            .eq("is_active", true)
+            .order("name"),
+          supabase
+            .from("employee_apps")
+            .select("employee_id, app_id"),
+        ]);
 
-      if (empRes.data) {
-        const rows = empRes.data as Employee[];
-        setAllEmployees(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
-      }
-      if (appRes.data) setApps(appRes.data as App[]);
-
-      // Build map: appId → Set<employeeId>
-      if (empAppsRes.data) {
-        const map: Record<string, Set<string>> = {};
-        for (const row of empAppsRes.data) {
-          if (!map[row.app_id]) map[row.app_id] = new Set();
-          map[row.app_id].add(row.employee_id);
+        if (empRes.data) {
+          const rows = empRes.data as Employee[];
+          setAllEmployees(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
         }
-        setAppEmployeeIds(map);
+        if (appRes.data) setApps(appRes.data as App[]);
+
+        // Build map: appId → Set<employeeId>
+        if (empAppsRes.data) {
+          const map: Record<string, Set<string>> = {};
+          for (const row of empAppsRes.data) {
+            if (!map[row.app_id]) map[row.app_id] = new Set();
+            map[row.app_id].add(row.employee_id);
+          }
+          setAppEmployeeIds(map);
+        }
+      } catch (e) {
+        console.error('[DailyAttendance] fetchBase failed', e);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchBase();
   }, [activeEmployeeIdsInMonth]);

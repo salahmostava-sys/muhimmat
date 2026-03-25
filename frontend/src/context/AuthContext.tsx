@@ -39,8 +39,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await authService.signOut();
     try {
       await authService.revokeSession(userId);
-    } catch {
-      // silent fail — local session already cleared
+    } catch (e) {
+      console.error('[Auth] revokeSession failed (session may already be cleared)', e);
     }
     setUser(null);
     setSession(null);
@@ -74,7 +74,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return true;
         }
         return false;
-      } catch {
+      } catch (e) {
+        console.error('[Auth] recoverSessionSilently failed', e);
         return false;
       } finally {
         setRefreshing(false);

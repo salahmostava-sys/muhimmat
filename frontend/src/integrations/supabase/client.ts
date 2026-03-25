@@ -50,7 +50,8 @@ const wrappedFetch: typeof fetch = async (input, init) => {
       });
     }
     await refreshInFlight;
-  } catch {
+  } catch (e) {
+    console.error('[Supabase] silent session refresh failed after 401', e);
     // Refresh failed; return the original 401 to callers (React Query will handle it without redirect).
     return res;
   }

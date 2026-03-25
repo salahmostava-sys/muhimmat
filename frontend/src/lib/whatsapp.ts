@@ -11,7 +11,8 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     const cfg = JSON.parse(raw);
     if (!cfg.enabled || !cfg.token || !cfg.phone_number_id) return null;
     return cfg;
-  } catch {
+  } catch (e) {
+    console.warn('[WhatsApp] getWhatsAppConfig parse failed', e);
     return null;
   }
 }
@@ -43,7 +44,8 @@ export async function sendWhatsAppMessage(
       }
     );
     return res.ok;
-  } catch {
+  } catch (e) {
+    console.error('[WhatsApp] sendWhatsAppMessage failed', e);
     return false;
   }
 }

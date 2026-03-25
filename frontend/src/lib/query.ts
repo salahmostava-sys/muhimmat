@@ -8,8 +8,8 @@ export function getErrorMessage(err: unknown, fallback = 'حدث خطأ غير �
     const anyErr = err as { message?: unknown; error?: unknown };
     if (typeof anyErr.message === 'string' && anyErr.message.trim()) return anyErr.message;
     if (typeof anyErr.error === 'string' && anyErr.error.trim()) return anyErr.error;
-  } catch {
-    // ignore
+  } catch (e) {
+    console.warn('[getErrorMessage] unexpected error shape', e);
   }
   return fallback;
 }

@@ -300,7 +300,8 @@ const SpreadsheetGrid = () => {
         });
         setData(newData);
         toast({ title: `تم استيراد ${imported} إدخال` });
-      } catch {
+      } catch (err) {
+        console.error('[Orders] import spreadsheet failed', err);
         toast({ title: 'فشل الاستيراد', variant: 'destructive' });
       }
     };

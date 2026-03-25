@@ -84,7 +84,8 @@ const formatJson = (obj: Record<string, unknown> | null) => {
   if (!obj || Object.keys(obj).length === 0) return '—';
   try {
     return JSON.stringify(obj, null, 2);
-  } catch {
+  } catch (e) {
+    console.error('[ActivityLog] formatJson failed', e);
     return String(obj);
   }
 };
