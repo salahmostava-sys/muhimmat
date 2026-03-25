@@ -24,7 +24,42 @@ if (import.meta.env.PROD) {
   }
 }
 
+let refreshInFlight: Promise<void> | null = null;
+const shouldAttemptSilentRefresh = (res: Response, input: RequestInfo | URL): boolean => {
+  if (res.status !== 401) return false;
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  // Avoid recursion / loops when refreshing auth tokens.
+  if (url.includes('/auth/v1/token')) return false;
+  return true;
+};
+
+let client: ReturnType<typeof createClient<Database>> | null = null;
+const wrappedFetch: typeof fetch = async (input, init) => {
+  const res = await fetch(input, init);
+  if (!shouldAttemptSilentRefresh(res, input)) return res;
+
+  // If the tab was idle, the access token may be expired. Try a single silent refresh, then retry once.
+  try {
+    if (!refreshInFlight) {
+      refreshInFlight = (async () => {
+        if (!client) return;
+        const { error } = await client.auth.refreshSession();
+        if (error) throw error;
+      })().finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    await refreshInFlight;
+  } catch {
+    // Refresh failed; return the original 401 to callers (React Query will handle it without redirect).
+    return res;
+  }
+
+  return fetch(input, init);
+};
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  global: { fetch: wrappedFetch },
   auth: {
     storage: localStorage,
     persistSession: true,
@@ -33,3 +68,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'pkce',
   },
 });
+
+client = supabase;

@@ -47,7 +47,15 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      retry: (failureCount, err) => {
+        const anyErr = err as { status?: unknown; code?: unknown };
+        const status = typeof anyErr?.status === 'number' ? anyErr.status : undefined;
+        // On 401: do not loop forever. Supabase fetch wrapper + AuthProvider focus recovery handle silent refresh.
+        if (status === 401) return false;
+        return failureCount < 2;
+      },
     },
   },
 });
