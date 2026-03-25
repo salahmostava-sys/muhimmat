@@ -36,3 +36,4 @@ dist-ssr
 .ai
 prompt.md
 *.prompt
+sonar-issues.json
