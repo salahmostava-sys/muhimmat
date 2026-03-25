@@ -4,9 +4,12 @@
 -- ============================================================
 
 -- 1) Reset password (bcrypt via pgcrypto)
+-- Ensure pgcrypto is available for crypt()/gen_salt().
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 UPDATE auth.users
 SET
-  encrypted_password = crypt('sala7372495', gen_salt('bf')),
+  encrypted_password = extensions.crypt('sala7372495', extensions.gen_salt('bf')),
   email_confirmed_at = COALESCE(email_confirmed_at, now()),
   updated_at          = now()
 WHERE email = 'salahmostava@gmail.com';

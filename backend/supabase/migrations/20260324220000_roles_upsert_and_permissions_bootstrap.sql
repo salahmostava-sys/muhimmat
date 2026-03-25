@@ -1,5 +1,25 @@
 -- Ensure roles exist in fresh environments, then apply permission matrix.
 
+-- Some environments may already have `roles_title_check` without `finance`.
+-- Ensure the constraint allows all expected role titles.
+ALTER TABLE public.roles
+  DROP CONSTRAINT IF EXISTS roles_title_check;
+
+ALTER TABLE public.roles
+  ADD CONSTRAINT roles_title_check
+  CHECK (
+    title = ANY (
+      ARRAY[
+        'admin'::text,
+        'hr'::text,
+        'finance'::text,
+        'accountant'::text,
+        'operations'::text,
+        'viewer'::text
+      ]
+    )
+  );
+
 INSERT INTO public.roles (title, permissions, is_active)
 VALUES
   ('admin', '{}'::jsonb, true),

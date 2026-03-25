@@ -30,3 +30,4 @@ CREATE POLICY "Admin/ops/finance can manage vehicle_mileage_daily"
       has_role(auth.uid(), 'finance'::app_role)
     )
   );
+
