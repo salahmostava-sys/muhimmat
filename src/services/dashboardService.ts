@@ -133,7 +133,7 @@ export const dashboardService = {
   getRecentActivity: async (limit = 6) => {
     const { data, error } = await supabase
       .from('audit_log')
-      .select('action, table_name, created_at, user_id, profiles(name, email)')
+      .select('action, table_name, created_at, user_id')
       .order('created_at', { ascending: false })
       .limit(limit);
     return { data, error };
@@ -205,7 +205,7 @@ export const dashboardService = {
       supabase.from('daily_orders').select('employee_id, app_id, orders_count, apps(id, name, brand_color, text_color), employees(name, city)').gte('date', currentMonth + '-01').lte('date', today),
       supabase.from('daily_orders').select('orders_count').gte('date', prevStart).lte('date', prevEnd),
       supabase.from('attendance').select('date, status').gte('date', sixDaysAgo).lte('date', today),
-      supabase.from('audit_log').select('action, table_name, created_at, profiles(name, email)').order('created_at', { ascending: false }).limit(6),
+      supabase.from('audit_log').select('action, table_name, created_at, user_id').order('created_at', { ascending: false }).limit(6),
       supabase.from('employees').select('city, license_status, sponsorship_status').eq('status', 'active'),
       supabase.from('vehicles').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('is_resolved', false),

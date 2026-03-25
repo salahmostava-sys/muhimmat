@@ -523,8 +523,7 @@ const Dashboard = () => {
         profiles?: { name?: string | null; email?: string | null } | null;
       };
       const recentActivity = ((auditRes.data || []) as AuditRow[]).map((a) => {
-        const profile = a.profiles;
-        const userName = profile?.name || profile?.email?.split('@')[0] || 'مستخدم';
+        const userName = 'مستخدم';
         return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
       });
 

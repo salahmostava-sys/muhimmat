@@ -10,8 +10,13 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
     persistSession: true,
+    storageKey: 'muhimmat-auth',
     autoRefreshToken: true,
-  }
+    detectSessionInUrl: true,
+    flowType: 'pkce',
+    // Avoid deadlocks across refresh/multi-tabs in some browsers.
+    lock: undefined,
+    storage: localStorage,
+  } as any,
 });
