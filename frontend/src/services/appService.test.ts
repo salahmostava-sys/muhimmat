@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { describe, it, beforeEach, vi } from 'vitest';
 import { createQueryBuilder, type MockQueryResult } from '@/test/mocks/supabaseClientMock';
 
 const hoisted = vi.hoisted(() => ({

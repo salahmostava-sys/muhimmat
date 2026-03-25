@@ -35,7 +35,28 @@ interface AlertItem {
   severity: 'urgent' | 'warning' | 'info';
 }
 
-const AlertsList = () => {
+/** Matches employees select from alertsService.fetchNotificationAlertsData */
+type EmployeeAlertRow = {
+  id: string;
+  name: string;
+  residency_expiry: string | null;
+  sponsorship_status?: string | null;
+};
+
+function residencySeverity(daysLeft: number): AlertItem['severity'] {
+  if (daysLeft < 0) return 'urgent';
+  if (daysLeft <= 14) return 'urgent';
+  if (daysLeft <= 30) return 'warning';
+  return 'info';
+}
+
+function formatDaysLeftLabel(daysLeft: number): string {
+  if (daysLeft < 0) return 'منتهي';
+  if (daysLeft === 0) return 'اليوم';
+  return `${daysLeft}ي`;
+}
+
+export function AlertsList() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const currentMonth = format(new Date(), 'yyyy-MM');
@@ -49,30 +70,29 @@ const AlertsList = () => {
   useEffect(() => {
     const fetchAlerts = async () => {
       const today = new Date();
-      // Alert threshold = end of current month
       const threshold = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
 
       const [empRes, vehicleRes] = await alertsService.fetchNotificationAlertsData(threshold);
-      const employeesVisible = filterVisibleEmployeesInMonth(
-        (empRes.data ?? []) as unknown as { id: string; sponsorship_status?: string | null }[],
-        activeEmployeeIdsInMonth
-      );
+      const employeeRows = (empRes.data ?? []) as EmployeeAlertRow[];
+      const employeesVisible = filterVisibleEmployeesInMonth(employeeRows, activeEmployeeIdsInMonth);
 
       const generated: AlertItem[] = [];
 
-      employeesVisible.forEach(emp => {
-        const daysLeft = differenceInDays(parseISO(emp.residency_expiry!), today);
+      employeesVisible.forEach((emp) => {
+        const expiry = emp.residency_expiry;
+        if (!expiry) return;
+        const daysLeft = differenceInDays(parseISO(expiry), today);
         generated.push({
           id: `res-${emp.id}`,
           type: 'residency',
           entityName: emp.name,
-          dueDate: emp.residency_expiry!,
+          dueDate: expiry,
           daysLeft,
-          severity: daysLeft < 0 ? 'urgent' : daysLeft <= 14 ? 'urgent' : daysLeft <= 30 ? 'warning' : 'info',
+          severity: residencySeverity(daysLeft),
         });
       });
 
-      vehicleRes.data?.forEach(v => {
+      vehicleRes.data?.forEach((v) => {
         if (v.insurance_expiry && v.insurance_expiry <= threshold) {
           const days = differenceInDays(parseISO(v.insurance_expiry), today);
           generated.push({
@@ -112,7 +132,6 @@ const AlertsList = () => {
 
   return (
     <div className="chart-card animate-fade-in">
-      {/* Header */}
       <div className="chart-card-header">
         <div className="flex items-center gap-2">
           <h3 className="chart-card-title">التنبيهات العاجلة</h3>
@@ -149,9 +168,7 @@ const AlertsList = () => {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className={`w-1.5 h-1.5 rounded-full ${severityDot[alert.severity]}`} />
-                  <span className={severityBadge[alert.severity]}>
-                    {alert.daysLeft < 0 ? 'منتهي' : alert.daysLeft === 0 ? 'اليوم' : `${alert.daysLeft}ي`}
-                  </span>
+                  <span className={severityBadge[alert.severity]}>{formatDaysLeftLabel(alert.daysLeft)}</span>
                 </div>
               </div>
             );
@@ -160,6 +177,6 @@ const AlertsList = () => {
       )}
     </div>
   );
-};
+}
 
 export default AlertsList;

@@ -106,26 +106,26 @@ const Login = () => {
       </div>
 
       <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-400">
-        <header className="flex flex-col items-center text-center mb-8 px-4">
+        <header className="flex flex-col items-center justify-center text-center mb-8 px-4 w-full">
           {settings?.logo_url ? (
             <img
               src={settings.logo_url}
               alt=""
-              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl object-contain shadow-md border border-border bg-card p-1 mb-4"
+              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl object-contain shadow-md border border-border bg-card p-1 mb-4 mx-auto"
             />
           ) : (
             <div
-              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl flex items-center justify-center text-primary-foreground shadow-md mb-4"
+              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl flex items-center justify-center text-primary-foreground shadow-md mb-4 mx-auto"
               aria-hidden
             >
               <Rocket className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={2} aria-hidden />
             </div>
           )}
-          <div className="min-w-0 w-full max-w-md">
-            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight tracking-tight">
+          <div className="min-w-0 w-full max-w-md mx-auto">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight tracking-tight text-center">
               {projectName}
             </h1>
-            <p className="text-sm sm:text-[15px] text-muted-foreground mt-1.5 leading-relaxed">
+            <p className="text-sm sm:text-[15px] text-muted-foreground mt-1.5 leading-relaxed text-center">
               {projectSubtitle}
             </p>
           </div>
@@ -184,7 +184,7 @@ const Login = () => {
                   aria-label="كلمة المرور"
                   aria-invalid={!!loginError}
                   aria-errormessage={loginError ? 'login-error' : undefined}
-                  className={`${inputClass} w-full ps-[4.75rem] pe-5`}
+                  className={`${inputClass} w-full ps-[5.25rem] pe-5`}
                 />
               </div>
             </div>
@@ -218,7 +218,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="login-submit-btn mt-2 w-full min-h-[56px] rounded-xl font-bold text-lg text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
+              className="login-submit-btn mt-2 w-full min-h-[56px] rounded-xl font-bold text-base text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

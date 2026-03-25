@@ -12,10 +12,6 @@ export interface UserProfile {
   is_active: boolean;
 }
 
-type AppRoleRow = {
-  role: AppRole;
-};
-
 type ProfileActiveRow = {
   is_active?: boolean;
 };

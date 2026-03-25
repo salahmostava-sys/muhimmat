@@ -1,11 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+/** Strips one leading/trailing quote from env values; avoids ReDoS from quantified alternation (Sonar). */
 const cleanEnv = (value: string | undefined) =>
-  value == null
-    ? undefined
-    : // Handle values accidentally saved with wrapping quotes in hosting env vars (no ReDoS-prone quantifiers).
-      value.trim().replace(/^['"]/, '').replace(/['"]$/, '');
+  value == null ? undefined : value.trim().replace(/^['"]/, '').replace(/['"]$/, '');
 
 const SUPABASE_URL = cleanEnv(import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const SUPABASE_PUBLISHABLE_KEY = cleanEnv(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined);
