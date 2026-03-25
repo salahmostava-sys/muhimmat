@@ -34,6 +34,8 @@ export const getAppColor = (apps: AppColorData[], appName: string) => {
     text: brand,
     solid: brand,
     solidText: text,
+    cellBg: `${brand}11`,
+    val: brand,
   };
 };
 
