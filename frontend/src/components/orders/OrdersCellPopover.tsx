@@ -5,6 +5,7 @@ import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ColorBadge } from '@/components/ui/ColorBadge';
 
 type App = { id: string; name: string };
 type DailyData = Record<string, number>;
@@ -116,10 +117,12 @@ export const OrdersCellPopover = ({ state, apps, data, appColorsList, canEdit, o
           const c = getAppColor(appColorsList, app.name);
           return (
             <div key={app.id} className="flex items-center gap-2">
-              <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold flex-shrink-0 min-w-[70px] text-center"
-                style={{ backgroundColor: c.bg, color: c.text }}>
-                {app.name}
-              </span>
+              <ColorBadge
+                label={app.name}
+                bg={c.bg}
+                fg={c.text}
+                className="min-w-[70px] text-center"
+              />
               <input
                 type="number" min={0} placeholder="0"
                 {...register(`vals.${app.id}` as const)}
