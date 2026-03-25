@@ -104,6 +104,10 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
   const roleLabel = role ? roleLabelsMap[role] || role : '';
   const roleBadgeCls = role ? roleBadgeClass[role] || 'text-muted-foreground bg-muted' : '';
 
+  const collapsedSidebarOffsetCls = isRTL ? 'lg:mr-[64px]' : 'lg:ml-[64px]';
+  const expandedSidebarOffsetCls = isRTL ? 'lg:mr-[260px]' : 'lg:ml-[260px]';
+  const sidebarOffsetCls = sidebarCollapsed ? collapsedSidebarOffsetCls : expandedSidebarOffsetCls;
+
   return (
     <div
       className="min-h-screen"
@@ -115,9 +119,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
       <main className={cn(
         'flex flex-col transition-all duration-300',
         'h-screen overflow-hidden',
-        isRTL
-          ? (sidebarCollapsed ? 'lg:mr-[64px]' : 'lg:mr-[260px]')
-          : (sidebarCollapsed ? 'lg:ml-[64px]' : 'lg:ml-[260px]')
+        sidebarOffsetCls
       )}>
 
         {/* ── Glass Header ─────────────────────────────────── */}
