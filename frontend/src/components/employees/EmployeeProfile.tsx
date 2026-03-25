@@ -122,6 +122,26 @@ const installmentStatusLabel: Record<string, string> = {
 const salaryTypeBadgeClass = (salaryType: string) => (salaryType === 'orders' ? 'badge-info' : 'badge-success');
 const salaryTypeLabel = (salaryType: string) => (salaryType === 'orders' ? 'طلبات' : 'دوام');
 
+function residencyHeaderUrgencyClass(days: number): string {
+  if (days < 30) return 'text-destructive';
+  if (days < 60) return 'text-warning';
+  return 'text-success';
+}
+
+function residencyExpiryTextClass(residencyDays: number | null): string {
+  if (residencyDays === null) return 'text-foreground';
+  if (residencyDays < 30) return 'text-destructive';
+  if (residencyDays < 60) return 'text-warning';
+  return 'text-foreground';
+}
+
+function healthInsuranceExpiryTextClass(hiDays: number): string {
+  if (hiDays < 0) return 'text-destructive';
+  if (hiDays < 30) return 'text-destructive';
+  if (hiDays < 60) return 'text-warning';
+  return 'text-foreground';
+}
+
 // ─── Secure Document Thumbnail ────────────────────────────────────────────────
 // Uses signed URLs for private employee-documents bucket
 const SecureDocThumb = ({
@@ -273,13 +293,15 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
       <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
         <div className="flex items-start gap-5 flex-wrap">
           <div className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0">
-            {personalPhotoSigned ? (
+            {personalPhotoSigned && (
               <img src={personalPhotoSigned} className="w-full h-full object-cover" alt="" />
-            ) : employee.personal_photo_url ? (
+            )}
+            {!personalPhotoSigned && employee.personal_photo_url && (
               <div className="w-full h-full bg-muted flex items-center justify-center">
                 <Loader2 size={16} className="animate-spin text-muted-foreground" />
               </div>
-            ) : (
+            )}
+            {!personalPhotoSigned && !employee.personal_photo_url && (
               <div className="w-full h-full bg-muted flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-muted-foreground/40" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
               </div>
@@ -306,7 +328,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
           </div>
           <div className="text-left">
             {residencyDays !== null && (
-              <div className={`text-sm font-medium ${residencyDays < 30 ? 'text-destructive' : residencyDays < 60 ? 'text-warning' : 'text-success'}`}>
+              <div className={`text-sm font-medium ${residencyHeaderUrgencyClass(residencyDays)}`}>
                 الإقامة: {residencyDays < 0 ? 'منتهية' : `${residencyDays} يوم`}
               </div>
             )}
@@ -350,7 +372,9 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                   </a>
                 </div>
               )}
-              {(employee.birth_date || employee.dob) && <InfoField label="تاريخ الميلاد" value={(employee.birth_date || employee.dob)!} />}
+              {(employee.birth_date || employee.dob) && (
+                <InfoField label="تاريخ الميلاد" value={employee.birth_date || employee.dob || ''} />
+              )}
               {employee.city && <InfoField label="المدينة" value={employee.city === 'makkah' ? 'مكة المكرمة' : 'جدة'} />}
               {employee.job_title && <InfoField label="المسمى الوظيفي" value={employee.job_title} />}
               {employee.join_date && <InfoField label="تاريخ الانضمام" value={employee.join_date} />}
@@ -379,7 +403,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
               {employee.residency_expiry && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">تاريخ انتهاء الإقامة</p>
-                  <p className={`text-sm font-medium ${residencyDays !== null && residencyDays < 30 ? 'text-destructive' : residencyDays !== null && residencyDays < 60 ? 'text-warning' : 'text-foreground'}`}>
+                  <p className={`text-sm font-medium ${residencyExpiryTextClass(residencyDays)}`}>
                     {employee.residency_expiry}
                     {residencyDays !== null && residencyDays < 60 && (
                       <span className="mr-2 text-xs">({residencyDays} يوم متبق)</span>
@@ -392,7 +416,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                 return (
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">تاريخ انتهاء التأمين الصحي</p>
-                    <p className={`text-sm font-medium ${hiDays < 0 ? 'text-destructive' : hiDays < 30 ? 'text-destructive' : hiDays < 60 ? 'text-warning' : 'text-foreground'}`}>
+                    <p className={`text-sm font-medium ${healthInsuranceExpiryTextClass(hiDays)}`}>
                       {employee.health_insurance_expiry}
                       {hiDays < 60 && (
                         <span className="mr-2 text-xs">
@@ -443,11 +467,11 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
         <TabsContent value="apps">
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
             <h3 className="font-semibold text-foreground mb-5">التطبيقات المرتبطة</h3>
-            {loading ? (
-              <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>
-            ) : employeeApps.length === 0 ? (
+            {loading && <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>}
+            {!loading && employeeApps.length === 0 && (
               <p className="text-muted-foreground text-sm">لا توجد تطبيقات مرتبطة</p>
-            ) : (
+            )}
+            {!loading && employeeApps.length > 0 && (
               <div className="space-y-3">
                 {employeeApps.map(ea => (
                   <div key={ea.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
@@ -474,11 +498,11 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
         <TabsContent value="advances">
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
             <h3 className="font-semibold text-foreground mb-5">السلف</h3>
-            {loading ? (
-              <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>
-            ) : advances.length === 0 ? (
+            {loading && <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>}
+            {!loading && advances.length === 0 && (
               <p className="text-muted-foreground text-sm">لا توجد سلف مسجلة</p>
-            ) : (
+            )}
+            {!loading && advances.length > 0 && (
               <div className="space-y-3">
                 {advances.map(adv => {
                   const paid = (adv.advance_installments || []).filter(i => i.status === 'deducted').reduce((s, i) => s + i.amount, 0);
@@ -555,11 +579,11 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
             <h3 className="font-semibold text-foreground mb-1">الرواتب الشهرية</h3>
             <p className="text-xs text-muted-foreground mb-5">تفصيل الراتب المدفوع لكل شهر</p>
-            {loading ? (
-              <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>
-            ) : salaries.length === 0 ? (
+            {loading && <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>}
+            {!loading && salaries.length === 0 && (
               <p className="text-muted-foreground text-sm">لا يوجد سجل رواتب</p>
-            ) : (() => {
+            )}
+            {!loading && salaries.length > 0 && (() => {
               const totalNet   = salaries.reduce((s, r) => s + r.net_salary, 0);
               const totalBase  = salaries.reduce((s, r) => s + r.base_salary, 0);
               const totalDeduct = salaries.reduce((s, r) => s + r.attendance_deduction + r.advance_deduction + r.external_deduction + r.manual_deduction, 0);
@@ -646,14 +670,14 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
             <h3 className="font-semibold text-foreground mb-1">الطلبات الشهرية</h3>
             <p className="text-xs text-muted-foreground mb-5">إجمالي الطلبات المنجزة لكل شهر مع التفصيل</p>
-            {loading ? (
-              <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>
-            ) : dailyOrders.length === 0 ? (
+            {loading && <p className="text-muted-foreground text-sm">جارٍ التحميل...</p>}
+            {!loading && dailyOrders.length === 0 && (
               <div className="text-center py-12">
                 <TrendingUp size={36} className="mx-auto text-muted-foreground/30 mb-3" />
                 <p className="text-muted-foreground text-sm">لا توجد طلبات مسجلة لهذا المندوب</p>
               </div>
-            ) : (() => {
+            )}
+            {!loading && dailyOrders.length > 0 && (() => {
               const monthlyData = groupOrdersByMonth(dailyOrders);
               const grandTotal  = dailyOrders.reduce((s, o) => s + o.orders_count, 0);
               const avgPerMonth = Math.round(grandTotal / monthlyData.length);
