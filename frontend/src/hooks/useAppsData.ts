@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { appService } from '@/services/appService';
+import { useAuth } from '@/context/AuthContext';
 
 export const appsDataQueryKey = ['apps', 'list-with-counts'] as const;
 
@@ -14,8 +15,9 @@ type AppWithCount = {
   custom_columns: unknown[];
 };
 
-export const useAppsData = () =>
-  useQuery({
+export const useAppsData = () => {
+  const { session } = useAuth();
+  return useQuery({
     queryKey: appsDataQueryKey,
     queryFn: async () => {
       const { data, error } = await appService.getAll();
@@ -44,4 +46,6 @@ export const useAppsData = () =>
     },
     retry: 2,
     staleTime: 60_000,
+    enabled: !!session,
   });
+};

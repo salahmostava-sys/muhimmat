@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { appService } from '@/services/appService';
 import { salarySchemeService } from '@/services/salarySchemeService';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 type TierType = 'total_multiplier' | 'fixed_amount' | 'base_plus_incremental';
 
@@ -91,6 +92,7 @@ interface SalarySchemesProps {
 
 const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const [schemes, setSchemes] = useState<Scheme[]>([]);
   const [tiers, setTiersMap] = useState<Record<string, Tier[]>>({});
   const [snapshots, setSnapshots] = useState<Record<string, Snapshot[]>>({});
@@ -102,6 +104,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
     refetch: refetchSchemeData,
   } = useQuery({
     queryKey: ['salary-schemes', 'page-data'],
+    enabled: !!session,
     queryFn: async () => {
       const [{ data: sData, error: sErr }, { data: tData, error: tErr }, { data: snData, error: snErr }, { data: aData, error: aErr }] = await Promise.all([
         salarySchemeService.getSchemes(),

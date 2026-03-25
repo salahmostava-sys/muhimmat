@@ -13,7 +13,7 @@ import PageGuard from "@/components/PageGuard";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import DashboardLayout from '@/components/AppLayout';
 import AuthLayout from "@/layouts/AuthLayout";
-import { Loader2 } from "lucide-react";
+import Loading from "@/components/Loading";
 import "@/i18n";
 
 const Login = lazy(() => import("./pages/Login"));
@@ -38,9 +38,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const PageLoader = () => (
-  <div className="min-h-[300px] flex items-center justify-center">
-    <Loader2 size={28} className="animate-spin text-primary" />
-  </div>
+  <Loading minHeightClassName="min-h-[300px]" />
 );
 
 const queryClient = new QueryClient({
@@ -49,13 +47,7 @@ const queryClient = new QueryClient({
       staleTime: 30_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      retry: (failureCount, err) => {
-        const anyErr = err as { status?: unknown; code?: unknown };
-        const status = typeof anyErr?.status === 'number' ? anyErr.status : undefined;
-        // On 401: do not loop forever. Supabase fetch wrapper + AuthProvider focus recovery handle silent refresh.
-        if (status === 401) return false;
-        return failureCount < 2;
-      },
+      retry: (failureCount, error) => (error as any)?.status !== 401 && failureCount < 2,
     },
   },
 });
@@ -76,7 +68,7 @@ const App = () => (
             <LanguageProvider>
               <SystemSettingsProvider>
                 <ErrorBoundary>
-                  <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><Loader2 size={32} className="animate-spin text-primary" /></div>}>
+                  <Suspense fallback={<Loading minHeightClassName="min-h-screen" className="bg-background" />}>
                     <Routes>
                       <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
                       <Route path="/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />

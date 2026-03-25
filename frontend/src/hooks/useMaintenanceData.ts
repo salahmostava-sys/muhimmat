@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { vehicleService } from '@/services/vehicleService';
+import { useAuth } from '@/context/AuthContext';
 
 export const maintenanceDataQueryKey = ['maintenance', 'page-data'] as const;
 
-export const useMaintenanceData = () =>
-  useQuery({
+export const useMaintenanceData = () => {
+  const { session } = useAuth();
+  return useQuery({
     queryKey: maintenanceDataQueryKey,
     queryFn: async () => {
       const [logsRes, vehiclesRes] = await Promise.all([
@@ -26,4 +28,6 @@ export const useMaintenanceData = () =>
     },
     retry: 2,
     staleTime: 60_000,
+    enabled: !!session,
   });
+};

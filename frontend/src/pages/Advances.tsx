@@ -14,6 +14,7 @@ import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { escapeHtml } from '@/lib/security';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type AdvanceStatus = 'active' | 'completed' | 'paused';
@@ -724,6 +725,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 const Advances = () => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const { permissions } = usePermissions('advances');
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [employees, setEmployees] = useState<{ id: string; name: string; sponsorship_status?: string | null }[]>([]);
@@ -734,6 +736,7 @@ const Advances = () => {
     refetch: refetchAdvancesData,
   } = useQuery({
     queryKey: ['advances', 'page-data'],
+    enabled: !!session,
     queryFn: async () => {
       const [advRes, empRes] = await Promise.all([
         advanceService.getAll(),

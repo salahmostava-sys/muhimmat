@@ -540,7 +540,7 @@ const SalaryBreakdown = ({ orders, scheme, salary, children }: SalaryBreakdownPr
 // ─── Main Salaries Page ───────────────────────────────────────────
 const Salaries = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const navigate = useNavigate();
   const { projectName } = useSystemSettings();
   const { apps: appColorsList } = useAppColors();
@@ -622,6 +622,7 @@ const Salaries = () => {
     isLoading: salaryBaseContextLoading,
   } = useQuery({
     queryKey: ['salaries', 'base-context', selectedMonth],
+    enabled: !!session,
     queryFn: async () => {
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
       let timeoutId: ReturnType<typeof setTimeout> | undefined;

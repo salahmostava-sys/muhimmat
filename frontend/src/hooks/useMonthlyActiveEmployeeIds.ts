@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 export type MonthlyActiveEmployeeIdsResult = {
   monthKey: string; // YYYY-MM
@@ -21,6 +22,7 @@ function monthStartEnd(monthKey: string): { start: string; end: string } {
 }
 
 export function useMonthlyActiveEmployeeIds(monthKey?: string) {
+  const { session } = useAuth();
   const mk = monthKey ?? toMonthKey(new Date());
   const { start, end } = monthStartEnd(mk);
 
@@ -57,6 +59,7 @@ export function useMonthlyActiveEmployeeIds(monthKey?: string) {
     },
     staleTime: 60_000,
     retry: 1,
+    enabled: !!session,
   });
 }
 

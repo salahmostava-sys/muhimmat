@@ -57,7 +57,7 @@ interface UsersAndPermissionsProps {
 
 const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => {
   const { toast } = useToast();
-  const { role: authRole, loading: authLoading } = useAuth();
+  const { role: authRole, loading: authLoading, session } = useAuth();
   const { permissions: settingsPerm } = usePermissions('settings');
 
   const [rows, setRows] = useState<UserRow[]>([]);
@@ -68,6 +68,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     refetch: refetchUsersData,
   } = useQuery({
     queryKey: ['users-and-permissions', 'rows'],
+    enabled: !!session,
     queryFn: async () => {
       const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
         userPermissionService.getProfiles(),

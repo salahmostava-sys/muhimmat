@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { vehicleService } from '@/services/vehicleService';
+import { useAuth } from '@/context/AuthContext';
 
 export const motorcyclesDataQueryKey = ['motorcycles', 'list'] as const;
 
-export const useMotorcyclesData = () =>
-  useQuery({
+export const useMotorcyclesData = () => {
+  const { session } = useAuth();
+  return useQuery({
     queryKey: motorcyclesDataQueryKey,
     queryFn: async () => {
       const { data, error } = await vehicleService.getAllWithCurrentRider();
@@ -15,4 +17,6 @@ export const useMotorcyclesData = () =>
     },
     retry: 2,
     staleTime: 60_000,
+    enabled: !!session,
   });
+};

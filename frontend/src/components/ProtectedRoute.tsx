@@ -1,8 +1,8 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Loader2 } from 'lucide-react';
 import { ReactNode, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import Loading from '@/components/Loading';
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { user, role, loading, signOut, recoverSessionSilently } = useAuth();
@@ -21,11 +21,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   }, [loading, recoverSessionSilently, user]);
 
   if (loading || checkingRecovery) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 size={32} className="animate-spin text-primary" />
-      </div>
-    );
+    return <Loading minHeightClassName="min-h-screen" className="bg-background" />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

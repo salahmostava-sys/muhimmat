@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { orderService } from '@/services/orderService';
 import { toastQueryError } from '@/lib/query';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useAuth } from '@/context/AuthContext';
 
 export type OrdersPagedFilters = {
   driverId?: string | 'all';
@@ -16,6 +17,7 @@ export function useOrdersMonthPaged(params: {
   pageSize: number;
   filters: OrdersPagedFilters;
 }) {
+  const { session } = useAuth();
   const { monthYear, page, pageSize, filters } = params;
   const driverId = filters.driverId && filters.driverId !== 'all' ? filters.driverId : undefined;
   const appId = filters.platformAppId && filters.platformAppId !== 'all' ? filters.platformAppId : undefined;
@@ -36,6 +38,7 @@ export function useOrdersMonthPaged(params: {
     retry: 1,
     staleTime: 15_000,
     onError: (err) => toastQueryError(err, 'تعذر تحميل الطلبات'),
+    enabled: !!session,
   });
 }
 

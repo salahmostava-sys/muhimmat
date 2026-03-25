@@ -82,7 +82,7 @@ const iqamaBadge = (expiry: string | null, alertDays: number) => {
 
 const PlatformAccounts = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { permissions: perms } = usePermissions('platform_accounts');
   const { settings } = useSystemSettings();
   const alertDays = settings?.iqama_alert_days ?? 90;
@@ -100,6 +100,7 @@ const PlatformAccounts = () => {
     refetch: refetchPageData,
   } = useQuery({
     queryKey: ['platform-accounts', 'page-data'],
+    enabled: !!session,
     queryFn: async () => {
       const [appsRes, empRes, accRes, assignRes, monthAssignRes] = await Promise.all([
         platformAccountService.getApps(),

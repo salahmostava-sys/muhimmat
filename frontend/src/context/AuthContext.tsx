@@ -85,7 +85,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [queryClient]);
 
   useEffect(() => {
-    const subscription = authService.onAuthStateChange(async (_event, nextSession) => {
+    const subscription = authService.onAuthStateChange(async (event, nextSession) => {
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+        setLoading(false);
+      }
       if (nextSession?.user) {
         const active = await authService.fetchIsActive(nextSession.user.id);
         if (!active) {
@@ -122,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, [forceSignOut]);
+  }, [forceSignOut, queryClient]);
 
   // عند العودة للتبويب/الاتصال: استعادة/تجديد الجلسة بشكل صامت + إعادة تحميل البيانات
   useEffect(() => {

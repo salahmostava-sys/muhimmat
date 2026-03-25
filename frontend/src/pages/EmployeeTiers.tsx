@@ -14,6 +14,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { differenceInDays, parseISO } from 'date-fns';
 import { employeeTierService } from '@/services/employeeTierService';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 /* ─── Types ─── */
 type Employee = { id: string; name: string; sponsorship_status: string | null; };
@@ -156,6 +157,7 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
 ═══════════════════════════════════════════════════════════════ */
 const EmployeeTiers = () => {
   const { toast } = useToast();
+  const { session } = useAuth();
   const { permissions: perms } = usePermissions('employee_tiers');
 
   const [tiers, setTiers]       = useState<TierRow[]>([]);
@@ -168,6 +170,7 @@ const EmployeeTiers = () => {
     refetch: refetchTiersData,
   } = useQuery({
     queryKey: ['employee-tiers', 'page-data'],
+    enabled: !!session,
     queryFn: async () => {
       const [{ data: tiersRows }, { data: employeeRows }, { data: appsRows }] = await Promise.all([
         employeeTierService.getTiers(),

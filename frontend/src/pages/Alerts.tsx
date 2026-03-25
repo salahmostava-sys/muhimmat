@@ -285,7 +285,7 @@ const Alerts = () => {
   const [resolveNote, setResolveNote] = useState('');
   const { toast } = useToast();
   const { settings } = useSystemSettings();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
   const currentMonth = format(new Date(), 'yyyy-MM');
   const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
@@ -303,7 +303,7 @@ const Alerts = () => {
     refetch: refetchAlerts,
   } = useQuery({
     queryKey: ['alerts', 'page-data', iqamaAlertDays],
-    enabled: !!activeIdsData,
+    enabled: !!session && !!activeIdsData,
     queryFn: async () => {
       const today = new Date();
       const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
