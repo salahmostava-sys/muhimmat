@@ -1,6 +1,22 @@
 import { supabase } from '@/integrations/supabase/client';
 
 export const attendanceService = {
+  checkIn: async (employeeId: string, checkinAt?: string) => {
+    const { data, error } = await supabase.rpc('check_in', {
+      p_employee_id: employeeId,
+      p_checkin_at: checkinAt ?? new Date().toISOString(),
+    });
+    return { data, error };
+  },
+
+  checkOut: async (employeeId: string, checkoutAt?: string) => {
+    const { data, error } = await supabase.rpc('check_out', {
+      p_employee_id: employeeId,
+      p_checkout_at: checkoutAt ?? new Date().toISOString(),
+    });
+    return { data, error };
+  },
+
   getAttendanceStatusRange: async (from: string, to: string) => {
     const { data, error } = await supabase
       .from('attendance')
@@ -26,6 +42,8 @@ export const attendanceService = {
     check_out: string | null;
     note: string | null;
   }) => {
+    // Keep compatibility with existing grid editor flow.
+    // For explicit check-in/out actions, prefer attendanceService.checkIn/checkOut RPCs.
     const { error } = await supabase.from('attendance').upsert([payload], {
       onConflict: 'employee_id,date',
     });

@@ -4,6 +4,7 @@ import { createQueryBuilder, type MockQueryResult } from '@/test/mocks/supabaseC
 const hoisted = vi.hoisted(() => ({
   tableState: {} as Record<string, MockQueryResult>,
   fnInvoke: { data: null as unknown, error: null as unknown },
+  rpcResult: { data: null as unknown, error: null as unknown },
 }));
 
 vi.mock('@/integrations/supabase/client', async () => {
@@ -27,6 +28,10 @@ vi.mock('@/integrations/supabase/client', async () => {
           error: hoisted.fnInvoke.error,
         })),
       },
+      rpc: vi.fn(async () => ({
+        data: hoisted.rpcResult.data,
+        error: hoisted.rpcResult.error,
+      })),
     }),
   };
 });
@@ -45,6 +50,7 @@ describe('salaryService', () => {
   beforeEach(() => {
     Object.keys(hoisted.tableState).forEach((k) => delete hoisted.tableState[k]);
     hoisted.fnInvoke = { data: null, error: null };
+    hoisted.rpcResult = { data: null, error: null };
     vi.mocked(supabase.from).mockImplementation((table: string) =>
       createQueryBuilder(hoisted.tableState[table] ?? { data: null, error: null })
     );
@@ -113,17 +119,20 @@ describe('salaryService', () => {
     expect(r.error).toBeTruthy();
   });
 
-  it('functions.invoke salary-engine paths', async () => {
-    hoisted.fnInvoke = { data: null, error: { message: 'rpc' } };
+  it('rpc salary calculation paths', async () => {
+    hoisted.rpcResult = { data: null, error: { message: 'rpc' } };
     expect((await salaryService.calculateSalaryForEmployeeMonth('e', '2026-03')).error).toBeTruthy();
-    hoisted.fnInvoke = { data: { data: { ok: true } }, error: null };
+    hoisted.rpcResult = { data: { ok: true }, error: null };
     const emp = await salaryService.calculateSalaryForEmployeeMonth('e', '2026-03');
     expect(emp.data).toEqual({ ok: true });
+
+    hoisted.rpcResult = { data: { ok: 'month' }, error: null };
+    const month = await salaryService.calculateSalaryForMonth({ monthYear: '2026-03' });
+    expect(month.data).toEqual({ ok: 'month' });
+
     hoisted.fnInvoke = { data: { data: [] as { employee_id: string }[] }, error: null };
     const prev = await salaryService.getSalaryPreviewForMonth('2026-03');
     expect(prev.data).toEqual([]);
-    hoisted.fnInvoke = { data: { data: {} }, error: null };
-    await salaryService.calculateSalaryForMonth({ monthYear: '2026-03' });
   });
 
   it('salary_records and employees helpers', async () => {

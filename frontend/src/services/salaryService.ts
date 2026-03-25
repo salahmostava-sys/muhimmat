@@ -186,32 +186,22 @@ export const salaryService = {
     manualDeduction = 0,
     manualDeductionNote: string | null = null
   ) => {
-    const { data, error } = await supabase.functions.invoke('salary-engine', {
-      body: {
-        mode: 'employee',
-        employee_id: employeeId,
-        month_year: monthYear,
-        payment_method: paymentMethod,
-        manual_deduction: manualDeduction,
-        manual_deduction_note: manualDeductionNote,
-      },
+    const { data, error } = await supabase.rpc('calculate_salary', {
+      p_employee_id: employeeId,
+      p_month_year: monthYear,
+      p_payment_method: paymentMethod,
+      p_manual_deduction: manualDeduction,
+      p_manual_deduction_note: manualDeductionNote,
     });
-    if (error) return { data: null, error };
-    const payload = (data as { data?: unknown } | null)?.data ?? data;
-    return { data: payload, error: null };
+    return { data, error };
   },
 
   calculateSalaryForMonth: async ({ monthYear, paymentMethod = 'cash' }: SalaryRpcParams) => {
-    const { data, error } = await supabase.functions.invoke('salary-engine', {
-      body: {
-        mode: 'month',
-        month_year: monthYear,
-        payment_method: paymentMethod,
-      },
+    const { data, error } = await supabase.rpc('calculate_salary_for_month', {
+      p_month_year: monthYear,
+      p_payment_method: paymentMethod,
     });
-    if (error) return { data: null, error };
-    const payload = (data as { data?: unknown } | null)?.data ?? data;
-    return { data: payload, error: null };
+    return { data, error };
   },
 
   getSalaryPreviewForMonth: async (monthYear: string) => {
