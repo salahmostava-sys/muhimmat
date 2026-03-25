@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, User, FileText, Wallet, Bike, CreditCard, Clock, Package, DollarSign, ExternalLink, Loader2, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
+import { ArrowRight, User, FileText, Wallet, CreditCard, Clock, Package, DollarSign, ExternalLink, Loader2, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';
@@ -119,6 +119,8 @@ const installmentStatusStyle: Record<string, string> = {
 const installmentStatusLabel: Record<string, string> = {
   deducted: 'مخصوم', pending: 'معلّق', deferred: 'مؤجل',
 };
+const salaryTypeBadgeClass = (salaryType: string) => (salaryType === 'orders' ? 'badge-info' : 'badge-success');
+const salaryTypeLabel = (salaryType: string) => (salaryType === 'orders' ? 'طلبات' : 'دوام');
 
 // ─── Secure Document Thumbnail ────────────────────────────────────────────────
 // Uses signed URLs for private employee-documents bucket
@@ -287,8 +289,8 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
             <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-xl font-bold text-foreground">{employee.name}</h2>
               <span className={statusStyles[employee.status] || 'badge-info'}>{statusLabels[employee.status] || employee.status}</span>
-              <span className={`badge-${employee.salary_type === 'orders' ? 'info' : 'success'}`}>
-                {employee.salary_type === 'orders' ? 'طلبات' : 'دوام'}
+              <span className={salaryTypeBadgeClass(employee.salary_type)}>
+                {salaryTypeLabel(employee.salary_type)}
               </span>
             </div>
             <div className="flex gap-4 mt-2 flex-wrap text-sm text-muted-foreground">
@@ -484,9 +486,11 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                   const isExpanded = expandedAdv === adv.id;
                   return (
                     <div key={adv.id} className="border border-border/50 rounded-lg overflow-hidden">
-                      <div
-                        className="p-4 bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors"
+                      <button
+                        type="button"
+                        className="w-full p-4 bg-muted/20 hover:bg-muted/40 transition-colors text-start"
                         onClick={() => setExpandedAdv(isExpanded ? null : adv.id)}
+                        aria-expanded={isExpanded}
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -501,7 +505,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                           مدفوع: {paid.toLocaleString()} ر.س — متبقي: {remaining.toLocaleString()} ر.س
                         </div>
                         {adv.note && <p className="mt-1 text-xs text-muted-foreground">📝 {adv.note}</p>}
-                      </div>
+                      </button>
                       {isExpanded && adv.advance_installments && adv.advance_installments.length > 0 && (
                         <div className="overflow-x-auto">
                           <table className="w-full text-xs">
@@ -734,7 +738,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {m.days.sort((a,b) => b.date.localeCompare(a.date)).map(d => (
+                                  {[...m.days].sort((a, b) => b.date.localeCompare(a.date)).map(d => (
                                     <tr key={d.id} className="border-t border-border/20 hover:bg-muted/10">
                                       <td className="p-2.5 text-muted-foreground">{d.date}</td>
                                       <td className="p-2.5">

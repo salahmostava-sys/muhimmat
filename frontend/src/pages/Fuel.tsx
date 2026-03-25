@@ -81,18 +81,19 @@ const MONTHS = [
 ];
 
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const IMPORT_STEPS: Array<1 | 2 | 3> = [1, 2, 3];
 
 const costPerKmColor = (v: number | null) => {
   if (v === null || v === 0) return 'text-muted-foreground';
-  if (v < 0.20) return 'text-success font-semibold';
+  if (v < 0.2) return 'text-success font-semibold';
   if (v <= 0.35) return 'text-warning font-semibold';
   return 'text-destructive font-semibold';
 };
 
 const fuelPerOrderBadge = (v: number | null) => {
-  if (v === null || !isFinite(v)) return null;
+  if (v === null || !Number.isFinite(v)) return null;
   if (v < 0.5) return <span className="badge-success">ممتاز</span>;
-  if (v <= 1.0) return <span className="badge-warning">متوسط</span>;
+  if (v <= 1) return <span className="badge-warning">متوسط</span>;
   return <span className="badge-urgent">مرتفع</span>;
 };
 
@@ -188,7 +189,7 @@ const ImportModal = ({
           <button type="button" onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground"><X size={16} /></button>
         </div>
         <div className="flex items-center gap-2 px-6 py-3 border-b border-border/50 shrink-0">
-          {[1, 2, 3].map(s => (
+          {IMPORT_STEPS.map(s => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step >= s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{s}</div>
               <span className="text-xs text-muted-foreground">{s === 1 ? 'رفع الملف' : s === 2 ? 'ربط الأعمدة' : 'معاينة وتأكيد'}</span>
