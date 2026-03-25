@@ -801,7 +801,7 @@ const FuelPage = () => {
                               <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{row.daily_count} يوم</span>
                             </td>
                             <td className="px-4 py-3 text-center font-medium text-primary">{row.km_total.toLocaleString()} كم</td>
-                            <td className="px-4 py-3 text-center font-medium" style={{ color: 'hsl(var(--warning))' }}>{row.fuel_cost.toLocaleString()} ر.س</td>
+                        <td className="px-4 py-3 text-center font-medium text-warning">{row.fuel_cost.toLocaleString()} ر.س</td>
                             <td className={`px-4 py-3 text-center ${costPerKmColor(costPerKm)}`}>
                               {costPerKm !== null ? `${costPerKm.toFixed(3)} ر.س/كم` : '—'}
                             </td>
@@ -850,7 +850,7 @@ const FuelPage = () => {
                         <td className="px-4 py-3 text-foreground">الإجمالي ({filteredMonthly.length} مندوب)</td>
                         <td className="px-4 py-3 text-center text-muted-foreground">—</td>
                         <td className="px-4 py-3 text-center text-primary">{totalKm.toLocaleString()} كم</td>
-                        <td className="px-4 py-3 text-center" style={{ color: 'hsl(var(--warning))' }}>{totalFuel.toLocaleString()} ر.س</td>
+                        <td className="px-4 py-3 text-center text-warning">{totalFuel.toLocaleString()} ر.س</td>
                         <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
                           {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
                         </td>
@@ -973,7 +973,7 @@ const FuelPage = () => {
                                 : <span className="text-muted-foreground/40">—</span>}
                             </td>
                             <td className="px-4 py-2 text-center font-medium text-primary">{riderMonthKm(emp.id).toLocaleString()}</td>
-                            <td className="px-4 py-2 text-center" style={{ color: 'hsl(var(--warning))' }}>{riderMonthFuel(emp.id).toLocaleString()} ر.س</td>
+                            <td className="px-4 py-2 text-center text-warning">{riderMonthFuel(emp.id).toLocaleString()} ر.س</td>
                           </tr>
                           {open && (
                             <tr className="bg-muted/10">
@@ -1261,7 +1261,7 @@ function FuelDailyFastList(props: {
                     <td className="px-4 py-3 font-mono text-xs">{r.date}</td>
                     <td className="px-4 py-3 font-medium">{r.employees?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-center font-semibold text-primary">{Number(r.km_total || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-center" style={{ color: 'hsl(var(--warning))' }}>{Number(r.fuel_cost || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center text-warning">{Number(r.fuel_cost || 0).toLocaleString()}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.notes ?? '—'}</td>
                   </tr>
                 ))

@@ -5,7 +5,13 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  {
+    ignores: [
+      "dist",
+      "coverage",
+      "node_modules",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -21,6 +27,60 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": "off",
       "@typescript-eslint/no-unused-vars": "off",
+
+      /**
+       * ──────────────────────────────────────────────────────────────────────
+       * System-wide Architecture Guards (Single Source of Truth)
+       * ──────────────────────────────────────────────────────────────────────
+       *
+       * These rules enforce the project's stack decisions:
+       * - React Query for server-state
+       * - Tailwind + shadcn/ui for UI styling
+       * - lucide-react for icons
+       * - No ad-hoc inline styles / random CSS imports
+       */
+
+      // UI styling: ban inline styles in JSX (Tailwind only).
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector: "JSXAttribute[name.name='style']",
+          message:
+            "Inline styles are forbidden. Use Tailwind + shadcn/ui. If absolutely unavoidable, document an exception.",
+        },
+      ],
+
+      // Icons: lucide-react only.
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@fortawesome/*",
+                "react-icons",
+                "react-icons/*",
+                "@heroicons/*",
+                "@mui/icons-material",
+                "@mui/icons-material/*",
+                "phosphor-react",
+                "tabler-icons-react",
+              ],
+              message: "Icons must come from `lucide-react` only.",
+            },
+            {
+              group: [
+                "axios",
+                "swr",
+                "use-swr",
+                "@reduxjs/toolkit",
+              ],
+              message:
+                "Do not introduce alternative data/state libraries. Use React Query for server state and local state hooks for UI.",
+            },
+          ],
+        },
+      ],
     },
   },
 );

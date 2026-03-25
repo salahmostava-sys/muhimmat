@@ -28,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { auditService } from '@/services/auditService';
 import * as XLSX from '@e965/xlsx';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { ColorBadge } from '@/components/ui/ColorBadge';
 import {
   platformAccountService,
   type PlatformApp as App,
@@ -1065,16 +1066,11 @@ function PlatformAccountsFastList(props: {
                       <tr key={r.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3 font-semibold">{r.account_username}</td>
                         <td className="px-4 py-3">
-                          <span
-                            className="text-[11px] px-2 py-0.5 rounded-full border font-semibold"
-                            style={{
-                              backgroundColor: app?.brand_color || '#6366f1',
-                              color: app?.text_color || '#ffffff',
-                              borderColor: app?.brand_color || '#6366f1',
-                            }}
-                          >
-                            {app?.name || '—'}
-                          </span>
+                          <ColorBadge
+                            label={app?.name || '—'}
+                            bg={app?.brand_color || '#6366f1'}
+                            fg={app?.text_color || '#ffffff'}
+                          />
                         </td>
                         <td className="px-4 py-3">{emp?.name || '—'}</td>
                         <td className="px-4 py-3">
