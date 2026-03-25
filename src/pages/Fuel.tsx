@@ -484,7 +484,7 @@ const FuelPage = () => {
     if (error) {
       toast({ title: 'خطأ في جلب البيانات', description: error.message, variant: 'destructive' });
     }
-    let mapped = ((data || []) as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
+    let mapped = ((data || []) as unknown as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
     if (selectedEmployee && selectedEmployee !== '_all_') {
       mapped = mapped.filter((r) => r.employee_id === selectedEmployee);
     } else if (employeeIdsOnPlatform) {

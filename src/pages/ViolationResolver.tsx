@@ -117,7 +117,7 @@ const ViolationResolver = () => {
     queryFn: async () => {
       const { data, error } = await violationService.getViolations();
       if (error) throw error;
-      return ((data as ViolationDataRow[] | null) || []).map((v) => ({
+      return ((data as unknown as ViolationDataRow[] | null) || []).map((v) => ({
         id: v.id,
         employee_id: v.employee_id,
         employee_name: v.employees?.name || '—',
