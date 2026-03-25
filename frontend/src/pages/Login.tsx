@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Sun, Moon, Rocket, AlertCircle } from 'lucide-react';
 import { dashboardService } from '@/services/dashboardService';
 import { loadRememberedEmail, persistRememberedEmail } from '@/lib/loginRememberStorage';
 import './login.css';
@@ -89,7 +89,7 @@ const Login = () => {
   };
 
   const inputClass =
-    'min-h-[56px] py-4 px-4 text-[16px] md:text-[16px] font-medium leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30';
+    'min-h-[56px] py-4 px-4 text-lg md:text-lg font-semibold leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30 [&::placeholder]:text-base [&::placeholder]:font-normal [&::placeholder]:opacity-70';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10" dir="rtl">
@@ -106,22 +106,22 @@ const Login = () => {
       </div>
 
       <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-400">
-        <header className="flex flex-row items-center justify-start sm:justify-center gap-5 sm:gap-6 mb-6 sm:mb-8 px-1 sm:px-2">
+        <header className="flex flex-col items-center text-center mb-8 px-4">
           {settings?.logo_url ? (
             <img
               src={settings.logo_url}
               alt=""
-              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl object-contain shadow-md border border-border bg-card p-1"
+              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl object-contain shadow-md border border-border bg-card p-1 mb-4"
             />
           ) : (
             <div
-              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-md"
+              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl flex items-center justify-center text-primary-foreground shadow-md mb-4"
               aria-hidden
             >
-              🚀
+              <Rocket className="h-10 w-10 sm:h-12 sm:w-12" strokeWidth={2} aria-hidden />
             </div>
           )}
-          <div className="min-w-0 flex-1 text-start">
+          <div className="min-w-0 w-full max-w-md">
             <h1 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight tracking-tight">
               {projectName}
             </h1>
@@ -161,15 +161,15 @@ const Login = () => {
                 كلمة المرور
               </label>
               {/* dir=ltr: toggle على اليسار البصري، والنص يبدأ بعد مساحة الأيقونة */}
-              <div className="relative rounded-xl" dir="ltr">
+              <div className="relative flex w-full rounded-xl" dir="ltr">
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/90 transition-colors"
+                  className="pointer-events-auto absolute start-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/90 transition-colors"
                   aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
                   aria-pressed={showPw}
                 >
-                  {showPw ? <EyeOff size={20} className="shrink-0" strokeWidth={2} /> : <Eye size={20} className="shrink-0" strokeWidth={2} />}
+                  {showPw ? <EyeOff size={22} className="shrink-0" strokeWidth={2} /> : <Eye size={22} className="shrink-0" strokeWidth={2} />}
                 </button>
                 <Input
                   id="login-password"
@@ -184,17 +184,17 @@ const Login = () => {
                   aria-label="كلمة المرور"
                   aria-invalid={!!loginError}
                   aria-errormessage={loginError ? 'login-error' : undefined}
-                  className={`${inputClass} ps-16 pe-4`}
+                  className={`${inputClass} w-full ps-[4.75rem] pe-5`}
                 />
               </div>
             </div>
 
-            <div className="login-remember-row flex flex-row items-center gap-4 pt-1 pb-2">
+            <div className="login-remember-row flex w-full flex-row items-center justify-start gap-3 pt-1 pb-2">
               <Checkbox
                 id="remember-me"
                 checked={rememberMe}
                 onCheckedChange={(v) => setRememberMe(v === true)}
-                className="relative z-10 h-5 w-5 shrink-0 rounded-md border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                className="h-5 w-5 shrink-0 rounded-md border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
               <label
                 htmlFor="remember-me"
@@ -210,9 +210,7 @@ const Login = () => {
                 role="alert"
                 className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200"
               >
-                <span className="text-sm shrink-0" aria-hidden>
-                  ⚠️
-                </span>
+                <AlertCircle className="h-5 w-5 shrink-0 text-destructive" aria-hidden />
                 <p className="text-destructive text-sm text-start leading-relaxed">{loginError}</p>
               </div>
             )}
@@ -220,7 +218,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="login-submit-btn w-full min-h-[52px] rounded-xl font-bold text-[16px] text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
+              className="login-submit-btn mt-2 w-full min-h-[56px] rounded-xl font-bold text-lg text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

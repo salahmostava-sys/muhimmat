@@ -2,10 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const cleanEnv = (value: string | undefined) =>
-  value
-    ?.trim()
-    // Handle values accidentally saved with wrapping quotes in hosting env vars.
-    .replace(/^['"]+|['"]+$/g, '');
+  value == null
+    ? undefined
+    : // Handle values accidentally saved with wrapping quotes in hosting env vars (no ReDoS-prone quantifiers).
+      value.trim().replace(/^['"]/, '').replace(/['"]$/, '');
 
 const SUPABASE_URL = cleanEnv(import.meta.env.VITE_SUPABASE_URL as string | undefined);
 const SUPABASE_PUBLISHABLE_KEY = cleanEnv(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined);
