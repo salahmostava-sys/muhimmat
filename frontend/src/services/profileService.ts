@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { throwIfError } from '@/services/serviceError';
+import { authService } from '@/services/authService';
 
 export const profileService = {
   getProfile: async (userId: string) => {
@@ -47,7 +48,7 @@ export const profileService = {
   },
 
   updatePassword: async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await authService.updatePassword(password);
     throwIfError(error, 'profileService.updatePassword');
     return { error };
   },

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { validateUploadFile } from '@/lib/validation';
+import { authService } from '@/services/authService';
 
 export const settingsHubService = {
   getAuditLogs: async (from: number, to: number, filterAction: string, filterTable: string, search: string) => {
@@ -34,7 +35,7 @@ export const settingsHubService = {
   getAvatarPublicUrl: (path: string) => supabase.storage.from('avatars').getPublicUrl(path),
   updateProfileByUserId: async (userId: string, payload: Record<string, unknown>) =>
     supabase.from('profiles').update(payload).eq('id', userId),
-  updatePassword: async (password: string) => supabase.auth.updateUser({ password }),
+  updatePassword: async (password: string) => authService.updatePassword(password),
 
   getTradeRegister: async () => supabase.from('trade_registers').select('*').order('created_at').limit(1).maybeSingle(),
   uploadCompanyLogo: async (path: string, file: File) => {
