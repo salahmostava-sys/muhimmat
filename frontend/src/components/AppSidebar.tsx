@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Clock, Package, Wallet, CreditCard,
   Bike, FileDown, Bell, Smartphone,
-  Settings, ChevronDown, Fuel, Settings2, X, FileWarning,
+  ChevronDown, Fuel, Settings2, X, FileWarning,
   Layers, ChevronsLeft, ChevronsRight, ShieldCheck,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -97,6 +97,20 @@ const AppSidebar = () => {
    
   }, [location.pathname, isActive, navGroups, openGroups]);
 
+  let mobileTranslateClass: string;
+  if (isRTL) {
+    mobileTranslateClass = isOpen ? 'translate-x-0' : 'translate-x-full';
+  } else {
+    mobileTranslateClass = isOpen ? 'translate-x-0' : '-translate-x-full';
+  }
+
+  let CollapseChevronIcon: typeof ChevronsLeft;
+  if (collapsed) {
+    CollapseChevronIcon = isRTL ? ChevronsLeft : ChevronsRight;
+  } else {
+    CollapseChevronIcon = isRTL ? ChevronsRight : ChevronsLeft;
+  }
+
   return (
     <>
       {/* Backdrop — mobile only */}
@@ -113,9 +127,7 @@ const AppSidebar = () => {
           'fixed top-0 h-screen flex flex-col z-50',
           'transition-all duration-300 ease-in-out',
           collapsed ? 'w-[64px]' : 'w-[260px]',
-          isRTL
-            ? (isOpen ? 'translate-x-0' : 'translate-x-full')
-            : (isOpen ? 'translate-x-0' : '-translate-x-full'),
+          mobileTranslateClass,
           isRTL ? 'right-0' : 'left-0',
           'lg:translate-x-0',
         )}
@@ -319,10 +331,7 @@ const AppSidebar = () => {
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--ds-surface-container)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            {collapsed
-              ? (isRTL ? <ChevronsLeft size={16} /> : <ChevronsRight size={16} />)
-              : (isRTL ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />)
-            }
+            <CollapseChevronIcon size={16} />
           </button>
         </div>
 

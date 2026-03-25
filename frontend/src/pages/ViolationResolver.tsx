@@ -13,6 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { violationService } from '@/services/violationService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { sortArrowOrNeutral } from '@/lib/sortTableIndicators';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleSuggestion = {
@@ -83,6 +84,12 @@ type ViolationForm = {
   place: string;
   use_time: boolean;
 };
+
+function violationApprovalBadgeClasses(status: string): string {
+  if (status === 'approved') return 'bg-success/10 text-success border-success/20';
+  if (status === 'rejected') return 'bg-destructive/10 text-destructive border-destructive/20';
+  return 'bg-muted text-muted-foreground border-border/50';
+}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const ViolationResolver = () => {
@@ -831,34 +838,29 @@ const ViolationResolver = () => {
                 <thead className="bg-muted/40 border-b border-border">
                   <tr>
                     <th onClick={() => toggleVSort('employee_name')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
-                      اسم الموظف {vSortField === 'employee_name' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                      اسم الموظف {sortArrowOrNeutral(vSortField, 'employee_name', vSortDir, '⇅')}
                     </th>
                     <th onClick={() => toggleVSort('violation_details')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground select-none min-w-[200px]">
-                      تفاصيل المخالفة {vSortField === 'violation_details' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                      تفاصيل المخالفة {sortArrowOrNeutral(vSortField, 'violation_details', vSortDir, '⇅')}
                     </th>
                     <th onClick={() => toggleVSort('incident_date')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
-                      التاريخ {vSortField === 'incident_date' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                      التاريخ {sortArrowOrNeutral(vSortField, 'incident_date', vSortDir, '⇅')}
                     </th>
                     <th onClick={() => toggleVSort('amount')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
-                      المبلغ {vSortField === 'amount' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                      المبلغ {sortArrowOrNeutral(vSortField, 'amount', vSortDir, '⇅')}
                     </th>
                     <th onClick={() => toggleVSort('status')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none">
-                      الحالة {vSortField === 'status' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                      الحالة {sortArrowOrNeutral(vSortField, 'status', vSortDir, '⇅')}
                     </th>
                     <th onClick={() => toggleVSort('advance_status')} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap cursor-pointer hover:text-foreground select-none" title="مربوط بجدول السلف في قاعدة البيانات أو سجل قديم في الملاحظة">
-                      حالة السلفة {vSortField === 'advance_status' ? (vSortDir === 'asc' ? '↑' : '↓') : '⇅'}
+                      حالة السلفة {sortArrowOrNeutral(vSortField, 'advance_status', vSortDir, '⇅')}
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
                   {sortedViolations.map(v => {
-                    const statusBadge =
-                      v.status === 'approved'
-                        ? 'bg-success/10 text-success border-success/20'
-                        : v.status === 'rejected'
-                          ? 'bg-destructive/10 text-destructive border-destructive/20'
-                          : 'bg-muted text-muted-foreground border-border/50';
+                    const statusBadge = violationApprovalBadgeClasses(v.status);
                     const convertedAdv = isViolationConvertedToAdvance(v);
 
                     return (

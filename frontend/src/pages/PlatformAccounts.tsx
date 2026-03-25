@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Plus, Edit, Search, UserPlus, Loader2, X,
-  ShieldCheck, History, ChevronDown, ChevronRight,
+  ShieldCheck, History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +30,7 @@ import { auditService } from '@/services/auditService';
 import * as XLSX from '@e965/xlsx';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { ColorBadge } from '@/components/ui/ColorBadge';
+import { sortArrowGlyph } from '@/lib/sortTableIndicators';
 import {
   platformAccountService,
   type PlatformApp as App,
@@ -559,25 +560,25 @@ const PlatformAccounts = () => {
                       <thead>
                         <tr className="border-b border-border bg-muted/40">
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_username')}>
-                            اسم الحساب {sortKey === 'account_username' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            اسم الحساب {sortArrowGlyph(sortKey, 'account_username', sortDir)}
                           </th>
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('account_id_on_platform')}>
-                            رقم الحساب {sortKey === 'account_id_on_platform' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            رقم الحساب {sortArrowGlyph(sortKey, 'account_id_on_platform', sortDir)}
                           </th>
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_number')}>
-                            رقم الإقامة {sortKey === 'iqama_number' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            رقم الإقامة {sortArrowGlyph(sortKey, 'iqama_number', sortDir)}
                           </th>
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('iqama_expiry_date')}>
-                            انتهاء الإقامة {sortKey === 'iqama_expiry_date' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            انتهاء الإقامة {sortArrowGlyph(sortKey, 'iqama_expiry_date', sortDir)}
                           </th>
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('current_employee')}>
-                            المندوب الحالي {sortKey === 'current_employee' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            المندوب الحالي {sortArrowGlyph(sortKey, 'current_employee', sortDir)}
                           </th>
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none max-w-[7rem]" onClick={() => toggleSort('assignments_month')} title="عدد مرات تسجيل تعيين على الشهر الحالي (تعاقب عدة مناديب)">
-                            تعيينات الشهر {sortKey === 'assignments_month' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            تعيينات الشهر {sortArrowGlyph(sortKey, 'assignments_month', sortDir)}
                           </th>
                           <th className="text-center font-semibold px-4 py-3 cursor-pointer select-none" onClick={() => toggleSort('status')}>
-                            الحالة {sortKey === 'status' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                            الحالة {sortArrowGlyph(sortKey, 'status', sortDir)}
                           </th>
                           <th className="px-4 py-3" />
                         </tr>
