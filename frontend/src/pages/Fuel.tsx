@@ -17,6 +17,10 @@ import * as XLSX from '@e965/xlsx';
 import { format, endOfMonth } from 'date-fns';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
+import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useFuelDailyPaged } from '@/hooks/useFuelDailyPaged';
+import { auditService } from '@/services/auditService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DailyRow = {
@@ -302,6 +306,7 @@ const FuelPage = () => {
   const { permissions } = usePermissions('fuel');
   const now = new Date();
   const [view, setView] = useState<'monthly' | 'daily'>('monthly');
+  const [dailyMode, setDailyMode] = useState<'detailed' | 'fast'>('detailed');
   const [selectedMonth, setSelectedMonth] = useState(format(now, 'MM'));
   const [selectedYear, setSelectedYear] = useState(format(now, 'yyyy'));
   const [search, setSearch] = useState('');
@@ -310,6 +315,11 @@ const FuelPage = () => {
 
   const [monthlyRows, setMonthlyRows] = useState<MonthlyRow[]>([]);
   const [dailyRows, setDailyRows] = useState<DailyRow[]>([]);
+
+  // fast daily state (server-side)
+  const [fastDailyPage, setFastDailyPage] = useState(1);
+  const [fastDailyPageSize] = useState(50);
+  const [fastDailyFilters, setFastDailyFilters] = useState(() => createDefaultGlobalFilters());
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [apps, setApps] = useState<AppRow[]>([]);
   const [employeeAppLinks, setEmployeeAppLinks] = useState<{ employee_id: string; app_id: string }[]>([]);
@@ -489,7 +499,7 @@ const FuelPage = () => {
     if (error) {
       toast({ title: 'خطأ في جلب البيانات', description: error.message, variant: 'destructive' });
     }
-    let mapped = ((data || []) as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
+    let mapped = ((data || []) as unknown as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
     if (selectedEmployee && selectedEmployee !== '_all_') {
       mapped = mapped.filter((r) => r.employee_id === selectedEmployee);
     } else if (employeeIdsOnPlatform) {
@@ -862,6 +872,24 @@ const FuelPage = () => {
 
       {view === 'daily' && (
         <>
+          {dailyMode === 'fast' ? (
+            <FuelDailyFastList
+              monthYear={monthYear}
+              monthStart={monthStart}
+              monthEnd={monthEnd}
+              employees={ridersForTab}
+              filters={fastDailyFilters}
+              onFiltersChange={(next) => {
+                setFastDailyFilters(next);
+                setFastDailyPage(1);
+              }}
+              page={fastDailyPage}
+              pageSize={fastDailyPageSize}
+              onPageChange={setFastDailyPage}
+              onBack={() => setDailyMode('detailed')}
+            />
+          ) : (
+            <>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <StatCard icon={<Calendar size={22} />} label="إجمالي الإدخالات" value={String(filteredDaily.length)} sub="سجل في هذا الشهر" />
             <StatCard icon={<TrendingUp size={22} />} label="إجمالي الكيلومترات" value={dailyTotalKm.toLocaleString()} sub="كم" />
@@ -869,6 +897,14 @@ const FuelPage = () => {
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-9"
+              onClick={() => setDailyMode('fast')}
+            >
+              <Fuel size={14} /> قائمة (سريعة)
+            </Button>
             <div className="relative flex-1 min-w-[180px]">
               <Search size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="بحث باسم المندوب..." className="ps-9 h-9" value={search} onChange={e => setSearch(e.target.value)} />
@@ -1047,6 +1083,8 @@ const FuelPage = () => {
               </table>
             </div>
           </div>
+            </>
+          )}
         </>
       )}
 
@@ -1063,3 +1101,188 @@ const FuelPage = () => {
 };
 
 export default FuelPage;
+
+function FuelDailyFastList(props: {
+  monthYear: string;
+  monthStart: string;
+  monthEnd: string;
+  employees: Employee[];
+  filters: ReturnType<typeof createDefaultGlobalFilters>;
+  onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onBack: () => void;
+}) {
+  const { monthYear, monthStart, monthEnd, employees, filters, onFiltersChange, page, pageSize, onPageChange, onBack } = props;
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  const { data, isLoading } = useFuelDailyPaged({
+    monthStart,
+    monthEnd,
+    page,
+    pageSize,
+    filters: {
+      driverId: filters.driverId === 'all' ? undefined : String(filters.driverId),
+      branch: filters.branch,
+      search: filters.search,
+    },
+  });
+
+  type Row = {
+    id: string;
+    employee_id: string;
+    date: string;
+    km_total: number;
+    fuel_cost: number;
+    notes: string | null;
+    employees?: { id: string; name: string; city: string | null } | null;
+  };
+  const paged = data as unknown as { data?: Row[]; count?: number } | undefined;
+  const rows = paged?.data || [];
+  const total = paged?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      const employeeId = filters.driverId !== 'all' ? String(filters.driverId) : undefined;
+      const branch = filters.branch !== 'all' ? (filters.branch as Exclude<BranchKey, 'all'>) : undefined;
+      const search = filters.search?.trim() || undefined;
+
+      const res = await fuelService.exportDailyMileage({
+        monthStart,
+        monthEnd,
+        filters: { employeeId, branch, search },
+      });
+      if (res.error) throw res.error;
+
+      const out = (res.data || []) as Row[];
+      const sheet = out.map((r) => ({
+        'التاريخ': r.date,
+        'المندوب': r.employees?.name ?? '',
+        'الفرع': r.employees?.city ?? '',
+        'كيلومترات': r.km_total ?? 0,
+        'بنزين': r.fuel_cost ?? 0,
+        'ملاحظات': r.notes ?? '',
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sheet);
+      XLSX.utils.book_append_sheet(wb, ws, 'FuelDaily');
+      XLSX.writeFile(wb, `fuel_daily_${monthYear}.xlsx`);
+
+      await auditService.logAdminAction({
+        action: 'fuel.daily.export',
+        table_name: 'vehicle_mileage_daily',
+        record_id: null,
+        meta: { total: out.length, monthYear, employeeId: employeeId ?? null, branch: branch ?? null, search: search ?? null },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'تعذر التصدير';
+      toast({ title: 'خطأ', description: msg, variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="page-header">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="page-title flex items-center gap-2">
+              <Fuel size={18} /> الوقود — قائمة (سريعة)
+            </h2>
+            <p className="page-subtitle">{total.toLocaleString()} سجل — {monthYear}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={onBack}>رجوع</Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportExcel} disabled={exporting}>
+              {exporting && <Download size={14} className="opacity-70" />}
+              تصدير Excel
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="ds-card p-3">
+        <GlobalTableFilters
+          value={{
+            ...createDefaultGlobalFilters(),
+            search: filters.search,
+            branch: filters.branch,
+            driverId: filters.driverId,
+            platformAppId: 'all',
+            dateFrom: '',
+            dateTo: '',
+          }}
+          onChange={(next) => onFiltersChange({ ...filters, ...next, platformAppId: 'all', dateFrom: '', dateTo: '' })}
+          onReset={() => onFiltersChange(createDefaultGlobalFilters())}
+          options={{
+            drivers: employees.map((e) => ({ id: e.id, name: e.name })),
+            enableBranch: true,
+            enableDriver: true,
+            enablePlatform: false,
+            enableDateRange: false,
+          }}
+        />
+      </div>
+
+      <div className="bg-card rounded-xl shadow-card overflow-hidden border border-border/50">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/50 bg-muted/30">
+                <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">التاريخ</th>
+                <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">المندوب</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">كم</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">بنزين</th>
+                <th className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground">ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {isLoading ? (
+                Array.from({ length: 12 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
+                    <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
+                    <td className="px-4 py-3 text-center"><span className="text-muted-foreground">...</span></td>
+                    <td className="px-4 py-3 text-center"><span className="text-muted-foreground">...</span></td>
+                    <td className="px-4 py-3"><span className="text-muted-foreground">...</span></td>
+                  </tr>
+                ))
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا توجد نتائج</td></tr>
+              ) : (
+                rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-muted/10">
+                    <td className="px-4 py-3 font-mono text-xs">{r.date}</td>
+                    <td className="px-4 py-3 font-medium">{r.employees?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-center font-semibold text-primary">{Number(r.km_total || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center" style={{ color: 'hsl(var(--warning))' }}>{Number(r.fuel_cost || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{r.notes ?? '—'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs">
+          <div className="text-muted-foreground">{total.toLocaleString()} سجل</div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1}>
+              السابق
+            </Button>
+            <span className="tabular-nums text-muted-foreground">{page} / {totalPages}</span>
+            <Button variant="outline" size="sm" className="h-8" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page >= totalPages}>
+              التالي
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

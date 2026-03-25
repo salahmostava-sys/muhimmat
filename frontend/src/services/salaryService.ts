@@ -235,6 +235,70 @@ export const salaryService = {
     return { data, error };
   },
 
+  /** Server-side salary_records list for large volumes (pagination + filters). */
+  getPagedByMonth: async (params: {
+    monthYear: string;
+    page: number; // 1-based
+    pageSize: number;
+    filters?: {
+      branch?: 'makkah' | 'jeddah';
+      search?: string; // employee name/national id
+      approved?: 'all' | 'approved' | 'pending';
+    };
+  }) => {
+    const { monthYear, page, pageSize } = params;
+    const filters = params.filters ?? {};
+    const fromIdx = (page - 1) * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    let query = supabase
+      .from('salary_records')
+      .select(
+        'id, employee_id, month_year, net_salary, base_salary, advance_deduction, external_deduction, manual_deduction, attendance_deduction, is_approved, created_at, employees(id, name, national_id, city)',
+        { count: 'exact' }
+      )
+      .eq('month_year', monthYear)
+      .order('created_at', { ascending: false })
+      .range(fromIdx, toIdx);
+
+    if (filters.branch) query = query.eq('employees.city', filters.branch);
+    if (filters.approved === 'approved') query = query.eq('is_approved', true);
+    if (filters.approved === 'pending') query = query.eq('is_approved', false);
+    if (filters.search?.trim()) {
+      const q = filters.search.trim();
+      query = query.or(`employees.name.ilike.%${q}%,employees.national_id.ilike.%${q}%`);
+    }
+
+    const { data, error, count } = await query;
+    return { data: data || [], error, count: count ?? 0 };
+  },
+
+  /** Export helper for large salary_records datasets (chunked). */
+  exportMonth: async (params: {
+    monthYear: string;
+    filters?: {
+      branch?: 'makkah' | 'jeddah';
+      search?: string;
+      approved?: 'all' | 'approved' | 'pending';
+    };
+    chunkSize?: number;
+    maxRows?: number;
+  }) => {
+    const { monthYear } = params;
+    const filters = params.filters ?? {};
+    const chunkSize = params.chunkSize ?? 1000;
+    const maxRows = params.maxRows ?? 50_000;
+
+    const all: unknown[] = [];
+    for (let page = 1; page <= Math.ceil(maxRows / chunkSize); page++) {
+      const res = await salaryService.getPagedByMonth({ monthYear, page, pageSize: chunkSize, filters });
+      if (res.error) return { data: all, error: res.error };
+      all.push(...(res.data || []));
+      if ((res.data || []).length < chunkSize) break;
+    }
+    return { data: all, error: null };
+  },
+
   getMonthRecordsForSalaryContext: async (monthYear: string) => {
     const { data, error } = await supabase
       .from('salary_records')

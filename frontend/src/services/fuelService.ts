@@ -20,7 +20,7 @@ export const fuelService = {
   getActiveEmployees: async () => {
     const { data, error } = await supabase
       .from('employees')
-      .select('id, name, personal_photo_url')
+      .select('id, name, personal_photo_url, city')
       .eq('status', 'active')
       .order('name');
     return { data, error };
@@ -86,6 +86,80 @@ export const fuelService = {
       .lte('date', monthEnd)
       .order('date', { ascending: false });
     return { data, error };
+  },
+
+  /**
+   * Server-side daily mileage list (pagination + filters) for a month.
+   * Notes:
+   * - Branch filter is derived from employees.city (makkah/jeddah).
+   */
+  getDailyMileagePaged: async (params: {
+    monthStart: string;
+    monthEnd: string;
+    page: number; // 1-based
+    pageSize: number;
+    filters?: {
+      employeeId?: string;
+      branch?: 'makkah' | 'jeddah';
+      search?: string; // employee name
+    };
+  }) => {
+    const { monthStart, monthEnd, page, pageSize } = params;
+    const filters = params.filters ?? {};
+
+    const fromIdx = (page - 1) * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    let query = supabase
+      .from('vehicle_mileage_daily')
+      .select('id, employee_id, date, km_total, fuel_cost, notes, employees(id, name, city)', { count: 'exact' })
+      .gte('date', monthStart)
+      .lte('date', monthEnd)
+      .order('date', { ascending: false })
+      .range(fromIdx, toIdx);
+
+    if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
+    if (filters.branch) query = query.eq('employees.city', filters.branch);
+    if (filters.search?.trim()) {
+      const q = filters.search.trim();
+      query = query.ilike('employees.name', `%${q}%`);
+    }
+
+    const { data, error, count } = await query;
+    return { data: data || [], error, count: count ?? 0 };
+  },
+
+  /** Export helper for large daily mileage datasets (chunked). */
+  exportDailyMileage: async (params: {
+    monthStart: string;
+    monthEnd: string;
+    filters?: {
+      employeeId?: string;
+      branch?: 'makkah' | 'jeddah';
+      search?: string;
+    };
+    chunkSize?: number;
+    maxRows?: number;
+  }) => {
+    const { monthStart, monthEnd } = params;
+    const filters = params.filters ?? {};
+    const chunkSize = params.chunkSize ?? 1000;
+    const maxRows = params.maxRows ?? 50_000;
+
+    const all: unknown[] = [];
+    for (let page = 1; page <= Math.ceil(maxRows / chunkSize); page++) {
+      const res = await fuelService.getDailyMileagePaged({
+        monthStart,
+        monthEnd,
+        page,
+        pageSize: chunkSize,
+        filters,
+      });
+      if (res.error) return { data: all, error: res.error };
+      all.push(...(res.data || []));
+      if ((res.data || []).length < chunkSize) break;
+    }
+    return { data: all, error: null };
   },
 
   upsertDailyMileage: async (payload: MileageDailyPayload, editId?: string) => {

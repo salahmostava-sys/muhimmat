@@ -21,6 +21,10 @@ import { salaryDataService } from '@/services/salaryDataService';
 import { salarySlipService } from '@/services/salarySlipService';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
+import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useSalaryRecordsPaged } from '@/hooks/useSalaryRecordsPaged';
+import { auditService } from '@/services/auditService';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
@@ -555,6 +559,11 @@ const Salaries = () => {
   const [loadingData, setLoadingData] = useState(true);
   const [previewBackendError, setPreviewBackendError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [pageMode, setPageMode] = useState<'detailed' | 'fast'>('detailed');
+  const [fastPage, setFastPage] = useState(1);
+  const [fastPageSize] = useState(50);
+  const [fastFilters, setFastFilters] = useState(() => createDefaultGlobalFilters());
+  const [fastApproved, setFastApproved] = useState<'all' | 'approved' | 'pending'>('all');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
   const [platforms, setPlatforms] = useState<string[]>([]);
@@ -1889,6 +1898,23 @@ const Salaries = () => {
     setDetailOrders(orders);
   };
 
+  if (pageMode === 'fast') {
+    return (
+      <SalariesFastList
+        monthYear={selectedMonth}
+        branch={fastFilters.branch}
+        search={fastFilters.search}
+        approved={fastApproved}
+        onApprovedChange={setFastApproved}
+        onFiltersChange={(next) => { setFastFilters(next); setFastPage(1); }}
+        page={fastPage}
+        pageSize={fastPageSize}
+        onPageChange={setFastPage}
+        onBack={() => setPageMode('detailed')}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4" dir="rtl">
       {/* Page header */}
@@ -1920,6 +1946,9 @@ const Salaries = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setPageMode('fast')}>
+            <Table2 size={16} /> قائمة (سريعة)
+          </Button>
           <select
             value={selectedMonth}
             onChange={e => setSelectedMonth(e.target.value)}
@@ -2742,3 +2771,201 @@ const Salaries = () => {
 };
 
 export default Salaries;
+
+function SalariesFastList(props: {
+  monthYear: string;
+  branch: BranchKey;
+  search: string;
+  approved: 'all' | 'approved' | 'pending';
+  onApprovedChange: (v: 'all' | 'approved' | 'pending') => void;
+  onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onBack: () => void;
+}) {
+  const { toast } = useToast();
+  const { monthYear, branch, search, approved, onApprovedChange, onFiltersChange, page, pageSize, onPageChange, onBack } = props;
+  const [exporting, setExporting] = useState(false);
+
+  const { data, isLoading } = useSalaryRecordsPaged({
+    monthYear,
+    page,
+    pageSize,
+    filters: { branch, search, approved },
+  });
+
+  type Row = {
+    id: string;
+    employee_id: string;
+    month_year: string;
+    net_salary: number | null;
+    base_salary: number | null;
+    advance_deduction: number | null;
+    external_deduction: number | null;
+    manual_deduction: number | null;
+    attendance_deduction: number | null;
+    is_approved: boolean | null;
+    created_at: string;
+    employees?: { id: string; name: string; national_id: string | null; city: string | null } | null;
+  };
+  const paged = data as unknown as { data?: Row[]; count?: number } | undefined;
+  const rows = paged?.data || [];
+  const total = paged?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const exportExcel = async () => {
+    setExporting(true);
+    try {
+      const branchKey = branch !== 'all' ? (branch as Exclude<BranchKey, 'all'>) : undefined;
+      const q = search?.trim() || undefined;
+
+      const res = await salaryService.exportMonth({
+        monthYear,
+        filters: { branch: branchKey, search: q, approved },
+      });
+      if (res.error) throw res.error;
+
+      const out = (res.data || []) as Row[];
+      const sheet = out.map((r) => ({
+        'الموظف': r.employees?.name ?? '',
+        'الهوية': r.employees?.national_id ?? '',
+        'الفرع': r.employees?.city ?? '',
+        'صافي الراتب': r.net_salary ?? 0,
+        'الأساسي': r.base_salary ?? 0,
+        'سلفة': r.advance_deduction ?? 0,
+        'خصم خارجي': r.external_deduction ?? 0,
+        'خصم يدوي': r.manual_deduction ?? 0,
+        'خصم حضور': r.attendance_deduction ?? 0,
+        'معتمد': r.is_approved ? 'نعم' : 'لا',
+        'تاريخ الإنشاء': r.created_at ?? '',
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sheet);
+      XLSX.utils.book_append_sheet(wb, ws, 'SalaryRecords');
+      XLSX.writeFile(wb, `salary_records_${monthYear}.xlsx`);
+
+      await auditService.logAdminAction({
+        action: 'salary_records.export',
+        table_name: 'salary_records',
+        record_id: null,
+        meta: { total: out.length, monthYear, branch: branchKey ?? null, approved, search: q ?? null },
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'تعذر التصدير';
+      toast({ title: 'خطأ', description: msg, variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      <div className="page-header">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="page-title flex items-center gap-2"><Wallet size={20} /> الرواتب — قائمة (سريعة)</h1>
+            <p className="page-subtitle">{total.toLocaleString()} سجل — {monthYear}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={onBack}>رجوع</Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={exportExcel} disabled={exporting}>
+              <Download size={14} /> تصدير Excel
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="ds-card p-3 space-y-3">
+        <GlobalTableFilters
+          value={{
+            ...createDefaultGlobalFilters(),
+            branch,
+            search,
+            driverId: 'all',
+            platformAppId: 'all',
+            dateFrom: '',
+            dateTo: '',
+          }}
+          onChange={(next) => onFiltersChange({ ...next, driverId: 'all', platformAppId: 'all', dateFrom: '', dateTo: '' })}
+          onReset={() => onFiltersChange(createDefaultGlobalFilters())}
+          options={{
+            enableBranch: true,
+            enableDriver: false,
+            enablePlatform: false,
+            enableDateRange: false,
+          }}
+        />
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">الاعتماد</span>
+          <Select value={approved} onValueChange={(v) => onApprovedChange(v as 'all' | 'approved' | 'pending')}>
+            <SelectTrigger className="h-9 w-44 text-sm">
+              <SelectValue placeholder="الكل" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">الكل</SelectItem>
+              <SelectItem value="approved">معتمد</SelectItem>
+              <SelectItem value="pending">غير معتمد</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="ds-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="text-center font-semibold px-4 py-3">الموظف</th>
+                <th className="text-center font-semibold px-4 py-3">الفرع</th>
+                <th className="text-center font-semibold px-4 py-3">صافي</th>
+                <th className="text-center font-semibold px-4 py-3">معتمد</th>
+                <th className="text-center font-semibold px-4 py-3">تاريخ</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading ? (
+                Array.from({ length: 12 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3 text-muted-foreground">...</td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+                  </tr>
+                ))
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={5} className="py-10 text-center text-muted-foreground">لا توجد نتائج</td></tr>
+              ) : (
+                rows.map((r) => (
+                  <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 font-semibold">{r.employees?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-center">{r.employees?.city === 'makkah' ? 'مكة' : r.employees?.city === 'jeddah' ? 'جدة' : '—'}</td>
+                    <td className="px-4 py-3 text-center font-bold">{Number(r.net_salary || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center">{r.is_approved ? 'نعم' : 'لا'}</td>
+                    <td className="px-4 py-3 text-center font-mono text-xs">{(r.created_at || '').slice(0, 10)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs">
+          <div className="text-muted-foreground">{total.toLocaleString()} سجل</div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1}>
+              السابق
+            </Button>
+            <span className="tabular-nums text-muted-foreground">{page} / {totalPages}</span>
+            <Button variant="outline" size="sm" className="h-8" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page >= totalPages}>
+              التالي
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
