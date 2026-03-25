@@ -8,3 +8,9 @@
 .login-submit-btn {
   background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.82) 100%);
 }
+
+/* يمنع تراكب أي طبقات/أيقونات فوق صف «تذكرني» */
+.login-remember-row {
+  position: relative;
+  isolation: isolate;
+}

@@ -89,7 +89,7 @@ const Login = () => {
   };
 
   const inputClass =
-    'min-h-[52px] py-3 px-4 text-[16px] md:text-[16px] leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30';
+    'min-h-[56px] py-4 px-4 text-[16px] md:text-[16px] font-medium leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10" dir="rtl">
@@ -105,17 +105,17 @@ const Login = () => {
         </button>
       </div>
 
-      <div className="w-full max-w-lg animate-in fade-in slide-in-from-bottom-4 duration-400">
-        <header className="flex flex-row items-center justify-center gap-4 sm:gap-5 mb-6 sm:mb-8 px-4 sm:px-6">
+      <div className="w-full max-w-xl animate-in fade-in slide-in-from-bottom-4 duration-400">
+        <header className="flex flex-row items-center justify-start sm:justify-center gap-5 sm:gap-6 mb-6 sm:mb-8 px-1 sm:px-2">
           {settings?.logo_url ? (
             <img
               src={settings.logo_url}
               alt=""
-              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-2xl object-contain shadow-md border border-border bg-card p-1"
+              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl object-contain shadow-md border border-border bg-card p-1"
             />
           ) : (
             <div
-              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-md"
+              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-[5rem] sm:h-[5rem] rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-md"
               aria-hidden
             >
               🚀
@@ -134,9 +134,9 @@ const Login = () => {
         <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-xl">
           <h2 className="text-lg font-bold text-foreground mb-6 text-center">تسجيل الدخول</h2>
 
-          <form onSubmit={handleLogin} className="space-y-5" noValidate aria-describedby={loginError ? 'login-error' : undefined}>
+          <form onSubmit={handleLogin} className="space-y-6" noValidate aria-describedby={loginError ? 'login-error' : undefined}>
             <div className="space-y-2">
-              <label htmlFor="login-email" className="block text-[16px] font-semibold text-foreground">
+              <label htmlFor="login-email" className="block text-[16px] font-semibold text-foreground text-start">
                 البريد الإلكتروني
               </label>
               <Input
@@ -157,10 +157,20 @@ const Login = () => {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="login-password" className="block text-[16px] font-semibold text-foreground">
+              <label htmlFor="login-password" className="block text-[16px] font-semibold text-foreground text-start">
                 كلمة المرور
               </label>
-              <div className="relative flex items-stretch">
+              {/* dir=ltr: toggle على اليسار البصري، والنص يبدأ بعد مساحة الأيقونة */}
+              <div className="relative rounded-xl" dir="ltr">
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute left-3 top-1/2 z-10 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/90 transition-colors"
+                  aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                  aria-pressed={showPw}
+                >
+                  {showPw ? <EyeOff size={20} className="shrink-0" strokeWidth={2} /> : <Eye size={20} className="shrink-0" strokeWidth={2} />}
+                </button>
                 <Input
                   id="login-password"
                   name="password"
@@ -174,30 +184,21 @@ const Login = () => {
                   aria-label="كلمة المرور"
                   aria-invalid={!!loginError}
                   aria-errormessage={loginError ? 'login-error' : undefined}
-                  className={`${inputClass} pe-12`}
+                  className={`${inputClass} ps-16 pe-4`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  className="absolute inset-y-0 end-3 flex items-center justify-center p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-                  aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-                  aria-pressed={showPw}
-                >
-                  {showPw ? <EyeOff size={20} className="shrink-0" /> : <Eye size={20} className="shrink-0" />}
-                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 pt-1">
+            <div className="login-remember-row flex flex-row items-center gap-4 pt-1 pb-2">
               <Checkbox
                 id="remember-me"
                 checked={rememberMe}
                 onCheckedChange={(v) => setRememberMe(v === true)}
-                className="h-5 w-5 shrink-0 rounded-md border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                className="relative z-10 h-5 w-5 shrink-0 rounded-md border-2 border-primary data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
               <label
                 htmlFor="remember-me"
-                className="text-[16px] text-foreground cursor-pointer select-none leading-normal flex-1 min-w-0 text-start"
+                className="text-[16px] font-medium text-foreground cursor-pointer select-none leading-relaxed flex-1 min-w-0 text-start"
               >
                 تذكرني على هذا الجهاز
               </label>
@@ -212,7 +213,7 @@ const Login = () => {
                 <span className="text-sm shrink-0" aria-hidden>
                   ⚠️
                 </span>
-                <p className="text-destructive text-sm">{loginError}</p>
+                <p className="text-destructive text-sm text-start leading-relaxed">{loginError}</p>
               </div>
             )}
 
