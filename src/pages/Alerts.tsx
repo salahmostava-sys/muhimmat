@@ -308,7 +308,7 @@ const Alerts = () => {
         iqamaThreshold,
         FETCH_ALERTS_TIMEOUT_MS
       );
-      return buildAlertsFromResponses(employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes as { data: unknown[] | null }, threshold, today);
+      return buildAlertsFromResponses(employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes as { data: PersistedAlertRow[] | null }, threshold, today);
     },
     retry: 2,
     staleTime: 30_000,
