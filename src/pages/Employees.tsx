@@ -32,6 +32,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useEmployees } from '@/hooks/useEmployees';
+import { createEmployeesPageStore } from '@/stores/useEmployeesPageStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Employee = {
@@ -65,7 +66,6 @@ type Employee = {
 };
 
 type SortField = keyof Employee | 'days_residency' | 'residency_status';
-type SortDir = 'asc' | 'desc' | null;
 type EmployeeProfileProps = ComponentProps<typeof EmployeeProfile>;
 
 const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
@@ -104,6 +104,10 @@ type ColKey = typeof ALL_COLUMNS[number]['key'];
 
 // Columns hidden by default (available in column picker, but not shown initially)
 const DEFAULT_HIDDEN_COLS = new Set<ColKey>(['name_en', 'iban', 'license_expiry']);
+
+const DEFAULT_VISIBLE_COLS = ALL_COLUMNS.map((c) => c.key).filter((k) => !DEFAULT_HIDDEN_COLS.has(k as ColKey));
+
+const useEmployeesPageStore = createEmployeesPageStore({ defaultVisibleCols: DEFAULT_VISIBLE_COLS });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const calcResidency = (expiry?: string | null) => {
@@ -282,20 +286,22 @@ const Employees = () => {
     error: employeesError,
     refetch: refetchEmployees,
   } = useEmployees();
-  const [sortField, setSortField] = useState<string | null>('name');
-  const [sortDir, setSortDir]     = useState<SortDir>('asc');
+  const sortField = useEmployeesPageStore((s) => s.sortField);
+  const sortDir = useEmployeesPageStore((s) => s.sortDir);
+  const colFilters = useEmployeesPageStore((s) => s.colFilters);
+  const page = useEmployeesPageStore((s) => s.page);
+  const pageSize = useEmployeesPageStore((s) => s.pageSize);
+  const visibleColsArr = useEmployeesPageStore((s) => s.visibleCols);
 
-  // visible columns
-  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
-    new Set(ALL_COLUMNS.map(c => c.key).filter(k => !DEFAULT_HIDDEN_COLS.has(k as ColKey)))
-  );
+  const setSortField = useEmployeesPageStore((s) => s.setSortField);
+  const setSortDir = useEmployeesPageStore((s) => s.setSortDir);
+  const setColFilters = useEmployeesPageStore((s) => s.setColFilters);
+  const setColFilter = useEmployeesPageStore((s) => s.setColFilter);
+  const setPage = useEmployeesPageStore((s) => s.setPage);
+  const setPageSize = useEmployeesPageStore((s) => s.setPageSize);
+  const setVisibleColsArr = useEmployeesPageStore((s) => s.setVisibleCols);
 
-  // per-column filters
-  const [colFilters, setColFilters] = useState<Record<string, string>>({});
-
-  // pagination
-  const [page, setPage]         = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const visibleCols = useMemo(() => new Set<ColKey>(visibleColsArr as ColKey[]), [visibleColsArr]);
 
   // modals
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
@@ -346,7 +352,7 @@ const Employees = () => {
   }, [refetchEmployees]);
 
   // Reset page when filters/sort change
-  useEffect(() => { setPage(1); }, [colFilters, sortField, sortDir]);
+  useEffect(() => { setPage(1); }, [colFilters, sortField, sortDir, setPage]);
 
   // ── Sort handler ──
   const handleSort = (field: string) => {
@@ -405,16 +411,6 @@ const Employees = () => {
     setDeleting(false);
     setDeleteEmployee(null);
   }, [deleteEmployee, toast]);
-
-  // ── setColFilter helper ──
-  const setColFilter = (key: string, value: string) => {
-    setColFilters(prev => {
-      const next = { ...prev };
-      if (!value || value === 'all') delete next[key];
-      else next[key] = value;
-      return next;
-    });
-  };
 
   // ── unique values for select filters ──
   const uniqueVals = useMemo(() => ({
@@ -646,10 +642,11 @@ const Employees = () => {
                   key={col.key}
                   checked={visibleCols.has(col.key)}
                   onCheckedChange={checked => {
-                    setVisibleCols(prev => {
+                    setVisibleColsArr((prev) => {
                       const next = new Set(prev);
-                      if (checked) next.add(col.key); else next.delete(col.key);
-                      return next;
+                      if (checked) next.add(col.key);
+                      else next.delete(col.key);
+                      return Array.from(next);
                     });
                   }}
                 >
@@ -1102,7 +1099,7 @@ const Employees = () => {
               <span className="text-xs text-muted-foreground">عرض:</span>
               <Select
                 value={String(pageSize)}
-                onValueChange={v => { setPageSize(Number(v)); setPage(1); }}
+                        onValueChange={v => { setPageSize(Number(v)); setPage(1); }}
               >
                 <SelectTrigger className="h-7 w-20 text-xs">
                   <SelectValue />
@@ -1125,13 +1122,13 @@ const Employees = () => {
                 <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(1)} disabled={page === 1}>
                   «
                 </Button>
-                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(p => p - 1)} disabled={page === 1}>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage((p) => p - 1)} disabled={page === 1}>
                   <ChevronRight size={12} />
                 </Button>
                 <span className="text-xs text-muted-foreground px-2 min-w-[70px] text-center">
                   {page} / {totalPages}
                 </span>
-                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}>
+                <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages}>
                   <ChevronLeft size={12} />
                 </Button>
                 <Button variant="outline" size="sm" className="h-7 w-7 p-0" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>
