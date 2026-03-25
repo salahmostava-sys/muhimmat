@@ -22,6 +22,9 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
+import { usePlatformAccountsPaged } from '@/hooks/usePlatformAccountsPaged';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   platformAccountService,
   type PlatformApp as App,
@@ -137,6 +140,12 @@ const PlatformAccounts = () => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [groupAppTab, setGroupAppTab] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'detailed' | 'fast'>('detailed');
+
+  // Fast list state (server-side pagination)
+  const [fastPage, setFastPage] = useState(1);
+  const [fastPageSize] = useState(30);
+  const [fastFilters, setFastFilters] = useState(() => createDefaultGlobalFilters());
 
   type SortKey = 'account_username' | 'account_id_on_platform' | 'iqama_number' | 'iqama_expiry_date' | 'current_employee' | 'assignments_month' | 'status';
   const [sortKey, setSortKey] = useState<SortKey>('iqama_expiry_date');
@@ -409,6 +418,13 @@ const PlatformAccounts = () => {
 
       {/* Filters */}
       <div className="ds-card p-3 flex flex-wrap gap-3 items-center">
+        <Tabs value={viewMode} onValueChange={(v) => { setViewMode(v as 'detailed' | 'fast'); }} dir="rtl">
+          <TabsList className="h-9">
+            <TabsTrigger value="detailed" className="text-xs">تفصيلي</TabsTrigger>
+            <TabsTrigger value="fast" className="text-xs">قائمة (سريعة)</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="relative flex-1 min-w-[200px]">
           <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -430,7 +446,13 @@ const PlatformAccounts = () => {
         </Select>
         {(search || groupAppTab !== 'all' || filterStatus !== 'all') && (
           <Button variant="ghost" size="sm" className="gap-1 h-9 text-muted-foreground"
-            onClick={() => { setSearch(''); setFilterStatus('all'); setGroupAppTab('all'); }}>
+            onClick={() => {
+              setSearch('');
+              setFilterStatus('all');
+              setGroupAppTab('all');
+              setFastFilters(createDefaultGlobalFilters());
+              setFastPage(1);
+            }}>
             <X size={13} /> مسح
           </Button>
         )}
@@ -441,6 +463,26 @@ const PlatformAccounts = () => {
         <div className="flex items-center justify-center py-20">
           <Loader2 size={28} className="animate-spin text-primary" />
         </div>
+      ) : viewMode === 'fast' ? (
+        <PlatformAccountsFastList
+          apps={apps}
+          employees={employees}
+          alertDays={alertDays}
+          page={fastPage}
+          pageSize={fastPageSize}
+          filters={{
+            driverId: fastFilters.driverId || undefined,
+            platformAppId: fastFilters.platformAppId || undefined,
+            branch: fastFilters.branch || 'all',
+            search: fastFilters.search || undefined,
+            status: (filterStatus as 'all' | 'active' | 'inactive'),
+          }}
+          onFiltersChange={(next) => {
+            setFastFilters((p) => ({ ...p, ...next }));
+            setFastPage(1);
+          }}
+          onPageChange={setFastPage}
+        />
       ) : filtered.length === 0 ? (
         <div className="ds-card p-12 text-center text-muted-foreground">
           <ShieldCheck size={40} className="mx-auto mb-3 opacity-30" />
@@ -814,3 +856,163 @@ const PlatformAccounts = () => {
 };
 
 export default PlatformAccounts;
+
+function PlatformAccountsFastList(props: {
+  apps: App[];
+  employees: Employee[];
+  alertDays: number;
+  page: number;
+  pageSize: number;
+  filters: {
+    driverId?: string;
+    platformAppId?: string;
+    branch?: 'all' | 'makkah' | 'jeddah';
+    search?: string;
+    status?: 'all' | 'active' | 'inactive';
+  };
+  onFiltersChange: (next: Partial<ReturnType<typeof createDefaultGlobalFilters>>) => void;
+  onPageChange: (p: number) => void;
+}) {
+  const { apps, employees, alertDays, page, pageSize, filters, onFiltersChange, onPageChange } = props;
+
+  const { data, isLoading } = usePlatformAccountsPaged({
+    page,
+    pageSize,
+    filters: {
+      driverId: filters.driverId,
+      platformAppId: filters.platformAppId,
+      branch: filters.branch as any,
+      search: filters.search,
+      status: filters.status,
+    },
+  });
+
+  const paged = data as unknown as { data?: any[]; count?: number } | undefined;
+  const rows = (paged?.data || []) as any[];
+  const total = paged?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  return (
+    <div className="space-y-3">
+      <div className="ds-card p-3">
+        <GlobalTableFilters
+          value={{
+            ...createDefaultGlobalFilters(),
+            driverId: filters.driverId || '',
+            platformAppId: filters.platformAppId || '',
+            branch: (filters.branch as any) || 'all',
+            search: filters.search || '',
+          }}
+          onChange={(next) => onFiltersChange(next)}
+          onReset={() => onFiltersChange(createDefaultGlobalFilters())}
+          options={{
+            drivers: employees.map((e) => ({ id: e.id, name: e.name })),
+            platforms: apps.map((a) => ({ id: a.id, name: a.name })),
+            enableBranch: true,
+            enableDriver: true,
+            enablePlatform: true,
+            enableDateRange: false,
+          }}
+        />
+      </div>
+
+      <div className="ds-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="text-center font-semibold px-4 py-3">الحساب</th>
+                <th className="text-center font-semibold px-4 py-3">المنصة</th>
+                <th className="text-center font-semibold px-4 py-3">المندوب</th>
+                <th className="text-center font-semibold px-4 py-3">انتهاء الإقامة</th>
+                <th className="text-center font-semibold px-4 py-3">الحالة</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {isLoading
+                ? Array.from({ length: 10 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-36" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+                  </tr>
+                ))
+                : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center text-muted-foreground">
+                      لا توجد نتائج
+                    </td>
+                  </tr>
+                ) : (
+                  rows.map((r) => {
+                    const app = r.apps;
+                    const emp = r.employees;
+                    const badge = iqamaBadge(r.iqama_expiry_date, alertDays);
+                    return (
+                      <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 font-semibold">{r.account_username}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className="text-[11px] px-2 py-0.5 rounded-full border font-semibold"
+                            style={{
+                              backgroundColor: app?.brand_color || '#6366f1',
+                              color: app?.text_color || '#ffffff',
+                              borderColor: app?.brand_color || '#6366f1',
+                            }}
+                          >
+                            {app?.name || '—'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">{emp?.name || '—'}</td>
+                        <td className="px-4 py-3">
+                          {badge ? (
+                            <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.label}</span>
+                          ) : '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full border ${r.status === 'active' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground border-border'}`}>
+                            {r.status === 'active' ? 'نشط' : 'غير نشط'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs">
+          <div className="text-muted-foreground">
+            {total.toLocaleString()} نتيجة
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => onPageChange(Math.max(1, page - 1))}
+              disabled={page <= 1}
+            >
+              السابق
+            </Button>
+            <span className="tabular-nums text-muted-foreground">
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+              disabled={page >= totalPages}
+            >
+              التالي
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

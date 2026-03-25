@@ -54,6 +54,57 @@ export const platformAccountService = {
   getAccounts: async () =>
     supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
 
+  /**
+   * Server-side list for large volumes (pagination + filters).
+   * Notes:
+   * - Branch filter is derived from employees.city (makkah/jeddah).
+   */
+  getAccountsPaged: async (params: {
+    page: number; // 1-based
+    pageSize: number;
+    filters?: {
+      employeeId?: string;
+      appId?: string;
+      status?: 'active' | 'inactive';
+      branch?: 'makkah' | 'jeddah';
+      search?: string;
+    };
+  }) => {
+    const { page, pageSize } = params;
+    const filters = params.filters ?? {};
+
+    const fromIdx = (page - 1) * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    let query = supabase
+      .from('platform_accounts')
+      .select(
+        'id, app_id, employee_id, account_username, account_id_on_platform, iqama_number, iqama_expiry_date, status, notes, created_at, apps(id, name, brand_color, text_color), employees(id, name, city)',
+        { count: 'exact' }
+      )
+      .order('created_at', { ascending: false })
+      .range(fromIdx, toIdx);
+
+    if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
+    if (filters.appId) query = query.eq('app_id', filters.appId);
+    if (filters.status) query = query.eq('status', filters.status);
+    if (filters.branch) query = query.eq('employees.city', filters.branch);
+    if (filters.search?.trim()) {
+      const q = filters.search.trim();
+      query = query.or(
+        [
+          `account_username.ilike.%${q}%`,
+          `account_id_on_platform.ilike.%${q}%`,
+          `iqama_number.ilike.%${q}%`,
+          `employees.name.ilike.%${q}%`,
+        ].join(',')
+      );
+    }
+
+    const { data, error, count } = await query;
+    return { data: data || [], error, count: count ?? 0 };
+  },
+
   createAccount: async (payload: PlatformAccountWritePayload) =>
     supabase.from('platform_accounts').insert(payload),
 
