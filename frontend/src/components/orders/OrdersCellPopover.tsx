@@ -1,7 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 type App = { id: string; name: string };
 type DailyData = Record<string, number>;
@@ -19,17 +22,43 @@ type Props = {
 };
 
 export const OrdersCellPopover = ({ state, apps, data, appColorsList, canEdit, onApply, onClose }: Props) => {
-  const initVals = () => {
+  const defaultValues = useMemo(() => {
     const v: Record<string, string> = {};
     apps.forEach((app) => {
       const k = `${state.empId}::${app.id}::${state.day}`;
       const cur = data[k];
-      if (cur) v[app.id] = String(cur);
+      if (typeof cur === 'number' && cur > 0) v[app.id] = String(cur);
+      else v[app.id] = '';
     });
-    return v;
-  };
+    return { vals: v };
+  }, [apps, data, state.day, state.empId]);
 
-  const [vals, setVals] = useState<Record<string, string>>(initVals);
+  const schema = useMemo(
+    () =>
+      z.object({
+        vals: z.record(
+          z
+            .string()
+            .optional()
+            .or(z.literal(''))
+            .transform((s) => (s ?? '').trim())
+            .refine((s) => s === '' || /^\d+$/.test(s), 'أرقام فقط')
+            .transform((s) => (s === '' ? 0 : Number(s)))
+            .refine((n) => Number.isFinite(n) && n >= 0, 'غير صالح')
+        ),
+      }),
+    []
+  );
+
+  type FormValues = z.infer<typeof schema>;
+
+  const formApi = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: defaultValues as FormValues,
+    mode: 'onBlur',
+  });
+
+  const { register, handleSubmit, reset, formState } = formApi;
   const popRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: state.y + 6, left: state.x });
 
@@ -51,14 +80,14 @@ export const OrdersCellPopover = ({ state, apps, data, appColorsList, canEdit, o
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  const handleApply = () => {
-    const result: Record<string, number> = {};
-    Object.entries(vals).forEach(([appId, v]) => {
-      result[appId] = parseInt(v, 10) || 0;
-    });
-    onApply(state.empId, state.day, result);
+  useEffect(() => {
+    reset(defaultValues as FormValues);
+  }, [defaultValues, reset]);
+
+  const handleApply = handleSubmit((v) => {
+    onApply(state.empId, state.day, v.vals);
     onClose();
-  };
+  });
 
   return (
     <div
@@ -73,7 +102,13 @@ export const OrdersCellPopover = ({ state, apps, data, appColorsList, canEdit, o
           <X size={13} />
         </button>
       </div>
-      <div className="space-y-1.5">
+      <form
+        className="space-y-1.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleApply();
+        }}
+      >
         {apps.map((app) => {
           const c = getAppColor(appColorsList, app.name);
           return (
@@ -84,18 +119,23 @@ export const OrdersCellPopover = ({ state, apps, data, appColorsList, canEdit, o
               </span>
               <input
                 type="number" min={0} placeholder="0"
-                value={vals[app.id] ?? ''}
-                onChange={e => setVals(prev => ({ ...prev, [app.id]: e.target.value }))}
+                {...register(`vals.${app.id}` as const)}
                 disabled={!canEdit}
                 className="w-16 h-7 text-center text-xs rounded border border-border bg-background focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                onKeyDown={e => { if (e.key === 'Enter') handleApply(); if (e.key === 'Escape') onClose(); }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleApply();
+                  if (e.key === 'Escape') onClose();
+                }}
               />
             </div>
           );
         })}
-      </div>
+        {canEdit && formState.isSubmitted && formState.isValid === false && (
+          <p className="text-[11px] text-destructive mt-2">تأكد أن القيم أرقام صحيحة (0 أو أكثر).</p>
+        )}
+      </form>
       {canEdit && (
-        <Button size="sm" className="w-full mt-3 h-7 text-xs gap-1" onClick={handleApply}>
+        <Button size="sm" className="w-full mt-3 h-7 text-xs gap-1" onClick={handleApply} type="button">
           <Check size={12} /> تطبيق
         </Button>
       )}

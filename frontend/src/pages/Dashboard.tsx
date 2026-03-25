@@ -430,102 +430,58 @@ const Dashboard = () => {
     enabled: !!activeIdsData,
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const prevMonth = format(subMonths(new Date(), 1), 'yyyy-MM');
-      const sixDaysAgo = format(subDays(new Date(), 6), 'yyyy-MM-dd');
-      const prevStart = `${prevMonth}-01`;
-      const prevEnd = format(endOfMonth(new Date(`${prevMonth}-01`)), 'yyyy-MM-dd');
+      const { data: rpcData, error } = await dashboardService.getOverviewRpc(currentMonth, today);
+      if (error) throw error;
 
-      const { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes, pricingRes } =
-        await dashboardService.fetchMainData(today, currentMonth, prevStart, prevEnd, sixDaysAgo);
+      const rpc = (rpcData || {}) as any;
+      const apps = (rpc.apps || []) as { id: string; name: string; brand_color: string; text_color: string }[];
 
-      const apps = appsRes.data || [];
-      const targetMap: Record<string, number> = {};
-      (targetsRes.data || []).forEach(t => { targetMap[t.app_id] = t.target_orders; });
+      const att = (rpc.attendanceToday || {}) as { present?: number; absent?: number; late?: number; leave?: number; sick?: number };
+      const presentToday = att.present || 0;
+      const absentToday = att.absent || 0;
+      const lateToday = att.late || 0;
+      const leaveToday = att.leave || 0;
+      const sickToday = att.sick || 0;
 
-      // ── Attendance ──
-      const todayAtt = attRes.data || [];
-      const presentToday = todayAtt.filter(a => a.status === 'present').length;
-      const absentToday = todayAtt.filter(a => a.status === 'absent').length;
-      const lateToday = todayAtt.filter(a => a.status === 'late').length;
-      const leaveToday = todayAtt.filter(a => a.status === 'leave').length;
-      const sickToday = todayAtt.filter(a => a.status === 'sick').length;
-
-      // ── Employee details ──
-      const rawEmpDetails = empDetailsRes.data as EmpDetail[] || [];
+      const rawEmpDetails = (rpc.empDetails || []) as EmpDetail[];
       const empDetails = rawEmpDetails.filter((e) =>
         isEmployeeVisibleInMonth({ id: e.id, sponsorship_status: e.sponsorship_status }, activeEmployeeIdsInMonth)
       );
 
-      // ── Orders ──
-      const appTotals: Record<string, { orders: number; appId: string; riders: Set<string>; brandColor: string; textColor: string }> = {};
-      const empOrderMap: Record<string, { name: string; orders: number; appColor: string; app: string; appId: string }> = {};
-      const cityOrderMap: Record<string, number> = { makkah: 0, jeddah: 0 };
+      const ordersByApp = (rpc.ordersByApp || []) as {
+        app: string;
+        orders: number;
+        appId: string;
+        riders: number;
+        brandColor: string;
+        textColor: string;
+        target: number;
+        estRevenue: number;
+      }[];
+      const totalOrders = ordersByApp.reduce((s, r) => s + (r.orders || 0), 0);
+      const estRevenueByApp = ordersByApp;
+      const estRevenueTotal = (rpc.kpis?.estRevenueTotal as number) || estRevenueByApp.reduce((s, r) => s + (r.estRevenue || 0), 0);
 
-      (ordersRes.data || []).forEach((r: any) => {
-        const app = r.apps;
-        const appName = app?.name || '—';
-        const appId = app?.id || r.app_id;
-        const brandColor = app?.brand_color || '#6366f1';
-        const textColor = app?.text_color || '#fff';
-        const empName = r.employees?.name || '';
-        const empCity = r.employees?.city;
+      const ordersByCity = ((rpc.ordersByCity || []) as { city: string; orders: number }[]).map((r) => ({
+        city: r.city === 'makkah' ? 'مكة المكرمة' : r.city === 'jeddah' ? 'جدة' : r.city,
+        orders: r.orders,
+      }));
 
-        if (!appTotals[appName]) appTotals[appName] = { orders: 0, appId, riders: new Set(), brandColor, textColor };
-        appTotals[appName].orders += r.orders_count;
-        appTotals[appName].riders.add(r.employee_id);
-
-        if (empCity === 'makkah') cityOrderMap['makkah'] = (cityOrderMap['makkah'] || 0) + r.orders_count;
-        else if (empCity === 'jeddah') cityOrderMap['jeddah'] = (cityOrderMap['jeddah'] || 0) + r.orders_count;
-
-        if (empName) {
-          if (!empOrderMap[r.employee_id]) empOrderMap[r.employee_id] = { name: empName, orders: 0, appColor: brandColor, app: appName, appId };
-          empOrderMap[r.employee_id].orders += r.orders_count;
-        }
-      });
-
-      const ordersArr = Object.entries(appTotals).map(([app, d]) => ({
-        app, orders: d.orders, appId: d.appId, riders: d.riders.size,
-        brandColor: d.brandColor, textColor: d.textColor, target: targetMap[d.appId] || 0,
-      })).sort((a, b) => b.orders - a.orders);
-
-      const totalOrders = ordersArr.reduce((s, r) => s + r.orders, 0);
-      const ordersByApp = ordersArr;
-      const ordersByCity = Object.entries(cityOrderMap).map(([city, orders]) => ({ city: city === 'makkah' ? 'مكة المكرمة' : 'جدة', orders }));
-      const allRiders = Object.values(empOrderMap).sort((a, b) => b.orders - a.orders);
-
-      // ── Estimated revenue by platform (simple per-order rule) ──
-      type PricingRuleRow = {
-        app_id: string;
-        rule_type: string;
-        rate_per_order: number | null;
-        fixed_salary: number | null;
-        is_active: boolean;
-        priority: number;
-        min_orders: number;
-        max_orders: number | null;
-      };
-      const pricingRules = (pricingRes.data || []) as PricingRuleRow[];
-      const bestRateByAppId: Record<string, number> = {};
-      pricingRules
-        .filter((r) => r.rule_type === 'per_order' && r.rate_per_order !== null && r.min_orders === 0 && r.max_orders === null)
-        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-        .forEach((r) => {
-          if (!bestRateByAppId[r.app_id]) bestRateByAppId[r.app_id] = Number(r.rate_per_order || 0);
-        });
-
-      const estRevenueByApp = ordersArr.map((o) => {
-        const rate = bestRateByAppId[o.appId] ?? 0;
-        return { ...o, estRevenue: Math.round(o.orders * rate) };
-      });
-      const estRevenueTotal = estRevenueByApp.reduce((s, r) => s + r.estRevenue, 0);
+      const allRiders = ((rpc.riders || []) as any[]).map((r) => ({
+        name: r.name,
+        orders: r.orders,
+        app: r.app,
+        appColor: r.appColor,
+        appId: r.appId,
+      }));
 
       const kpis = {
         activeEmployees: empDetails.length,
         presentToday, absentToday, lateToday, leaveToday, sickToday,
-        totalOrders, prevMonthOrders: prevOrdersRes.data?.reduce((s, r) => s + r.orders_count, 0) || 0,
-        activeVehicles: vehiclesRes.count || 0,
-        activeAlerts: alertsRes.count || 0,
-        activeApps: appsRes.count || 0,
+        totalOrders, prevMonthOrders: (rpc.kpis?.prevMonthOrders as number) || 0,
+        activeVehicles: (rpc.kpis?.activeVehicles as number) || 0,
+        activeAlerts: (rpc.kpis?.activeAlerts as number) || 0,
+        activeApps: (rpc.kpis?.activeApps as number) || apps.length,
         hasLicense: empDetails.filter(e => e.license_status === 'has_license').length,
         appliedLicense: empDetails.filter(e => e.license_status === 'applied').length,
         noLicense: empDetails.filter(e => !e.license_status || e.license_status === 'no_license').length,
@@ -535,18 +491,9 @@ const Dashboard = () => {
       };
 
       // ── Attendance week ──
-      const weekMap: Record<string, { present: number; absent: number; leave: number; sick: number; late: number }> = {};
-      (weekAttRes.data || []).forEach(r => {
-        if (!weekMap[r.date]) weekMap[r.date] = { present: 0, absent: 0, leave: 0, sick: 0, late: 0 };
-        if (r.status === 'present') weekMap[r.date].present++;
-        else if (r.status === 'late') weekMap[r.date].late++;
-        else if (r.status === 'absent') weekMap[r.date].absent++;
-        else if (r.status === 'leave') weekMap[r.date].leave++;
-        else if (r.status === 'sick') weekMap[r.date].sick++;
-      });
       const dayNames = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-      const attendanceWeek = Object.entries(weekMap).sort(([a], [b]) => a.localeCompare(b))
-        .map(([date, counts]) => ({ day: dayNames[new Date(date + 'T12:00:00').getDay()], ...counts }));
+      const attendanceWeek = ((rpc.attendanceWeek || []) as { date: string; present: number; absent: number; late: number; leave: number; sick: number }[])
+        .map((r) => ({ day: dayNames[new Date(r.date + 'T12:00:00').getDay()], ...r }));
 
       // ── Recent activity ──
       const iconMap: Record<string, any> = { employees: Users, attendance: UserCheck, daily_orders: Package, vehicles: Bike, apps: Smartphone, alerts: Bell };
@@ -558,7 +505,7 @@ const Dashboard = () => {
         created_at: string;
         profiles?: { name?: string | null; email?: string | null } | null;
       };
-      const recentActivity = ((auditRes.data || []) as AuditRow[]).map((a) => {
+      const recentActivity = (((rpc.recentActivity || []) as AuditRow[]) || []).map((a) => {
         const userName = 'مستخدم';
         return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
       });

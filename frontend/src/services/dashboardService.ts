@@ -27,6 +27,15 @@ export interface AttendanceTrendPoint {
 }
 
 export const dashboardService = {
+  /** Server-side aggregated overview (RPC) */
+  getOverviewRpc: async (monthYear: string, today: string) => {
+    const { data, error } = await supabase.rpc('dashboard_overview_rpc', {
+      p_month_year: monthYear,
+      p_today: today,
+    });
+    return { data, error };
+  },
+
   /** Active apps with basic metadata */
   getActiveApps: async () => {
     const { data, error } = await supabase
