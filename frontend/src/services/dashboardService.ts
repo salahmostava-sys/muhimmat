@@ -193,7 +193,7 @@ export const dashboardService = {
    * Returns raw Supabase response objects so callers need zero reshaping.
    */
   fetchMainData: async (today: string, currentMonth: string, prevStart: string, prevEnd: string, sixDaysAgo: string) => {
-    const [empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes] = await Promise.all([
+    const [empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes, pricingRes] = await Promise.all([
       supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       supabase.from('attendance').select('status').eq('date', today),
       supabase.from('daily_orders').select('employee_id, app_id, orders_count, apps(id, name, brand_color, text_color), employees(name, city)').gte('date', currentMonth + '-01').lte('date', today),
@@ -205,8 +205,9 @@ export const dashboardService = {
       supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('is_resolved', false),
       supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true),
       supabase.from('app_targets').select('app_id, target_orders').eq('month_year', currentMonth),
+      supabase.from('pricing_rules').select('app_id, rule_type, rate_per_order, fixed_salary, is_active, priority, min_orders, max_orders').eq('is_active', true),
     ]);
-    return { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes };
+    return { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes, pricingRes };
   },
 
   /**

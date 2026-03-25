@@ -435,7 +435,7 @@ const Dashboard = () => {
       const prevStart = `${prevMonth}-01`;
       const prevEnd = format(endOfMonth(new Date(`${prevMonth}-01`)), 'yyyy-MM-dd');
 
-      const { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes } =
+      const { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes, pricingRes } =
         await dashboardService.fetchMainData(today, currentMonth, prevStart, prevEnd, sixDaysAgo);
 
       const apps = appsRes.data || [];
@@ -493,6 +493,32 @@ const Dashboard = () => {
       const ordersByCity = Object.entries(cityOrderMap).map(([city, orders]) => ({ city: city === 'makkah' ? 'مكة المكرمة' : 'جدة', orders }));
       const allRiders = Object.values(empOrderMap).sort((a, b) => b.orders - a.orders);
 
+      // ── Estimated revenue by platform (simple per-order rule) ──
+      type PricingRuleRow = {
+        app_id: string;
+        rule_type: string;
+        rate_per_order: number | null;
+        fixed_salary: number | null;
+        is_active: boolean;
+        priority: number;
+        min_orders: number;
+        max_orders: number | null;
+      };
+      const pricingRules = (pricingRes.data || []) as PricingRuleRow[];
+      const bestRateByAppId: Record<string, number> = {};
+      pricingRules
+        .filter((r) => r.rule_type === 'per_order' && r.rate_per_order !== null && r.min_orders === 0 && r.max_orders === null)
+        .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
+        .forEach((r) => {
+          if (!bestRateByAppId[r.app_id]) bestRateByAppId[r.app_id] = Number(r.rate_per_order || 0);
+        });
+
+      const estRevenueByApp = ordersArr.map((o) => {
+        const rate = bestRateByAppId[o.appId] ?? 0;
+        return { ...o, estRevenue: Math.round(o.orders * rate) };
+      });
+      const estRevenueTotal = estRevenueByApp.reduce((s, r) => s + r.estRevenue, 0);
+
       const kpis = {
         activeEmployees: empDetails.length,
         presentToday, absentToday, lateToday, leaveToday, sickToday,
@@ -505,6 +531,7 @@ const Dashboard = () => {
         noLicense: empDetails.filter(e => !e.license_status || e.license_status === 'no_license').length,
         makkahCount: empDetails.filter(e => e.city === 'makkah').length,
         jeddahCount: empDetails.filter(e => e.city === 'jeddah').length,
+        estRevenueTotal,
       };
 
       // ── Attendance week ──
@@ -536,12 +563,12 @@ const Dashboard = () => {
         return { text: `${userName} — ${actionAr[a.action] || a.action} في ${tableAr[a.table_name] || a.table_name}`, time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }), icon: iconMap[a.table_name] || Activity };
       });
 
-      return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps };
+      return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps, estRevenueByApp };
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  const defaultKpis = { activeEmployees: 0, presentToday: 0, absentToday: 0, leaveToday: 0, lateToday: 0, sickToday: 0, totalOrders: 0, prevMonthOrders: 0, activeVehicles: 0, activeAlerts: 0, activeApps: 0, hasLicense: 0, appliedLicense: 0, noLicense: 0, makkahCount: 0, jeddahCount: 0 };
+  const defaultKpis = { activeEmployees: 0, presentToday: 0, absentToday: 0, leaveToday: 0, lateToday: 0, sickToday: 0, totalOrders: 0, prevMonthOrders: 0, activeVehicles: 0, activeAlerts: 0, activeApps: 0, hasLicense: 0, appliedLicense: 0, noLicense: 0, makkahCount: 0, jeddahCount: 0, estRevenueTotal: 0 };
   const {
     kpis = defaultKpis,
     empDetails = [] as EmpDetail[],
@@ -551,6 +578,7 @@ const Dashboard = () => {
     attendanceWeek = [] as { day: string; present: number; absent: number; leave: number; sick: number; late: number }[],
     recentActivity = [] as { text: string; time: string; icon: any }[],
     apps = [] as { id: string; name: string; brand_color: string; text_color: string }[],
+    estRevenueByApp = [] as { app: string; orders: number; appId: string; riders: number; brandColor: string; textColor: string; target: number; estRevenue: number }[],
   } = data ?? {};
 
   // ── Derived ──
@@ -611,6 +639,7 @@ const Dashboard = () => {
               { label: 'متوسط طلبات/مندوب', value: kpis.activeEmployees > 0 ? Math.round(kpis.totalOrders / kpis.activeEmployees) : 0, icon: Award, color: 'text-amber-600', bg: 'bg-amber-50', sub: 'طلب/مندوب' },
               { label: 'المركبات النشطة', value: kpis.activeVehicles, icon: Bike, color: 'text-violet-600', bg: 'bg-violet-50' },
               { label: 'التنبيهات', value: kpis.activeAlerts, icon: Bell, color: 'text-rose-500', bg: 'bg-rose-50', sub: 'غير محلولة' },
+              { label: 'إيراد تقديري', value: kpis.estRevenueTotal.toLocaleString(), icon: DollarSign, color: 'text-green-700', bg: 'bg-green-50', sub: 'حسب تسعير المنصات' },
             ].map((kpi, i) => <KpiCard key={i} {...kpi} loading={loading} />)}
           </div>
 

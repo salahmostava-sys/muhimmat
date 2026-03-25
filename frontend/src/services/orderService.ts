@@ -17,6 +17,8 @@ export interface OrderFilter {
   appId?: string;
   date?: string;
   monthYear?: string;
+  search?: string;
+  branch?: 'makkah' | 'jeddah';
 }
 
 type ActiveEmployee = {
@@ -112,6 +114,52 @@ export const orderService = {
     const { data, error } = await query;
     throwIfError(error, 'orderService.getByMonth');
     return { data, error };
+  },
+
+  /**
+   * Server-side list for large volumes (pagination + filters).
+   * Notes:
+   * - Branch filter is derived from employees.city (makkah/jeddah).
+   * - Search applies to employee name (fallback) and can be extended later (order number if you add it).
+   */
+  getMonthPaged: async (params: {
+    monthYear: string;
+    page: number; // 1-based
+    pageSize: number;
+    filters?: Pick<OrderFilter, 'employeeId' | 'appId' | 'search' | 'branch'>;
+  }) => {
+    const { monthYear, page, pageSize } = params;
+    const filters = params.filters ?? {};
+    const [year, month] = monthYear.split('-');
+    const from = `${year}-${month}-01`;
+    const to = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
+
+    const fromIdx = (page - 1) * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
+
+    let query = supabase
+      .from('daily_orders')
+      .select('employee_id, app_id, date, orders_count, employees(id, name, city), apps(id, name)', { count: 'exact' })
+      .gte('date', from)
+      .lte('date', to)
+      .order('date', { ascending: false })
+      .range(fromIdx, toIdx);
+
+    if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
+    if (filters.appId) query = query.eq('app_id', filters.appId);
+    if (filters.branch) query = query.eq('employees.city', filters.branch);
+    if (filters.search?.trim()) {
+      const q = filters.search.trim();
+      query = query.ilike('employees.name', `%${q}%`);
+    }
+
+    const { data, error, count } = await query;
+    throwIfError(error, 'orderService.getMonthPaged');
+    return {
+      data: (data || []) as unknown[],
+      count: count ?? 0,
+      error,
+    };
   },
 
   upsert: async (employeeId: string, date: string, appId: string, ordersCount: number) => {

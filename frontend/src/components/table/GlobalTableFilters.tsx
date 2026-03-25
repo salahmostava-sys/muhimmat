@@ -1,0 +1,169 @@
+import { useMemo } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { X } from 'lucide-react';
+
+export type BranchKey = 'all' | 'makkah' | 'jeddah';
+
+export type GlobalTableFilterState = {
+  search: string;
+  branch: BranchKey;
+  driverId: string | 'all';
+  platformAppId: string | 'all';
+  dateFrom: string; // yyyy-MM-dd or ''
+  dateTo: string;   // yyyy-MM-dd or ''
+};
+
+export type GlobalTableFilterOptions = {
+  drivers?: { id: string; name: string }[];
+  platforms?: { id: string; name: string }[];
+  enableBranch?: boolean;
+  enableDriver?: boolean;
+  enablePlatform?: boolean;
+  enableDateRange?: boolean;
+};
+
+export function createDefaultGlobalFilters(): GlobalTableFilterState {
+  return {
+    search: '',
+    branch: 'all',
+    driverId: 'all',
+    platformAppId: 'all',
+    dateFrom: '',
+    dateTo: '',
+  };
+}
+
+export function hasActiveGlobalFilters(s: GlobalTableFilterState): boolean {
+  return Boolean(
+    s.search.trim() ||
+      s.branch !== 'all' ||
+      s.driverId !== 'all' ||
+      s.platformAppId !== 'all' ||
+      s.dateFrom ||
+      s.dateTo
+  );
+}
+
+export function GlobalTableFilters({
+  value,
+  onChange,
+  onReset,
+  options,
+}: {
+  value: GlobalTableFilterState;
+  onChange: (next: GlobalTableFilterState) => void;
+  onReset: () => void;
+  options: GlobalTableFilterOptions;
+}) {
+  const drivers = options.drivers ?? [];
+  const platforms = options.platforms ?? [];
+  const showReset = useMemo(() => hasActiveGlobalFilters(value), [value]);
+
+  return (
+    <div className="bg-card rounded-2xl shadow-card p-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">الفلاتر</span>
+          {showReset && (
+            <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={onReset}>
+              <X size={14} /> مسح الكل
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <div className="lg:col-span-4">
+          <Label className="text-xs">بحث</Label>
+          <Input
+            value={value.search}
+            onChange={(e) => onChange({ ...value, search: e.target.value })}
+            placeholder="بحث بالاسم / رقم الطلب / رقم الجوال..."
+            className="h-9"
+          />
+        </div>
+
+        {options.enableBranch !== false && (
+          <div className="lg:col-span-2">
+            <Label className="text-xs">الفرع</Label>
+            <Select value={value.branch} onValueChange={(v) => onChange({ ...value, branch: v as BranchKey })}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="الكل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                <SelectItem value="makkah">مكة</SelectItem>
+                <SelectItem value="jeddah">جدة</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {options.enableDriver !== false && (
+          <div className="lg:col-span-3">
+            <Label className="text-xs">المندوب</Label>
+            <Select value={value.driverId} onValueChange={(v) => onChange({ ...value, driverId: v as GlobalTableFilterState['driverId'] })}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="الكل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                {drivers.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {options.enablePlatform !== false && (
+          <div className="lg:col-span-3">
+            <Label className="text-xs">المنصة</Label>
+            <Select value={value.platformAppId} onValueChange={(v) => onChange({ ...value, platformAppId: v as GlobalTableFilterState['platformAppId'] })}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="الكل" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">الكل</SelectItem>
+                {platforms.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {options.enableDateRange !== false && (
+          <>
+            <div className="lg:col-span-2">
+              <Label className="text-xs">من</Label>
+              <Input
+                type="date"
+                value={value.dateFrom}
+                onChange={(e) => onChange({ ...value, dateFrom: e.target.value })}
+                className="h-9"
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <Label className="text-xs">إلى</Label>
+              <Input
+                type="date"
+                value={value.dateTo}
+                onChange={(e) => onChange({ ...value, dateTo: e.target.value })}
+                className="h-9"
+              />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+

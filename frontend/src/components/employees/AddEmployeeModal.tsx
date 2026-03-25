@@ -10,6 +10,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 import { employeeService, type EmployeeAppOption } from '@/services/employeeService';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import { validateUploadFile } from '@/lib/validation';
+import { auditService } from '@/services/auditService';
 
 
 interface EmployeeData {
@@ -300,10 +301,22 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       if (isEdit && editEmployee) {
         await employeeService.updateEmployee(editEmployee.id, payload);
         empId = editEmployee.id;
+        await auditService.logAdminAction({
+          action: 'employees.update',
+          table_name: 'employees',
+          record_id: empId,
+          meta: { fields: Object.keys(payload) },
+        });
       } else {
         payload.status = 'active';
         const { data: emp } = await employeeService.createEmployee(payload);
         empId = emp.id;
+        await auditService.logAdminAction({
+          action: 'employees.create',
+          table_name: 'employees',
+          record_id: empId,
+          meta: { name: payload.name, city: payload.city ?? null },
+        });
       }
 
       // Upload documents — store the storage PATH (not a public URL) so we can
@@ -320,7 +333,8 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
             allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
           });
           if (!validation.valid) {
-            throw new Error(validation.error);
+            const msg = 'error' in validation ? validation.error : 'ملف غير صالح';
+            throw new Error(msg);
           }
           const ext = u.file.name.split('.').pop();
           const storagePath = `${u.path}.${ext}`;

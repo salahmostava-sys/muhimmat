@@ -18,6 +18,9 @@ import { OrdersSummaryTable } from '@/components/orders/OrdersSummaryTable';
 import { cn } from '@/lib/utils';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterState } from '@/components/table/GlobalTableFilters';
+import { useOrdersMonthPaged } from '@/hooks/useOrdersPaged';
+import { toast as sonnerToast } from '@/components/ui/sonner';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -807,6 +810,194 @@ const MonthSummary = () => {
   );
 };
 
+// ─── Orders List (server-side paginated) ─────────────────────────────────────
+const OrdersList = () => {
+  const { permissions } = usePermissions('orders');
+  const { toast } = useToast();
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+  const monthKey = monthYear(year, month);
+  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(monthKey);
+  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
+
+  const [filters, setFilters] = useState<GlobalTableFilterState>(() => createDefaultGlobalFilters());
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  const { data: baseData } = useQuery({
+    queryKey: ['orders', 'list', 'base'] as const,
+    queryFn: async () => {
+      const [empRes, appRes] = await Promise.all([
+        orderService.getActiveEmployees(),
+        orderService.getActiveApps(),
+      ]);
+      if (empRes.error) throw empRes.error;
+      if (appRes.error) throw appRes.error;
+      return {
+        employees: filterVisibleEmployeesInMonth(
+          (empRes.data || []) as unknown as { id: string; sponsorship_status?: string | null }[],
+          activeEmployeeIdsInMonth
+        ) as unknown as Employee[],
+        apps: (appRes.data || []) as App[],
+      };
+    },
+    enabled: !!activeIdsData,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters, monthKey]);
+
+  const paged = useOrdersMonthPaged({
+    monthYear: monthKey,
+    page,
+    pageSize,
+    filters: {
+      branch: filters.branch,
+      driverId: filters.driverId,
+      platformAppId: filters.platformAppId,
+      search: filters.search,
+    },
+  });
+
+  const total = paged.data?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const rows = (paged.data?.data ?? []) as Array<{
+    employee_id: string;
+    app_id: string;
+    date: string;
+    orders_count: number;
+    employees?: { id: string; name: string; city?: string | null } | null;
+    apps?: { id: string; name: string } | null;
+  }>;
+
+  const handleExportMonth = async () => {
+    try {
+      const { data: raw, error } = await orderService.getMonthRaw(year, month);
+      if (error) throw error;
+      const empMap = Object.fromEntries((baseData?.employees ?? []).map((e) => [e.id, e]));
+      const appMap = Object.fromEntries((baseData?.apps ?? []).map((a) => [a.id, a]));
+      const out = (raw || []).map((r) => ({
+        التاريخ: r.date,
+        المندوب: empMap[r.employee_id]?.name ?? r.employee_id,
+        الفرع: empMap[r.employee_id]?.city === 'makkah' ? 'مكة' : empMap[r.employee_id]?.city === 'jeddah' ? 'جدة' : '',
+        المنصة: appMap[r.app_id]?.name ?? r.app_id,
+        الطلبات: r.orders_count,
+      }));
+      const ws = XLSX.utils.json_to_sheet(out);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Orders');
+      XLSX.writeFile(wb, `orders_${monthKey}.xlsx`);
+      sonnerToast.success('تم التصدير', { description: `orders_${monthKey}.xlsx` });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'تعذر تصدير البيانات';
+      toast({ title: 'خطأ في التصدير', description: msg, variant: 'destructive' });
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <OrdersMonthNavigator year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportMonth} className="h-9">
+            <FolderOpen size={14} className="me-2" /> تصدير Excel
+          </Button>
+        </div>
+      </div>
+
+      <GlobalTableFilters
+        value={filters}
+        onChange={setFilters}
+        onReset={() => setFilters(createDefaultGlobalFilters())}
+        options={{
+          enableDateRange: false, // month-scoped view
+          drivers: (baseData?.employees ?? []).map((e) => ({ id: e.id, name: e.name })),
+          platforms: (baseData?.apps ?? []).map((a) => ({ id: a.id, name: a.name })),
+        }}
+      />
+
+      <div className="bg-card rounded-2xl shadow-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-sm">
+            <thead className="bg-muted/40">
+              <tr>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">التاريخ</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">المندوب</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">الفرع</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">المنصة</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">الطلبات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(paged.isLoading || !paged.data) && (
+                <>
+                  {Array.from({ length: 10 }).map((_, i) => (
+                    <tr key={i} className="border-b border-border/30">
+                      {Array.from({ length: 5 }).map((__, j) => (
+                        <td key={j} className="px-3 py-3">
+                          <div className="h-4 w-full bg-muted/40 rounded animate-pulse" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </>
+              )}
+
+              {!paged.isLoading && rows.map((r, idx) => (
+                <tr key={`${r.employee_id}-${r.app_id}-${r.date}-${idx}`} className="border-b border-border/30 hover:bg-muted/20">
+                  <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
+                  <td className="px-3 py-2 whitespace-nowrap font-medium">{r.employees?.name ?? '—'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{r.employees?.city === 'makkah' ? 'مكة' : r.employees?.city === 'jeddah' ? 'جدة' : '—'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{r.apps?.name ?? '—'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{r.orders_count}</td>
+                </tr>
+              ))}
+
+              {!paged.isLoading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                    لا توجد بيانات لهذا الشهر
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between p-3 border-t border-border/30 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">حجم الصفحة</span>
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1); }}>
+              <SelectTrigger className="h-8 w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[25, 50, 100, 200].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            صفحة {page} / {totalPages} — الإجمالي {total}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" className="h-8" disabled={page <= 1} onClick={() => setPage(1)}>الأولى</Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              <ChevronRight size={16} />
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+              <ChevronLeft size={16} />
+            </Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>الأخيرة</Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Page ────────────────────────────────────────────────────────────
 const Orders = () => {
   return (
@@ -826,9 +1017,11 @@ const Orders = () => {
         <TabsList className="flex-shrink-0">
           <TabsTrigger value="grid">📊 Grid الشهري</TabsTrigger>
           <TabsTrigger value="summary">ملخص الشهر</TabsTrigger>
+          <TabsTrigger value="list">قائمة (سريعة)</TabsTrigger>
         </TabsList>
         <TabsContent value="grid" className="mt-4 outline-none"><SpreadsheetGrid /></TabsContent>
         <TabsContent value="summary" className="mt-4 overflow-x-auto outline-none"><MonthSummary /></TabsContent>
+        <TabsContent value="list" className="mt-4 outline-none"><OrdersList /></TabsContent>
       </Tabs>
     </div>
   );
