@@ -59,8 +59,10 @@ export const violationService = {
       .limit(1),
 
   createAdvanceFromFine: async (payload: Record<string, unknown>) =>
-    supabase.from('advances').insert(payload).select('id').single(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('advances').insert(payload as unknown as any).select('id').single(),
 
   createSingleInstallment: async (payload: Record<string, unknown>) =>
-    supabase.from('advance_installments').insert(payload),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('advance_installments').insert(payload as unknown as any),
 };

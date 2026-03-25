@@ -120,7 +120,7 @@ export const fuelService = {
     const { error } = await supabase
       .from('vehicle_mileage')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .insert(rows as unknown as any, { ignoreDuplicates: true });
+      .insert(rows as unknown as any);
     return { error };
   },
 };

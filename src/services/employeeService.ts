@@ -113,7 +113,8 @@ export const employeeService = {
   async createEmployee(payload: Record<string, unknown>) {
     const { data, error } = await supabase
       .from('employees')
-      .insert(payload)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(payload as unknown as any)
       .select()
       .single();
     throwIfError(error, 'employeeService.createEmployee');

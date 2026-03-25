@@ -265,7 +265,8 @@ export const salaryService = {
   upsertMany: async (records: Record<string, unknown>[]) => {
     const { error } = await supabase
       .from('salary_records')
-      .upsert(records, { onConflict: 'employee_id,month_year' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .upsert(records as unknown as any, { onConflict: 'employee_id,month_year' });
     return { error };
   },
 
