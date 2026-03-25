@@ -104,9 +104,21 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
   const roleLabel = role ? roleLabelsMap[role] || role : '';
   const roleBadgeCls = role ? roleBadgeClass[role] || 'text-muted-foreground bg-muted' : '';
 
-  const collapsedSidebarOffsetCls = isRTL ? 'lg:mr-[64px]' : 'lg:ml-[64px]';
-  const expandedSidebarOffsetCls = isRTL ? 'lg:mr-[260px]' : 'lg:ml-[260px]';
-  const sidebarOffsetCls = sidebarCollapsed ? collapsedSidebarOffsetCls : expandedSidebarOffsetCls;
+  // Avoid nested ternary operators (Sonar S3358) by using plain branching.
+  let sidebarOffsetCls: string;
+  if (isRTL) {
+    if (sidebarCollapsed) {
+      sidebarOffsetCls = 'lg:mr-[64px]';
+    } else {
+      sidebarOffsetCls = 'lg:mr-[260px]';
+    }
+  } else {
+    if (sidebarCollapsed) {
+      sidebarOffsetCls = 'lg:ml-[64px]';
+    } else {
+      sidebarOffsetCls = 'lg:ml-[260px]';
+    }
+  }
 
   return (
     <div
