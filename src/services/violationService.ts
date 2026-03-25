@@ -37,10 +37,12 @@ export const violationService = {
       .eq('apply_month', applyMonth),
 
   createFineDeduction: async (payload: Record<string, unknown>) =>
-    supabase.from('external_deductions').insert(payload).select('id').single(),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('external_deductions').insert(payload as unknown as any).select('id').single(),
 
   updateViolation: async (id: string, payload: Record<string, unknown>) =>
-    supabase.from('external_deductions').update(payload).eq('id', id),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    supabase.from('external_deductions').update(payload as unknown as any).eq('id', id),
 
   deleteViolation: async (id: string) =>
     supabase.from('external_deductions').delete().eq('id', id),
