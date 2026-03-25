@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 
 const employeesRoutes = require("./routes/employeesRoutes");
 const ordersRoutes = require("./routes/ordersRoutes");
@@ -13,6 +14,7 @@ const { requireAuth } = require("./middlewares/authz");
 
 const app = express();
 
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 

@@ -168,11 +168,11 @@ const Login = () => {
                 كلمة المرور
               </label>
               {/* dir=ltr: toggle على اليسار البصري، والنص يبدأ بعد مساحة الأيقونة */}
-              <div className="relative flex w-full rounded-xl" dir="ltr">
+              <div className="relative flex w-full items-center rounded-xl" dir="ltr">
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="pointer-events-auto absolute start-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/90 transition-colors"
+                  className="pointer-events-auto absolute left-3 top-1/2 z-20 -translate-y-1/2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/90 transition-colors"
                   aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
                   aria-pressed={showPw}
                 >
@@ -191,7 +191,7 @@ const Login = () => {
                   aria-label="كلمة المرور"
                   aria-invalid={!!loginError}
                   aria-errormessage={loginError ? 'login-error' : undefined}
-                  className={`${inputClass} w-full ps-28 pe-5`}
+                  className={`${inputClass} w-full pl-16 pr-5`}
                 />
               </div>
             </div>

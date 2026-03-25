@@ -106,7 +106,7 @@ export function AlertsList() {
         }
       });
 
-      setAlerts(generated.sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 8));
+      setAlerts(generated.toSorted((a, b) => a.daysLeft - b.daysLeft).slice(0, 8));
     };
 
     fetchAlerts();
