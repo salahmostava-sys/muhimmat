@@ -1,0 +1,10 @@
+/**
+ * Login page — visual tokens (reduces inline style duplication for Sonar/maintainability).
+ */
+.login-brand-mark {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.75));
+}
+
+.login-submit-btn {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.82) 100%);
+}

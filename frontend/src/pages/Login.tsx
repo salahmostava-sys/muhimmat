@@ -6,9 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { dashboardService } from '@/services/dashboardService';
-
-const LOGIN_REMEMBER_KEY = 'muhimmat_login_remember';
-const LOGIN_EMAIL_KEY = 'muhimmat_login_email';
+import { loadRememberedEmail, persistRememberedEmail } from '@/lib/loginRememberStorage';
+import './login.css';
 
 interface SystemSettings {
   project_name_ar: string;
@@ -38,21 +37,26 @@ const Login = () => {
   }, []);
 
   useEffect(() => {
-    try {
-      const storedRemember = localStorage.getItem(LOGIN_REMEMBER_KEY);
-      const wantRemember = storedRemember !== '0';
-      setRememberMe(wantRemember);
-      const savedEmail = localStorage.getItem(LOGIN_EMAIL_KEY);
-      if (wantRemember && savedEmail) setEmail(savedEmail);
-    } catch (e) {
-      console.warn('[Login] could not read remembered email from storage', e);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { email: storedEmail, remember } = await loadRememberedEmail();
+        if (cancelled) return;
+        setRememberMe(remember);
+        if (storedEmail) setEmail(storedEmail);
+      } catch (e) {
+        console.error('[Login] loadRememberedEmail failed', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const projectName = settings ? settings.project_name_ar : 'مهمة التوصيل';
   const projectSubtitle = settings ? settings.project_subtitle_ar : 'إدارة المناديب';
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoginError('');
     if (!email || !password) return;
@@ -61,6 +65,9 @@ const Login = () => {
     try {
       const res = await signIn(email, password);
       error = res.error;
+    } catch (err) {
+      console.error('[Login] signIn threw', err);
+      error = { message: 'تعذّر إكمال تسجيل الدخول. حاول مرة أخرى.' };
     } finally {
       setLoading(false);
     }
@@ -73,47 +80,42 @@ const Login = () => {
       }
     } else {
       try {
-        if (rememberMe) {
-          localStorage.setItem(LOGIN_REMEMBER_KEY, '1');
-          localStorage.setItem(LOGIN_EMAIL_KEY, email.trim());
-        } else {
-          localStorage.setItem(LOGIN_REMEMBER_KEY, '0');
-          localStorage.removeItem(LOGIN_EMAIL_KEY);
-        }
+        await persistRememberedEmail(email.trim(), rememberMe);
       } catch (e) {
-        console.warn('[Login] could not persist remember-me preference', e);
+        console.error('[Login] persistRememberedEmail failed', e);
       }
       navigate('/', { replace: true });
     }
   };
 
+  const inputClass =
+    'min-h-[52px] py-3 px-4 text-[16px] md:text-[16px] leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30';
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10" dir="rtl">
-      {/* Theme toggle — fixed corner, does not overlap form */}
       <div className="fixed top-4 left-4 z-50">
         <button
           type="button"
           onClick={toggleTheme}
           className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-muted transition-colors text-muted-foreground border border-border shadow-sm bg-card/80 backdrop-blur-sm"
           title={isDark ? 'الوضع الفاتح' : 'الوضع الداكن'}
+          aria-label={isDark ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن'}
         >
           {isDark ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} />}
         </button>
       </div>
 
       <div className="w-full max-w-lg animate-in fade-in slide-in-from-bottom-4 duration-400">
-        {/* Logo + brand — horizontal (side by side) */}
         <header className="flex flex-row items-center justify-center gap-4 sm:gap-5 mb-6 sm:mb-8 px-4 sm:px-6">
           {settings?.logo_url ? (
             <img
               src={settings.logo_url}
               alt=""
-              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-24 sm:h-24 rounded-2xl object-contain shadow-md border border-border bg-card p-1"
+              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-2xl object-contain shadow-md border border-border bg-card p-1"
             />
           ) : (
             <div
-              className="shrink-0 w-[4.5rem] h-[4.5rem] sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center text-4xl sm:text-5xl shadow-md"
-              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.75))' }}
+              className="login-brand-mark shrink-0 w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl shadow-md"
               aria-hidden
             >
               🚀
@@ -129,19 +131,17 @@ const Login = () => {
           </div>
         </header>
 
-        {/* Card */}
         <div className="bg-card border border-border rounded-2xl p-6 sm:p-8 shadow-xl">
-          <h2 className="text-lg font-bold text-foreground mb-6 text-center">
-            تسجيل الدخول
-          </h2>
+          <h2 className="text-lg font-bold text-foreground mb-6 text-center">تسجيل الدخول</h2>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-5" noValidate aria-describedby={loginError ? 'login-error' : undefined}>
             <div className="space-y-2">
               <label htmlFor="login-email" className="block text-[16px] font-semibold text-foreground">
                 البريد الإلكتروني
               </label>
               <Input
                 id="login-email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -149,7 +149,10 @@ const Login = () => {
                 required
                 dir="ltr"
                 autoComplete="email"
-                className="h-[52px] px-4 text-[16px] leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+                aria-label="البريد الإلكتروني"
+                aria-invalid={!!loginError}
+                aria-errormessage={loginError ? 'login-error' : undefined}
+                className={inputClass}
               />
             </div>
 
@@ -157,9 +160,10 @@ const Login = () => {
               <label htmlFor="login-password" className="block text-[16px] font-semibold text-foreground">
                 كلمة المرور
               </label>
-              <div className="relative">
+              <div className="relative flex items-stretch">
                 <Input
                   id="login-password"
+                  name="password"
                   type={showPw ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -167,20 +171,23 @@ const Login = () => {
                   required
                   dir="ltr"
                   autoComplete="current-password"
-                  className="h-[52px] px-4 pe-12 text-[16px] leading-normal rounded-xl border-border bg-background shadow-sm focus-visible:ring-2 focus-visible:ring-primary/30"
+                  aria-label="كلمة المرور"
+                  aria-invalid={!!loginError}
+                  aria-errormessage={loginError ? 'login-error' : undefined}
+                  className={`${inputClass} pe-12`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw((v) => !v)}
-                  className="absolute top-1/2 -translate-y-1/2 end-3 p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+                  className="absolute inset-y-0 end-3 flex items-center justify-center p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
                   aria-label={showPw ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                  aria-pressed={showPw}
                 >
-                  {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPw ? <EyeOff size={20} className="shrink-0" /> : <Eye size={20} className="shrink-0" />}
                 </button>
               </div>
             </div>
 
-            {/* Remember me: في RTL العنصر الأول يظهر يميناً — مربع الاختيار يمين النص */}
             <div className="flex items-center gap-3 pt-1">
               <Checkbox
                 id="remember-me"
@@ -190,15 +197,19 @@ const Login = () => {
               />
               <label
                 htmlFor="remember-me"
-                className="text-[16px] text-foreground cursor-pointer select-none leading-snug flex-1 min-w-0 text-start"
+                className="text-[16px] text-foreground cursor-pointer select-none leading-normal flex-1 min-w-0 text-start"
               >
                 تذكرني على هذا الجهاز
               </label>
             </div>
 
             {loginError && (
-              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200">
-                <span className="text-sm" aria-hidden>
+              <div
+                id="login-error"
+                role="alert"
+                className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl px-3 py-2.5 animate-in slide-in-from-top-1 fade-in duration-200"
+              >
+                <span className="text-sm shrink-0" aria-hidden>
                   ⚠️
                 </span>
                 <p className="text-destructive text-sm">{loginError}</p>
@@ -208,14 +219,11 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full min-h-[52px] rounded-xl font-bold text-[16px] text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
-              style={{
-                background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.82) 100%)',
-              }}
+              className="login-submit-btn w-full min-h-[52px] rounded-xl font-bold text-[16px] text-primary-foreground shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-[1.03] active:scale-[0.99] disabled:opacity-70 disabled:pointer-events-none disabled:hover:shadow-md flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
-                  <Loader2 size={18} className="animate-spin shrink-0" />
+                  <Loader2 size={18} className="animate-spin shrink-0" aria-hidden />
                   <span>جاري التحقق...</span>
                 </>
               ) : (
@@ -224,21 +232,23 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Footer links */}
-          <div className="mt-8 pt-6 border-t border-border/80 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 text-center">
+          <nav
+            className="mt-8 pt-6 border-t border-border/80 flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-10 text-center"
+            aria-label="روابط إضافية"
+          >
             <Link
               to="/forgot-password"
-              className="text-[15px] font-medium text-primary hover:underline underline-offset-4 transition-colors"
+              className="text-[15px] font-semibold text-primary hover:underline underline-offset-4 decoration-2 transition-colors"
             >
               نسيت كلمة المرور؟
             </Link>
             <a
               href="mailto:?subject=%D8%B7%D9%84%D8%A8%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%AC%D8%AF%D9%8A%D8%AF%20%D9%81%D9%8A%20%D9%85%D9%87%D9%85%D8%A9%20%D8%A7%D9%84%D8%AA%D9%88%D8%B5%D9%8A%D9%84"
-              className="text-[15px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="text-[15px] font-medium text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors"
             >
               طلب إنشاء حساب
             </a>
-          </div>
+          </nav>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
