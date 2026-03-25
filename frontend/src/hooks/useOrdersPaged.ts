@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { orderService } from '@/services/orderService';
 import { toastQueryError } from '@/lib/query';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 export type OrdersPagedFilters = {
   driverId?: string | 'all';
@@ -17,7 +17,8 @@ export function useOrdersMonthPaged(params: {
   pageSize: number;
   filters: OrdersPagedFilters;
 }) {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { monthYear, page, pageSize, filters } = params;
   const driverId = filters.driverId && filters.driverId !== 'all' ? filters.driverId : undefined;
   const appId = filters.platformAppId && filters.platformAppId !== 'all' ? filters.platformAppId : undefined;
@@ -25,7 +26,7 @@ export function useOrdersMonthPaged(params: {
   const search = filters.search?.trim() ? filters.search.trim() : undefined;
 
   return useQuery({
-    queryKey: ['orders', 'month-paged', monthYear, page, pageSize, driverId ?? null, appId ?? null, branch ?? null, search ?? null] as const,
+    queryKey: ['orders', uid, 'month-paged', monthYear, page, pageSize, driverId ?? null, appId ?? null, branch ?? null, search ?? null] as const,
     queryFn: async () => {
       const res = await orderService.getMonthPaged({
         monthYear,
@@ -38,7 +39,7 @@ export function useOrdersMonthPaged(params: {
     retry: 1,
     staleTime: 15_000,
     onError: (err) => toastQueryError(err, 'تعذر تحميل الطلبات'),
-    enabled: !!session,
+    enabled,
   });
 }
 

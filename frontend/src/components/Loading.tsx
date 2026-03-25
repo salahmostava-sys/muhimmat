@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function Loading(props: { className?: string; minHeightClassName?: string }) {
-  const { className = '', minHeightClassName = 'min-h-[300px]' } = props;
+export default function Loading(props: { className?: string; minHeightClassName?: string; resetKey?: string }) {
+  const { className = '', minHeightClassName = 'min-h-[300px]', resetKey = 'default' } = props;
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
+    setTimedOut(false);
     const id = setTimeout(() => setTimedOut(true), 10_000);
     return () => clearTimeout(id);
-  }, []);
+  }, [resetKey]);
 
   if (timedOut) {
     return (

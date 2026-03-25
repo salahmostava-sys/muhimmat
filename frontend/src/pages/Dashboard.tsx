@@ -28,6 +28,7 @@ import * as XLSX from '@e965/xlsx';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { isEmployeeVisibleInMonth } from '@/lib/employeeVisibility';
 import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -167,13 +168,14 @@ const MONTHS_BACK = 6;
 interface RiderMonthly { id: string; name: string; months: number[]; avg: number; trend: 'up' | 'down' | 'stable'; lastMonth: number; thisMonth: number; }
 
 const AnalyticsTab = () => {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const daysInMonth = getDaysInMonth(new Date());
   const daysPassed = getDate(new Date());
 
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['dashboard-analytics'],
-    enabled: !!session,
+    queryKey: ['dashboard-analytics', uid],
+    enabled,
     queryFn: async () => {
       const months = Array.from({ length: MONTHS_BACK }, (_, i) => {
         const d = subMonths(new Date(), MONTHS_BACK - 1 - i);
@@ -414,7 +416,9 @@ interface EmpDetail {
 }
 
 const Dashboard = () => {
-  const { session } = useAuth();
+  const { user } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview');
   const [topN, setTopN] = useState(5);
   const [topNInput, setTopNInput] = useState('5');
@@ -425,13 +429,14 @@ const Dashboard = () => {
   const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
 
   useRealtimePostgresChanges('dashboard-realtime', REALTIME_TABLES_DASHBOARD, () => {
-    queryClient.invalidateQueries({ queryKey: ['dashboard-kpis', currentMonth] });
-    queryClient.invalidateQueries({ queryKey: ['dashboard-analytics'] });
+    if (!user?.id) return;
+    queryClient.invalidateQueries({ queryKey: ['dashboard-kpis', user.id, currentMonth] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-analytics', user.id] });
   });
 
   const { data, isLoading: loading } = useQuery({
-    queryKey: ['dashboard-kpis', currentMonth],
-    enabled: !!session && !!activeIdsData,
+    queryKey: ['dashboard-kpis', uid, currentMonth],
+    enabled: enabled && !!activeIdsData,
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const { data: rpcData, error } = await dashboardService.getOverviewRpc(currentMonth, today);

@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { vehicleService } from '@/services/vehicleService';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
-export const motorcyclesDataQueryKey = ['motorcycles', 'list'] as const;
+export const motorcyclesDataQueryKey = (userId: string) => ['motorcycles', userId, 'list'] as const;
 
 export const useMotorcyclesData = () => {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   return useQuery({
-    queryKey: motorcyclesDataQueryKey,
+    queryKey: motorcyclesDataQueryKey(uid),
     queryFn: async () => {
       const { data, error } = await vehicleService.getAllWithCurrentRider();
       if (error) {
@@ -17,6 +18,6 @@ export const useMotorcyclesData = () => {
     },
     retry: 2,
     staleTime: 60_000,
-    enabled: !!session,
+    enabled,
   });
 };

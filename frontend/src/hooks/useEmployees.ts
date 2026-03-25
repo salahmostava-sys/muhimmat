@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { employeeService } from '@/services/employeeService';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
-export const employeesQueryKey = ['employees'] as const;
+export const employeesQueryKey = (userId: string) => ['employees', userId] as const;
 
 export const useEmployees = () => {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   return useQuery({
-    queryKey: employeesQueryKey,
+    queryKey: employeesQueryKey(uid),
     queryFn: async () => {
       const result = await Promise.race([
         employeeService.getAll(),
@@ -24,6 +25,6 @@ export const useEmployees = () => {
     },
     retry: 2,
     staleTime: 60_000,
-    enabled: !!session,
+    enabled,
   });
 };

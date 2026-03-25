@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { ReactNode, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import Loading from '@/components/Loading';
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { user, role, loading, signOut, recoverSessionSilently } = useAuth();
   const [checkingRecovery, setCheckingRecovery] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     if (loading || user) return;
@@ -21,7 +22,8 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   }, [loading, recoverSessionSilently, user]);
 
   if (loading || checkingRecovery) {
-    return <Loading minHeightClassName="min-h-screen" className="bg-background" />;
+    const resetKey = `${location.pathname}${location.search}`;
+    return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
   }
 
   if (!user) return <Navigate to="/login" replace />;

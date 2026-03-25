@@ -21,7 +21,7 @@ import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/tab
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { useFuelDailyPaged } from '@/hooks/useFuelDailyPaged';
 import { auditService } from '@/services/auditService';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DailyRow = {
@@ -304,7 +304,8 @@ const ImportModal = ({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const FuelPage = () => {
   const { toast } = useToast();
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { permissions } = usePermissions('fuel');
   const now = new Date();
   const [view, setView] = useState<'monthly' | 'daily'>('monthly');
@@ -371,8 +372,8 @@ const FuelPage = () => {
   }, [employees, employeeIdsOnPlatform, monthOrdersMap, search]);
 
   const { data: fuelBaseData, error: fuelBaseError } = useQuery({
-    queryKey: ['fuel', 'base-data'],
-    enabled: !!session,
+    queryKey: ['fuel', uid, 'base-data'],
+    enabled,
     queryFn: async () => {
       const [empRes, appRes, linkRes] = await Promise.all([
         fuelService.getActiveEmployees(),
@@ -409,8 +410,8 @@ const FuelPage = () => {
   }, [fuelBaseError, toast]);
 
   const { data: monthlyOrdersData = [] } = useQuery({
-    queryKey: ['fuel', 'monthly-orders', monthYear],
-    enabled: !!session,
+    queryKey: ['fuel', uid, 'monthly-orders', monthYear],
+    enabled,
     queryFn: async () => {
       const monthStart = `${monthYear}-01`;
       const monthEnd = format(endOfMonth(new Date(`${monthYear}-01`)), 'yyyy-MM-dd');

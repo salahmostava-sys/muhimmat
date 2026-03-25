@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { userPermissionService } from '@/services/userPermissionService';
 import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { usePermissions, DEFAULT_PERMISSIONS, type AppRole, type PagePermission } from '@/hooks/usePermissions';
 import { PERMISSION_PAGE_ENTRIES } from '@/constants/permissionPages';
 
@@ -67,8 +68,8 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     error: usersError,
     refetch: refetchUsersData,
   } = useQuery({
-    queryKey: ['users-and-permissions', 'rows'],
-    enabled: !!session,
+    queryKey: ['users-and-permissions', uid, 'rows'],
+    enabled,
     queryFn: async () => {
       const [{ data: profiles, error: profilesError }, { data: roles, error: rolesError }] = await Promise.all([
         userPermissionService.getProfiles(),

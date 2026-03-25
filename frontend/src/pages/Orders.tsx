@@ -21,7 +21,7 @@ import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterState } from '@/components/table/GlobalTableFilters';
 import { useOrdersMonthPaged } from '@/hooks/useOrdersPaged';
 import { toast as sonnerToast } from '@/components/ui/sonner';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -32,15 +32,15 @@ type AppTargetRow = { app_id: string; target_orders: number };
 type EmployeeAppAssignmentRow = { employee_id: string; app_id: string };
 type OrderRawRow = { employee_id: string; app_id: string; date: string; orders_count: number };
 
-const ordersQueryKeys = {
-  spreadsheetBase: ['orders', 'spreadsheet', 'base-data'] as const,
-  spreadsheetMonthRaw: (year: number, month: number) => ['orders', 'spreadsheet', 'month-raw', year, month] as const,
-  spreadsheetMonthLock: (year: number, month: number) => ['orders', 'spreadsheet', 'month-lock', year, month] as const,
-  summaryBase: ['orders', 'summary', 'base-data'] as const,
-  summaryTargets: (year: number, month: number) => ['orders', 'summary', 'targets', year, month] as const,
-  summaryMonthLock: (year: number, month: number) => ['orders', 'summary', 'month-lock', year, month] as const,
-  summaryMonthRaw: (year: number, month: number) => ['orders', 'summary', 'month-raw', year, month] as const,
-};
+const ordersQueryKeys = (uid: string) => ({
+  spreadsheetBase: ['orders', uid, 'spreadsheet', 'base-data'] as const,
+  spreadsheetMonthRaw: (year: number, month: number) => ['orders', uid, 'spreadsheet', 'month-raw', year, month] as const,
+  spreadsheetMonthLock: (year: number, month: number) => ['orders', uid, 'spreadsheet', 'month-lock', year, month] as const,
+  summaryBase: ['orders', uid, 'summary', 'base-data'] as const,
+  summaryTargets: (year: number, month: number) => ['orders', uid, 'summary', 'targets', year, month] as const,
+  summaryMonthLock: (year: number, month: number) => ['orders', uid, 'summary', 'month-lock', year, month] as const,
+  summaryMonthRaw: (year: number, month: number) => ['orders', uid, 'summary', 'month-raw', year, month] as const,
+});
 
 const buildAppEmployeeIdsMap = (rows: EmployeeAppAssignmentRow[]): Record<string, Set<string>> => {
   const map: Record<string, Set<string>> = {};
@@ -81,7 +81,9 @@ const isPastMonth = (y: number, m: number) => {
 
 // ─── SpreadsheetGrid ─────────────────────────────────────────────────
 const SpreadsheetGrid = () => {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
+  const qk = ordersQueryKeys(uid);
   const { apps: appColorsList } = useAppColors();
   const { toast } = useToast();
   const { permissions } = usePermissions('orders');
@@ -112,8 +114,8 @@ const SpreadsheetGrid = () => {
     error: spreadsheetBaseError,
     isLoading: spreadsheetBaseLoading,
   } = useQuery({
-    queryKey: ordersQueryKeys.spreadsheetBase,
-    enabled: !!session,
+    queryKey: qk.spreadsheetBase,
+    enabled,
     queryFn: async () => {
       const [empRes, appRes, empAppsRes] = await Promise.all([
         orderService.getActiveEmployees(),
@@ -138,8 +140,8 @@ const SpreadsheetGrid = () => {
     error: spreadsheetMonthError,
     isLoading: spreadsheetMonthLoading,
   } = useQuery({
-    queryKey: ordersQueryKeys.spreadsheetMonthRaw(year, month),
-    enabled: !!session,
+    queryKey: qk.spreadsheetMonthRaw(year, month),
+    enabled,
     queryFn: async () => {
       const { data: rows, error } = await orderService.getMonthRaw(year, month);
       if (error) throw error;
@@ -150,8 +152,8 @@ const SpreadsheetGrid = () => {
   });
 
   const { data: spreadsheetMonthLock, error: spreadsheetLockError } = useQuery({
-    queryKey: ordersQueryKeys.spreadsheetMonthLock(year, month),
-    enabled: !!session,
+    queryKey: qk.spreadsheetMonthLock(year, month),
+    enabled,
     queryFn: async () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
@@ -534,7 +536,9 @@ const SpreadsheetGrid = () => {
 
 // ─── Month Summary ─────────────────────────────────────────────────
 const MonthSummary = () => {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
+  const qk = ordersQueryKeys(uid);
   const { apps: appColorsList } = useAppColors();
   const { toast } = useToast();
   const { permissions } = usePermissions('orders');
@@ -558,8 +562,8 @@ const MonthSummary = () => {
     error: summaryBaseError,
     isLoading: summaryBaseLoading,
   } = useQuery({
-    queryKey: ordersQueryKeys.summaryBase,
-    enabled: !!session,
+    queryKey: qk.summaryBase,
+    enabled,
     queryFn: async () => {
       const [empRes, appRes] = await Promise.all([
         orderService.getActiveEmployees(),
@@ -577,8 +581,8 @@ const MonthSummary = () => {
   });
 
   const { data: summaryTargetsRows = [], error: summaryTargetsError } = useQuery({
-    queryKey: ordersQueryKeys.summaryTargets(year, month),
-    enabled: !!session,
+    queryKey: qk.summaryTargets(year, month),
+    enabled,
     queryFn: async () => {
       const my = monthYear(year, month);
       const { data: rows, error } = await orderService.getAppTargets(my);
@@ -590,8 +594,8 @@ const MonthSummary = () => {
   });
 
   const { data: summaryLockData, error: summaryLockError } = useQuery({
-    queryKey: ordersQueryKeys.summaryMonthLock(year, month),
-    enabled: !!session,
+    queryKey: qk.summaryMonthLock(year, month),
+    enabled,
     queryFn: async () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
@@ -605,8 +609,8 @@ const MonthSummary = () => {
     error: summaryMonthError,
     isLoading: summaryMonthLoading,
   } = useQuery({
-    queryKey: ordersQueryKeys.summaryMonthRaw(year, month),
-    enabled: !!session,
+    queryKey: qk.summaryMonthRaw(year, month),
+    enabled,
     queryFn: async () => {
       const { data: rows, error } = await orderService.getMonthRaw(year, month);
       if (error) throw error;
@@ -822,7 +826,8 @@ const MonthSummary = () => {
 
 // ─── Orders List (server-side paginated) ─────────────────────────────────────
 const OrdersList = () => {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { permissions } = usePermissions('orders');
   const { toast } = useToast();
   const now = new Date();
@@ -837,7 +842,7 @@ const OrdersList = () => {
   const [pageSize, setPageSize] = useState(50);
 
   const { data: baseData } = useQuery({
-    queryKey: ['orders', 'list', 'base'] as const,
+    queryKey: ['orders', uid, 'list', 'base'] as const,
     queryFn: async () => {
       const [empRes, appRes] = await Promise.all([
         orderService.getActiveEmployees(),
@@ -853,7 +858,7 @@ const OrdersList = () => {
         apps: (appRes.data || []) as App[],
       };
     },
-    enabled: !!session && !!activeIdsData,
+    enabled: enabled && !!activeIdsData,
     staleTime: 60_000,
     retry: 1,
   });

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { salaryService } from '@/services/salaryService';
 import { toastQueryError } from '@/lib/query';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 export type SalaryRecordsPagedFilters = {
   branch?: BranchKey;
@@ -20,13 +21,15 @@ export function useSalaryRecordsPaged(params: {
   pageSize: number;
   filters: SalaryRecordsPagedFilters;
 }) {
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { monthYear, page, pageSize, filters } = params;
   const branch = filters.branch === 'all' ? undefined : filters.branch;
   const search = filters.search?.trim() || undefined;
   const approved = filters.approved ?? 'all';
 
   return useQuery<PagedResult>({
-    queryKey: ['salaries', 'records', 'paged', monthYear, page, pageSize, branch ?? null, approved, search ?? null] as const,
+    queryKey: ['salaries', uid, 'records', 'paged', monthYear, page, pageSize, branch ?? null, approved, search ?? null] as const,
     queryFn: async () => {
       const res = await salaryService.getPagedByMonth({
         monthYear,
@@ -40,6 +43,7 @@ export function useSalaryRecordsPaged(params: {
     retry: 1,
     staleTime: 15_000,
     onError: (err) => toastQueryError(err, 'تعذر تحميل الرواتب'),
+    enabled,
   });
 }
 

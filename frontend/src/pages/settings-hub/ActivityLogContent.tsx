@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { settingsHubService } from '@/services/settingsHubService';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 interface AuditLog {
   id: string;
@@ -97,7 +97,8 @@ const hasPayload = (log: AuditLog) =>
 
 export default function ActivityLogContent() {
   const { isRTL } = useLanguage();
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
@@ -117,8 +118,8 @@ export default function ActivityLogContent() {
     isLoading: loading,
     refetch: refetchLogs,
   } = useQuery({
-    queryKey: ['activity-log', page, filterAction, filterTable, debouncedSearch],
-    enabled: !!session,
+    queryKey: ['activity-log', uid, page, filterAction, filterTable, debouncedSearch],
+    enabled,
     queryFn: async () => {
       const { data, count, error } = await settingsHubService.getAuditLogs(
         page * PAGE_SIZE,

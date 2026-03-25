@@ -11,6 +11,7 @@ import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_PAGE } from '@/hooks
 import { useToast } from '@/hooks/use-toast';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { alertsService } from '@/services/alertsService';
 import { escapeHtml } from '@/lib/security';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
@@ -285,7 +286,9 @@ const Alerts = () => {
   const [resolveNote, setResolveNote] = useState('');
   const { toast } = useToast();
   const { settings } = useSystemSettings();
-  const { user, session } = useAuth();
+  const { user } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
   const currentMonth = format(new Date(), 'yyyy-MM');
   const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
@@ -302,8 +305,8 @@ const Alerts = () => {
     error: alertsError,
     refetch: refetchAlerts,
   } = useQuery({
-    queryKey: ['alerts', 'page-data', iqamaAlertDays],
-    enabled: !!session && !!activeIdsData,
+    queryKey: ['alerts', uid, 'page-data', iqamaAlertDays],
+    enabled: enabled && !!activeIdsData,
     queryFn: async () => {
       const today = new Date();
       const endOfCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);

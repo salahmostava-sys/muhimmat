@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -37,9 +37,17 @@ const PlatformAccounts = lazy(() => import("./pages/PlatformAccounts"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const PageLoader = () => (
-  <Loading minHeightClassName="min-h-[300px]" />
-);
+const PageLoader = () => {
+  const location = useLocation();
+  const resetKey = `${location.pathname}${location.search}`;
+  return <Loading minHeightClassName="min-h-[300px]" resetKey={resetKey} />;
+};
+
+const RootLoader = () => {
+  const location = useLocation();
+  const resetKey = `${location.pathname}${location.search}`;
+  return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,7 +55,11 @@ const queryClient = new QueryClient({
       staleTime: 30_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
-      retry: (failureCount, error) => (error as any)?.status !== 401 && failureCount < 2,
+      retry: (failureCount, error: any) => {
+        if (!error) return false;
+        if (error.status === 401 || error.status === 403) return false;
+        return failureCount < 2;
+      },
     },
   },
 });
@@ -68,7 +80,7 @@ const App = () => (
             <LanguageProvider>
               <SystemSettingsProvider>
                 <ErrorBoundary>
-                  <Suspense fallback={<Loading minHeightClassName="min-h-screen" className="bg-background" />}>
+                  <Suspense fallback={<RootLoader />}>
                     <Routes>
                       <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
                       <Route path="/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />

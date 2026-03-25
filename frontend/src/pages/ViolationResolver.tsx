@@ -12,7 +12,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { format, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { violationService } from '@/services/violationService';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleSuggestion = {
@@ -87,7 +87,8 @@ type ViolationForm = {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const ViolationResolver = () => {
   const { toast } = useToast();
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { permissions: perms } = usePermissions('violation_resolver');
   const [form, setForm] = useState<ViolationForm>({
     plate_number: '',
@@ -115,8 +116,8 @@ const ViolationResolver = () => {
     error: violationsError,
     refetch: refetchViolations,
   } = useQuery({
-    queryKey: ['violation-resolver', 'violations'],
-    enabled: !!session,
+    queryKey: ['violation-resolver', uid, 'violations'],
+    enabled,
     queryFn: async () => {
       const { data, error } = await violationService.getViolations();
       if (error) throw error;

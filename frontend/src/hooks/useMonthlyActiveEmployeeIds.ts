@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 export type MonthlyActiveEmployeeIdsResult = {
   monthKey: string; // YYYY-MM
@@ -22,12 +22,13 @@ function monthStartEnd(monthKey: string): { start: string; end: string } {
 }
 
 export function useMonthlyActiveEmployeeIds(monthKey?: string) {
-  const { session } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const mk = monthKey ?? toMonthKey(new Date());
   const { start, end } = monthStartEnd(mk);
 
   return useQuery({
-    queryKey: ['employees', 'active-ids', mk] as const,
+    queryKey: ['employees', uid, 'active-ids', mk] as const,
     queryFn: async (): Promise<MonthlyActiveEmployeeIdsResult> => {
       const [ordersRes, attendanceRes, salariesRes] = await Promise.all([
         supabase
@@ -59,7 +60,7 @@ export function useMonthlyActiveEmployeeIds(monthKey?: string) {
     },
     staleTime: 60_000,
     retry: 1,
-    enabled: !!session,
+    enabled,
   });
 }
 

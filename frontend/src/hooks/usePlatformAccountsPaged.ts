@@ -2,6 +2,7 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { platformAccountService } from '@/services/platformAccountService';
 import { toastQueryError } from '@/lib/query';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 export type PlatformAccountsPagedFilters = {
   driverId?: string;
@@ -21,6 +22,8 @@ export function usePlatformAccountsPaged(params: {
   pageSize: number;
   filters: PlatformAccountsPagedFilters;
 }): UseQueryResult<PagedResult> {
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { page, pageSize, filters } = params;
 
   const employeeId = filters.driverId?.trim() || undefined;
@@ -53,6 +56,7 @@ export function usePlatformAccountsPaged(params: {
     retry: 1,
     staleTime: 15_000,
     onError: (err) => toastQueryError(err, 'تعذر تحميل حسابات المنصات'),
+    enabled,
   });
 }
 

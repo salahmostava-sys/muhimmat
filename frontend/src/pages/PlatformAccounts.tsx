@@ -20,6 +20,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
@@ -82,7 +83,9 @@ const iqamaBadge = (expiry: string | null, alertDays: number) => {
 
 const PlatformAccounts = () => {
   const { toast } = useToast();
-  const { user, session } = useAuth();
+  const { user } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const { permissions: perms } = usePermissions('platform_accounts');
   const { settings } = useSystemSettings();
   const alertDays = settings?.iqama_alert_days ?? 90;
@@ -99,8 +102,8 @@ const PlatformAccounts = () => {
     error: pageDataError,
     refetch: refetchPageData,
   } = useQuery({
-    queryKey: ['platform-accounts', 'page-data'],
-    enabled: !!session,
+    queryKey: ['platform-accounts', uid, 'page-data'],
+    enabled,
     queryFn: async () => {
       const [appsRes, empRes, accRes, assignRes, monthAssignRes] = await Promise.all([
         platformAccountService.getApps(),

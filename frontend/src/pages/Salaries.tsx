@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAppColors, AppColorData, CustomColumn } from '@/hooks/useAppColors';
 import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
@@ -540,7 +541,9 @@ const SalaryBreakdown = ({ orders, scheme, salary, children }: SalaryBreakdownPr
 // ─── Main Salaries Page ───────────────────────────────────────────
 const Salaries = () => {
   const { toast } = useToast();
-  const { user, session } = useAuth();
+  const { user } = useAuth();
+  const { enabled, userId } = useAuthQueryGate();
+  const uid = authQueryUserId(userId);
   const navigate = useNavigate();
   const { projectName } = useSystemSettings();
   const { apps: appColorsList } = useAppColors();
@@ -621,8 +624,8 @@ const Salaries = () => {
     error: salaryBaseContextError,
     isLoading: salaryBaseContextLoading,
   } = useQuery({
-    queryKey: ['salaries', 'base-context', selectedMonth],
-    enabled: !!session,
+    queryKey: ['salaries', uid, 'base-context', selectedMonth],
+    enabled,
     queryFn: async () => {
       const monthlyContextPromise = salaryDataService.getMonthlyContext(selectedMonth);
       let timeoutId: ReturnType<typeof setTimeout> | undefined;

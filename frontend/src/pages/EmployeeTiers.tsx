@@ -14,7 +14,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { differenceInDays, parseISO } from 'date-fns';
 import { employeeTierService } from '@/services/employeeTierService';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 
 /* ─── Types ─── */
 type Employee = { id: string; name: string; sponsorship_status: string | null; };
@@ -169,8 +169,8 @@ const EmployeeTiers = () => {
     error: tiersError,
     refetch: refetchTiersData,
   } = useQuery({
-    queryKey: ['employee-tiers', 'page-data'],
-    enabled: !!session,
+    queryKey: ['employee-tiers', uid, 'page-data'],
+    enabled,
     queryFn: async () => {
       const [{ data: tiersRows }, { data: employeeRows }, { data: appsRows }] = await Promise.all([
         employeeTierService.getTiers(),

@@ -9,7 +9,10 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  /** Initial auth resolution + session refresh in flight — use for UI spinners. */
   loading: boolean;
+  /** Same as `loading` — use for React Query `enabled: … && !authLoading`. */
+  authLoading: boolean;
   recoverSessionSilently: (opts?: { refetchActiveQueries?: boolean }) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<{ error: { message: string } | null }>;
   signOut: () => Promise<void>;
@@ -204,8 +207,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await authService.signOut();
   };
 
+  const busy = loading || refreshing;
   return (
-    <AuthContext.Provider value={{ user, session, role, loading: loading || refreshing, recoverSessionSilently, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        role,
+        loading: busy,
+        authLoading: busy,
+        recoverSessionSilently,
+        signIn,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
