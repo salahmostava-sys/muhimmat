@@ -41,40 +41,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const subscription = authService.onAuthStateChange(async (_event, nextSession) => {
-      if (nextSession?.user) {
-        const active = await authService.fetchIsActive(nextSession.user.id);
-        if (!active) {
-          await forceSignOut();
-          setLoading(false);
+      try {
+        if (nextSession?.user) {
+          const active = await authService.fetchIsActive(nextSession.user.id);
+          if (!active) {
+            await forceSignOut();
+            return;
+          }
+          setSession(nextSession);
+          setUser(nextSession.user);
+          const r = await fetchRole(nextSession.user.id);
+          setRole(r);
           return;
         }
-        setSession(nextSession);
-        setUser(nextSession.user);
-        const r = await fetchRole(nextSession.user.id);
-        setRole(r);
-      } else {
+
         setSession(null);
         setUser(null);
         setRole(null);
+      } catch (e) {
+        // اگر حدث خطأ أثناء التحقق من الجلسة/الدور، لا نخلي الـloading يعلق.
+        console.error('[AuthProvider] onAuthStateChange failed', e);
+        setSession(null);
+        setUser(null);
+        setRole(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    authService.getSession().then(async ({ session: currentSession }) => {
-      if (currentSession?.user) {
+    authService
+      .getSession()
+      .then(async ({ session: currentSession }) => {
+        if (!currentSession?.user) return;
+
         const active = await authService.fetchIsActive(currentSession.user.id);
         if (!active) {
           await forceSignOut();
-          setLoading(false);
           return;
         }
+
         setSession(currentSession);
         setUser(currentSession.user);
         const r = await fetchRole(currentSession.user.id);
         setRole(r);
-      }
-      setLoading(false);
-    });
+      })
+      .catch((e) => {
+        // في حالة missing env أو فشل في Supabase، نخلي التطبيق يكمل بدل ما يقف على الـspinner.
+        console.error('[AuthProvider] getSession failed', e);
+        setSession(null);
+        setUser(null);
+        setRole(null);
+      })
+      .finally(() => setLoading(false));
 
     return () => subscription.unsubscribe();
   }, [forceSignOut]);
