@@ -49,11 +49,10 @@ export const settingsHubService = {
     supabase.from('system_settings').update({ logo_url: logoUrl }).eq('id', settingsId),
   updateTradeRegister: async (recordId: string, payload: Record<string, unknown>) =>
     supabase.from('trade_registers').update(payload).eq('id', recordId),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createTradeRegister: async (payload: Record<string, unknown>) =>
-    supabase.from('trade_registers').insert(payload as unknown as any).select().single(),
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createTradeRegister: async (payload: Record<string, unknown>) =>
+    supabase.from('trade_registers').insert(payload).select().single(),
+
   exportTableRows: async (table: string) =>
-    (supabase.from(table as any) as any).select('*'),
+    supabase.from(table as keyof Database['public']['Tables']).select('*'),
 };

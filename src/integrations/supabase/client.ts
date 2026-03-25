@@ -18,5 +18,5 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     // Avoid deadlocks across refresh/multi-tabs in some browsers.
     lock: undefined,
     storage: localStorage,
-  } as any,
+  } as unknown as NonNullable<Parameters<typeof createClient<Database>>[2]>['auth'],
 });
