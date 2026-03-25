@@ -43,7 +43,8 @@ export const advanceService = {
   create: async (payload: AdvancePayload) => {
     const { data, error } = await supabase
       .from('advances')
-      .insert(payload as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(payload as unknown as any)
       .select()
       .single();
     return { data, error };
@@ -52,7 +53,8 @@ export const advanceService = {
   insertMany: async (rows: AdvancePayload[]) => {
     const { error } = await supabase
       .from('advances')
-      .insert(rows as unknown[]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(rows as unknown as any);
     return { error };
   },
 
