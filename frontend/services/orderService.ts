@@ -285,7 +285,7 @@ export const orderService = {
   },
 
   lockMonth: async (month_year: string) => {
-    const { user } = await authService.getCurrentUser();
+    const user = await authService.getCurrentUser();
     const userId = user?.id ?? null;
     const { error } = await supabase.from('locked_months').upsert(
       { month_year, locked_at: new Date().toISOString(), locked_by: userId },

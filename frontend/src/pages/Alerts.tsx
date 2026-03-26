@@ -142,14 +142,15 @@ const Alerts = () => {
 
     // Persist DB-backed employee alerts
     if (isDbBackedEmployeeAlertType(resolveDialog.type)) {
-      const { error } = await alertsService.resolveAlert(resolveDialog.id, user?.id ?? null);
-      if (error) {
+      try {
+        await alertsService.resolveAlert(resolveDialog.id, user?.id ?? null);
+        await queryClient.invalidateQueries({ queryKey: alertsQueryKey });
+      } catch (e) {
         queryClient.setQueryData<Alert[]>(alertsQueryKey, (prev = []) =>
           prev.map((a) => (a.id === targetAlertId ? { ...a, resolved: false } : a))
         );
-        toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-      } else {
-        await queryClient.invalidateQueries({ queryKey: alertsQueryKey });
+        const message = e instanceof Error ? e.message : 'فشل حسم التنبيه';
+        toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       }
     }
 
@@ -177,8 +178,10 @@ const Alerts = () => {
     // Persist DB-backed employee alerts
     if (isDbBackedEmployeeAlertType(deferDialog.type)) {
       const due = newDate.toISOString().split('T')[0];
-      const { error } = await alertsService.deferAlert(deferDialog.id, due);
-      if (error) {
+      try {
+        await alertsService.deferAlert(deferDialog.id, due);
+        await queryClient.invalidateQueries({ queryKey: alertsQueryKey });
+      } catch (e) {
         queryClient.setQueryData<Alert[]>(alertsQueryKey, (prev = []) =>
           prev.map((a) =>
             a.id === targetAlertId
@@ -186,9 +189,8 @@ const Alerts = () => {
               : a
           )
         );
-        toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-      } else {
-        await queryClient.invalidateQueries({ queryKey: alertsQueryKey });
+        const message = e instanceof Error ? e.message : 'فشل تأجيل التنبيه';
+        toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
       }
     }
 

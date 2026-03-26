@@ -11,7 +11,7 @@ export type AdminActionLogPayload = {
 
 export const auditService = {
   logAdminAction: async (payload: AdminActionLogPayload) => {
-    const { user } = await authService.getCurrentUser();
+    const user = await authService.getCurrentUser();
     const userId = user?.id ?? null;
     const { error } = await supabase.from('admin_action_log').insert({
       user_id: userId,
