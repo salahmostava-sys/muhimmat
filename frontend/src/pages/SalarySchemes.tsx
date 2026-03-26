@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { appService } from '@/services/appService';
 import { salarySchemeService } from '@/services/salarySchemeService';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@/lib/query';
 
