@@ -115,29 +115,6 @@ const RANK_COLORS = ['bg-amber-100 text-amber-600', 'bg-slate-100 text-slate-500
 // ─── Leaderboard ─────────────────────────────────────────────────────────────
 const Leaderboard = ({ entries, loading, max }: { entries: { name: string; orders: number; app?: string; appColor?: string }[]; loading: boolean; max?: number }) => {
   const maxVal = max || entries[0]?.orders || 1;
-<<<<<<< hbe-sonar-hardening
-  let content: React.ReactNode;
-  if (loading) {
-    content = SKELETON_KEYS_5.map((k) => (
-      <div key={`leaderboard-skeleton-${k}`} className="h-12 bg-muted/40 rounded-xl animate-pulse" />
-    ));
-  } else if (entries.length === 0) {
-    content = <p className="text-sm text-muted-foreground text-center py-8">لا توجد بيانات هذا الشهر</p>;
-  } else {
-    content = entries.map((e, i) => (
-      <div key={`${e.name}-${e.orders}-${e.app ?? 'no-app'}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-muted/40 transition-colors">
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${RANK_COLORS[i] || 'bg-muted text-muted-foreground'}`}>{i + 1}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground truncate">{e.name}</span>
-            <span className="text-sm font-black text-foreground flex-shrink-0 ml-2">{e.orders.toLocaleString()}</span>
-          </div>
-          {e.app && (
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: e.appColor || '#888' }} />
-              <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${(e.orders / maxVal) * 100}%`, backgroundColor: e.appColor || '#888' }} />
-=======
   return (
     <div className="space-y-1">
       {loading
@@ -160,17 +137,9 @@ const Leaderboard = ({ entries, loading, max }: { entries: { name: string; order
                     </div>
                   </div>
                 )}
->>>>>>> main
               </div>
             </div>
-          )}
-        </div>
-      </div>
-    ));
-  }
-  return (
-    <div className="space-y-1">
-      {content}
+          ))}
     </div>
   );
 };
@@ -699,10 +668,6 @@ const buildEmployeeCounts = (details: EmpDetail[]): EmployeeCounts => {
     const sponsorship = e.sponsorship_status;
 
     incrementGlobalSponsorshipCounts(counts, sponsorship);
-<<<<<<< hbe-sonar-hardening
-
-=======
->>>>>>> main
     if (!city) continue;
 
     incrementCityLicenseCounts(counts, city, license);
@@ -878,45 +843,6 @@ const fetchDashboardKpis = async (
   return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps, estRevenueByApp };
 };
 
-<<<<<<< hbe-sonar-hardening
-type DashboardTabKey = 'overview' | 'analytics';
-
-const DashboardHeader = ({ activeTab, onTabChange }: { activeTab: DashboardTabKey; onTabChange: (tab: DashboardTabKey) => void }) => (
-  <div className="flex items-center justify-between flex-wrap gap-3">
-    <div>
-      <nav className="flex items-center gap-1 text-xs text-muted-foreground/80 mb-1">
-        <span>الرئيسية</span><span>/</span>
-        <span className="text-muted-foreground font-medium">لوحة التحكم</span>
-      </nav>
-      <h1 className="text-xl font-black text-foreground">لوحة التحكم</h1>
-      <p className="text-xs text-muted-foreground/80 mt-0.5">{format(new Date(), 'EEEE، d MMMM yyyy', { locale: ar })}</p>
-    </div>
-    <div className="flex items-center bg-muted rounded-xl p-1 gap-1">
-      {(['overview', 'analytics'] as const).map(tab => (
-        <button
-          key={tab}
-          onClick={() => onTabChange(tab)}
-          className={cn(
-            'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-1.5',
-            activeTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground/75'
-          )}
-        >
-          {tab === 'analytics' && <TrendingUp size={13} />}
-          {tab === 'overview' ? 'النظرة العامة' : 'التحليلات والتوقعات'}
-        </button>
-      ))}
-    </div>
-  </div>
-);
-
-type OrdersByAppCardRow = { app: string; orders: number; appId: string; riders: number; brandColor: string; textColor: string; target: number };
-type OrdersByCityRow = { city: string; orders: number };
-type RiderRow = { name: string; orders: number; app: string; appColor: string; appId: string };
-type AttendanceWeekRow = { day: string; present: number; absent: number; leave: number; sick: number; late: number };
-type RecentActivityRow = { text: string; time: string; icon: any };
-
-=======
->>>>>>> main
 type OverviewTabProps = {
   loading: boolean;
   kpis: {
@@ -936,17 +862,6 @@ type OverviewTabProps = {
   orderGrowth: number;
   employeeCounts: EmployeeCounts;
   ordersByApp: OrdersByAppCardRow[];
-<<<<<<< hbe-sonar-hardening
-  ordersByCity: OrdersByCityRow[];
-  topNInput: string;
-  onTopNInputChange: (value: string) => void;
-  onTopNBlur: () => void;
-  topRidersOverall: RiderRow[];
-  maxOrderOverall: number;
-  topRidersPerApp: Array<{ id: string; name: string; brand_color: string; riders: RiderRow[] }>;
-  attendanceWeek: AttendanceWeekRow[];
-  recentActivity: RecentActivityRow[];
-=======
   ordersByCity: { city: string; orders: number }[];
   topNInput: string;
   setTopNInput: (value: string) => void;
@@ -956,7 +871,6 @@ type OverviewTabProps = {
   topRidersPerApp: Array<{ id: string; name: string; brand_color: string; riders: { name: string; orders: number; app: string; appColor: string; appId: string }[] }>;
   attendanceWeek: { day: string; present: number; absent: number; leave: number; sick: number; late: number }[];
   recentActivity: { text: string; time: string; icon: any }[];
->>>>>>> main
 };
 
 const OverviewTab = ({
@@ -967,327 +881,13 @@ const OverviewTab = ({
   ordersByApp,
   ordersByCity,
   topNInput,
-<<<<<<< hbe-sonar-hardening
-  onTopNInputChange,
-  onTopNBlur,
-=======
   setTopNInput,
   handleTopNBlur,
->>>>>>> main
   topRidersOverall,
   maxOrderOverall,
   topRidersPerApp,
   attendanceWeek,
   recentActivity,
-<<<<<<< hbe-sonar-hardening
-}: OverviewTabProps) => {
-  let ordersByAppNode: React.ReactNode;
-  if (loading) {
-    ordersByAppNode = (
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {SKELETON_KEYS_4.map((k)=><Sk key={`app-card-skeleton-${k}`} h="h-28"/>)}
-      </div>
-    );
-  } else if (ordersByApp.length === 0) {
-    ordersByAppNode = (
-      <p className="text-sm text-muted-foreground/80 text-center py-8">لا توجد بيانات طلبات لهذا الشهر</p>
-    );
-  } else {
-    const gridColsClass = getOrdersByAppGridColsClass(ordersByApp.length);
-    ordersByAppNode = (
-      <div className={`grid gap-3 ${gridColsClass}`}>
-        {ordersByApp.map(a => (
-          <TargetBar key={a.app} name={a.app} actual={a.orders} target={a.target}
-            brandColor={a.brandColor} textColor={a.textColor} riders={a.riders} />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* ── KPI Row ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3">
-        {[
-          { label: 'المناديب النشطون', value: kpis.activeEmployees, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', sub: 'موظف نشط' },
-          { label: 'حاضرون اليوم', value: kpis.presentToday, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', sub: `${kpis.absentToday} غائب` },
-          { label: 'طلبات الشهر', value: kpis.totalOrders.toLocaleString(), icon: Package, color: 'text-orange-500', bg: 'bg-orange-50', trend: { value: orderGrowth, positive: orderGrowth >= 0 }, sub: 'هذا الشهر' },
-          { label: 'متوسط طلبات/مندوب', value: kpis.activeEmployees > 0 ? Math.round(kpis.totalOrders / kpis.activeEmployees) : 0, icon: Award, color: 'text-amber-600', bg: 'bg-amber-50', sub: 'طلب/مندوب' },
-          { label: 'المركبات النشطة', value: kpis.activeVehicles, icon: Bike, color: 'text-violet-600', bg: 'bg-violet-50' },
-          { label: 'التنبيهات', value: kpis.activeAlerts, icon: Bell, color: 'text-rose-500', bg: 'bg-rose-50', sub: 'غير محلولة' },
-          { label: 'إيراد تقديري', value: kpis.estRevenueTotal.toLocaleString(), icon: DollarSign, color: 'text-green-700', bg: 'bg-green-50', sub: 'حسب تسعير المنصات' },
-        ].map((kpi) => <KpiCard key={kpi.label} {...kpi} loading={loading} />)}
-      </div>
-
-      {/* ════════════════════════════════════════════════════════════
-          ── SECTION 1: تحليل الموظفين ────────────────────────────
-          ════════════════════════════════════════════════════════ */}
-      <div>
-        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Users size={14} /> تحليل الموظفين
-        </h2>
-        <div className="space-y-4">
-
-          {/* City + totals */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Makkah breakdown */}
-            <div className="bg-card rounded-2xl shadow-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center"><MapPin size={14} className="text-purple-600" /></div>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground">مكة المكرمة</h3>
-                    <p className="text-[10px] text-muted-foreground/80">{kpis.makkahCount} مندوب</p>
-                  </div>
-                </div>
-                <span className="text-3xl font-black text-foreground">{kpis.makkahCount}</span>
-              </div>
-              {loading ? <div className="space-y-2">{SKELETON_KEYS_2.map((k)=><Sk key={`makkah-skeleton-${k}`} h="h-10"/>)}</div> : (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Chip label="لديه رخصة" value={employeeCounts.makkah.has_license} color="bg-emerald-50 text-emerald-700" />
-                    <Chip label="قيد التقديم" value={employeeCounts.makkah.applied} color="bg-amber-50 text-amber-700" />
-                    <Chip label="بدون رخصة" value={employeeCounts.makkah.no_license} color="bg-red-50 text-red-700" />
-                  </div>
-                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Chip label="مكفول" value={employeeCounts.makkah.sponsored} color="bg-blue-50 text-blue-700" />
-                    <Chip label="غير مكفول" value={employeeCounts.makkah.not_sponsored} color="bg-muted/40 text-foreground/75" />
-                  </div>
-                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">مكة + رخصة + كفالة</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Chip label="رخصة + مكفول" value={employeeCounts.makkah.has_license_sponsored} color="bg-indigo-50 text-indigo-700" />
-                    <Chip label="رخصة + غير مكفول" value={employeeCounts.makkah.has_license_not_sponsored} color="bg-sky-50 text-sky-700" />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Jeddah breakdown */}
-            <div className="bg-card rounded-2xl shadow-card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center"><MapPin size={14} className="text-blue-600" /></div>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground">جدة</h3>
-                    <p className="text-[10px] text-muted-foreground/80">{kpis.jeddahCount} مندوب</p>
-                  </div>
-                </div>
-                <span className="text-3xl font-black text-foreground">{kpis.jeddahCount}</span>
-              </div>
-              {loading ? <div className="space-y-2">{SKELETON_KEYS_2.map((k)=><Sk key={`jeddah-skeleton-${k}`} h="h-10"/>)}</div> : (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Chip label="لديه رخصة" value={employeeCounts.jeddah.has_license} color="bg-emerald-50 text-emerald-700" />
-                    <Chip label="قيد التقديم" value={employeeCounts.jeddah.applied} color="bg-amber-50 text-amber-700" />
-                    <Chip label="بدون رخصة" value={employeeCounts.jeddah.no_license} color="bg-red-50 text-red-700" />
-                  </div>
-                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">الكفالة</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Chip label="مكفول" value={employeeCounts.jeddah.sponsored} color="bg-blue-50 text-blue-700" />
-                    <Chip label="غير مكفول" value={employeeCounts.jeddah.not_sponsored} color="bg-muted/40 text-foreground/75" />
-                  </div>
-                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mt-2">جدة + رخصة + كفالة</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Chip label="رخصة + مكفول" value={employeeCounts.jeddah.has_license_sponsored} color="bg-indigo-50 text-indigo-700" />
-                    <Chip label="رخصة + غير مكفول" value={employeeCounts.jeddah.has_license_not_sponsored} color="bg-sky-50 text-sky-700" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Sponsorship global breakdown */}
-          <Card title="توزيع الكفالة — جميع المناديب">
-            {loading ? <div className="grid grid-cols-4 gap-3">{SKELETON_KEYS_4.map((k)=><Sk key={`sponsorship-skeleton-${k}`} h="h-14"/>)}</div> : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Chip label="مكفول" value={employeeCounts.global.sponsored} color="bg-blue-50 text-blue-700" />
-                <Chip label="غير مكفول" value={employeeCounts.global.not_sponsored} color="bg-muted/40 text-foreground/75" />
-                <Chip label="هارب" value={employeeCounts.global.absconded} color="bg-red-50 text-red-700" />
-                <Chip label="منهي الكفالة" value={employeeCounts.global.terminated} color="bg-orange-50 text-orange-700" />
-              </div>
-            )}
-          </Card>
-        </div>
-      </div>
-
-      {/* ════════════════════════════════════════════════════════════
-          ── SECTION 2: الطلبات ───────────────────────────────────
-          ════════════════════════════════════════════════════════ */}
-      <div>
-        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Package size={14} /> الطلبات والأداء
-        </h2>
-        <div className="space-y-4">
-
-          {/* Platform cards with target */}
-          <div>
-            <p className="text-xs text-muted-foreground/80 mb-2">طلبات الشهر حسب المنصة — مع نسبة تحقيق الهدف</p>
-            {ordersByAppNode}
-          </div>
-
-          {/* Orders by city */}
-          {ordersByCity.length > 0 && (
-            <Card title="الطلبات حسب المنطقة" subtitle={`إجمالي: ${kpis.totalOrders.toLocaleString()} طلب`}>
-              <div className="grid grid-cols-2 gap-4">
-                {ordersByCity.map(c => {
-                  const pct = kpis.totalOrders > 0 ? Math.round((c.orders / kpis.totalOrders) * 100) : 0;
-                  return (
-                    <div key={c.city} className="rounded-xl bg-muted/40 p-4">
-                      <p className="text-xs font-semibold text-muted-foreground mb-1">{c.city}</p>
-                      <p className="text-2xl font-black text-foreground">{c.orders.toLocaleString()}</p>
-                      <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                      <p className="text-[10px] text-muted-foreground/80 mt-1">{pct}% من الإجمالي</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          )}
-
-          {/* Top N overall + per platform */}
-          <div className="bg-card rounded-2xl shadow-card overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid hsl(var(--border))' }}>
-              <div>
-                <h3 className="text-sm font-bold text-foreground">أفضل المناديب</h3>
-                <p className="text-[11px] text-muted-foreground/80 mt-0.5">حسب إجمالي الطلبات هذا الشهر</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Settings2 size={13} className="text-muted-foreground/80" />
-                <span className="text-xs text-muted-foreground/80">عدد المناديب:</span>
-                <input
-                  type="number" min={1} max={50} value={topNInput}
-                  onChange={e => onTopNInputChange(e.target.value)}
-                  onBlur={onTopNBlur}
-                  className="w-14 text-center border border-border rounded-lg text-sm font-bold py-1 bg-background text-foreground focus:outline-none focus:border-primary"
-                />
-              </div>
-            </div>
-            <div className="p-5">
-              {/* Overall */}
-              <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest mb-3">الإجمالي</p>
-              <Leaderboard entries={topRidersOverall} loading={loading} max={maxOrderOverall} />
-
-              {/* Per platform */}
-              {!loading && topRidersPerApp.length > 0 && (
-                <div className="mt-6 space-y-5">
-                  <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حسب المنصة</p>
-                  <div className={`grid grid-cols-1 ${topRidersPerApp.length >= 2 ? 'md:grid-cols-2' : ''} gap-5`}>
-                    {topRidersPerApp.map(app => (
-                      <div key={app.id}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: app.brand_color }} />
-                          <span className="text-xs font-bold text-foreground/75">{app.name}</span>
-                        </div>
-                        <Leaderboard
-                          entries={app.riders.map(r => ({ name: r.name, orders: r.orders, app: r.app, appColor: app.brand_color }))}
-                          loading={false}
-                          max={app.riders[0]?.orders || 1}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ════════════════════════════════════════════════════════════
-          ── SECTION 3: الحضور والانصراف ──────────────────────────
-          ════════════════════════════════════════════════════════ */}
-      <div>
-        <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Clock size={14} /> الحضور والانصراف
-        </h2>
-        <div className="space-y-4">
-
-          {/* Today's breakdown */}
-          <Card title="الحضور اليوم" subtitle={format(new Date(), 'EEEE، d MMMM yyyy', { locale: ar })}>
-            {loading ? (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{SKELETON_KEYS_5.map((k)=><Sk key={`attendance-skeleton-${k}`} h="h-16"/>)}</div>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                <div className="rounded-xl bg-emerald-50 p-4 text-center">
-                  <p className="text-2xl font-black text-emerald-700">{kpis.presentToday}</p>
-                  <p className="text-[10px] font-semibold text-emerald-600 mt-1">حاضر</p>
-                </div>
-                <div className="rounded-xl bg-orange-50 p-4 text-center">
-                  <p className="text-2xl font-black text-orange-600">{kpis.lateToday}</p>
-                  <p className="text-[10px] font-semibold text-orange-500 mt-1">متأخر</p>
-                </div>
-                <div className="rounded-xl bg-rose-50 p-4 text-center">
-                  <p className="text-2xl font-black text-rose-600">{kpis.absentToday}</p>
-                  <p className="text-[10px] font-semibold text-rose-500 mt-1">غائب</p>
-                </div>
-                <div className="rounded-xl bg-amber-50 p-4 text-center">
-                  <p className="text-2xl font-black text-amber-600">{kpis.leaveToday}</p>
-                  <p className="text-[10px] font-semibold text-amber-500 mt-1">إجازة</p>
-                </div>
-                <div className="rounded-xl bg-sky-50 p-4 text-center">
-                  <p className="text-2xl font-black text-sky-600">{kpis.sickToday}</p>
-                  <p className="text-[10px] font-semibold text-sky-500 mt-1">مريض</p>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Weekly attendance chart + alerts */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <Card title="الحضور — آخر 7 أيام" subtitle="حاضر / متأخر / غائب / إجازة / مريض">
-                {attendanceWeek.length === 0 ? (
-                  <div className="h-52 flex items-center justify-center text-muted-foreground/80 text-sm">لا توجد بيانات حضور</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={attendanceWeek} barGap={2} barCategoryGap="25%">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={25} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="present" name="حاضر" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="late" name="متأخر" fill="#f97316" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="absent" name="غائب" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="leave" name="إجازة" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="sick" name="مريض" fill="#38bdf8" radius={[4, 4, 0, 0]} />
-                      <Legend />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </Card>
-            </div>
-            <AlertsList />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Recent Activity ──────────────────────────────────────── */}
-      {recentActivity.length > 0 && (
-        <Card title="آخر النشاطات" subtitle="آخر 6 إجراءات في النظام">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
-            {recentActivity.map((item) => (
-              <div key={`${item.text}-${item.time}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <item.icon size={14} className="text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-foreground/75 truncate">{item.text}</p>
-                  <p className="text-[10px] text-muted-foreground/80">{item.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-};
-=======
 }: OverviewTabProps) => (
   <div className="space-y-6">
 
@@ -1537,7 +1137,6 @@ const OverviewTab = ({
     <RecentActivityCard recentActivity={recentActivity} />
   </div>
 );
->>>>>>> main
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -1619,13 +1218,7 @@ const Dashboard = () => {
     <div className="space-y-5">
       <DashboardHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
-<<<<<<< hbe-sonar-hardening
-      {activeTab === 'analytics' ? (
-        <AnalyticsTab />
-      ) : (
-=======
       {activeTab === 'analytics' ? <AnalyticsTab /> : (
->>>>>>> main
         <OverviewTab
           loading={loading}
           kpis={kpis}
@@ -1634,13 +1227,8 @@ const Dashboard = () => {
           ordersByApp={ordersByApp}
           ordersByCity={ordersByCity}
           topNInput={topNInput}
-<<<<<<< hbe-sonar-hardening
-          onTopNInputChange={setTopNInput}
-          onTopNBlur={handleTopNBlur}
-=======
           setTopNInput={setTopNInput}
           handleTopNBlur={handleTopNBlur}
->>>>>>> main
           topRidersOverall={topRidersOverall}
           maxOrderOverall={maxOrderOverall}
           topRidersPerApp={topRidersPerApp}
