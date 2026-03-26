@@ -386,9 +386,9 @@ const DailyAttendance = ({ selectedMonth, selectedYear }: Props) => {
             <tbody>
               {loading
                 ? Array.from({ length: 5 }).map((_, i) => (
-                    <tr key={i} className="ta-tr">
+                    <tr key={`skeleton-${i}`} className="ta-tr">
                       {Array.from({ length: 5 }).map((_, j) => (
-                        <td key={j} className="ta-td">
+                        <td key={`skeleton-cell-${i}-${j}`} className="ta-td">
                           <div className="h-4 bg-muted rounded animate-pulse" />
                         </td>
                       ))}

@@ -90,8 +90,6 @@ const ArchiveAttendance = () => {
     fetchData();
   }, [selected, activeEmployeeIdsInMonth]);
 
-  const daysInMonth = selected ? new Date(selected.year, selected.month + 1, 0).getDate() : 0;
-
   const tableData = employees.map(emp => {
     const rows        = attendanceRows.filter(r => r.employee_id === emp.id);
     const presentDays = rows.filter(r => r.status === "present").length;

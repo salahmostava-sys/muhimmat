@@ -113,12 +113,10 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
     } else {
       sidebarOffsetCls = 'lg:mr-[260px]';
     }
+  } else if (sidebarCollapsed) {
+    sidebarOffsetCls = 'lg:ml-[64px]';
   } else {
-    if (sidebarCollapsed) {
-      sidebarOffsetCls = 'lg:ml-[64px]';
-    } else {
-      sidebarOffsetCls = 'lg:ml-[260px]';
-    }
+    sidebarOffsetCls = 'lg:ml-[260px]';
   }
 
   return (

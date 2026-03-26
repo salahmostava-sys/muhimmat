@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,21 @@ interface EmployeeOption {
   id: string;
   name: string;
 }
+
+type FieldProps = {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: ReactNode;
+};
+
+const AdvanceField = ({ label, required, error, children }: FieldProps) => (
+  <div>
+    <Label className="text-sm mb-1.5 block">{label} {required && <span className="text-destructive">*</span>}</Label>
+    {children}
+    {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+  </div>
+);
 
 const AddAdvanceModal = ({ onClose, editId }: Props) => {
   const { toast } = useToast();
@@ -115,14 +130,6 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
     setSaving(false);
   };
 
-  const F = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
-    <div>
-      <Label className="text-sm mb-1.5 block">{label} {required && <span className="text-destructive">*</span>}</Label>
-      {children}
-      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -134,7 +141,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
-              <F label="المندوب" required error={errors.employeeId}>
+              <AdvanceField label="المندوب" required error={errors.employeeId}>
                 <Select value={form.employeeId} onValueChange={v => setField('employeeId', v)} disabled={!!editId}>
                   <SelectTrigger><SelectValue placeholder="اختر المندوب" /></SelectTrigger>
                   <SelectContent>
@@ -143,28 +150,28 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
                     ))}
                   </SelectContent>
                 </Select>
-              </F>
+              </AdvanceField>
             </div>
 
-            <F label="مبلغ السلفة (ر.س)" required error={errors.amount}>
+            <AdvanceField label="مبلغ السلفة (ر.س)" required error={errors.amount}>
               <Input type="number" value={form.amount} onChange={e => setField('amount', e.target.value)} placeholder="0" />
-            </F>
+            </AdvanceField>
 
-            <F label="تاريخ الصرف" required error={errors.disbursementDate}>
+            <AdvanceField label="تاريخ الصرف" required error={errors.disbursementDate}>
               <Input type="date" value={form.disbursementDate} onChange={e => setField('disbursementDate', e.target.value)} />
-            </F>
+            </AdvanceField>
 
-            <F label="عدد الأقساط" required error={errors.totalInstallments}>
+            <AdvanceField label="عدد الأقساط" required error={errors.totalInstallments}>
               <Input type="number" min={1} max={36} value={form.totalInstallments} onChange={e => setField('totalInstallments', e.target.value)} />
-            </F>
+            </AdvanceField>
 
             {!editId && (
-              <F label="شهر أول خصم (YYYY-MM)" required error={errors.firstDeductionMonth}>
+              <AdvanceField label="شهر أول خصم (YYYY-MM)" required error={errors.firstDeductionMonth}>
                 <Input type="month" value={form.firstDeductionMonth} onChange={e => setField('firstDeductionMonth', e.target.value)} dir="ltr" />
-              </F>
+              </AdvanceField>
             )}
 
-            <F label="الحالة" required>
+            <AdvanceField label="الحالة" required>
               <Select value={form.status} onValueChange={v => setField('status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -173,10 +180,10 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
                   <SelectItem value="completed">مكتملة</SelectItem>
                 </SelectContent>
               </Select>
-            </F>
+            </AdvanceField>
 
             <div className="sm:col-span-2">
-              <F label="ملاحظة">
+              <AdvanceField label="ملاحظة">
                 <textarea
                   value={form.note}
                   onChange={e => setField('note', e.target.value)}
@@ -185,7 +192,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
                   placeholder="سبب السلفة..."
                 />
-              </F>
+              </AdvanceField>
             </div>
           </div>
 
