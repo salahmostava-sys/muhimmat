@@ -16,6 +16,7 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@modules": path.resolve(__dirname, "./modules"),
     },
   },
   build: {

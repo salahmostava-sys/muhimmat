@@ -19,6 +19,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@modules/*": [
+        "./modules/*"
       ]
     },
     "skipLibCheck": true,
@@ -31,6 +34,7 @@
   },
   "include": [
     "src",
-    "app"
+    "app",
+    "modules"
   ]
 }
