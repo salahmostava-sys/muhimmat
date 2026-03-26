@@ -5,6 +5,29 @@ import { Button } from '@/components/ui/button';
 interface Props { children: ReactNode; fallback?: ReactNode; }
 interface State { hasError: boolean; error: Error | null; }
 
+const hardReloadWithCacheClear = async () => {
+  try {
+    // Clear browser cache storage when available to avoid stale bundles.
+    if ('caches' in globalThis) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
+    }
+  } catch (e) {
+    console.warn('[ErrorBoundary] Failed to clear cache storage', e);
+  }
+
+  try {
+    globalThis.localStorage?.clear();
+    globalThis.sessionStorage?.clear();
+  } catch (e) {
+    console.warn('[ErrorBoundary] Failed to clear web storage', e);
+  }
+
+  const url = new URL(globalThis.location.href);
+  url.searchParams.set('_rb', String(Date.now()));
+  globalThis.location.replace(url.toString());
+};
+
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -37,9 +60,9 @@ export class ErrorBoundary extends Component<Props, State> {
             size="sm"
             variant="outline"
             className="gap-2"
-            onClick={() => { this.setState({ hasError: false, error: null }); globalThis.location.reload(); }}
+            onClick={() => { this.setState({ hasError: false, error: null }); void hardReloadWithCacheClear(); }}
           >
-            <RefreshCw size={14} /> تحديث الصفحة
+            <RefreshCw size={14} /> مسح الكاش وإعادة التحميل
           </Button>
         </div>
       );
