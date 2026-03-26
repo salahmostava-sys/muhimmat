@@ -274,7 +274,7 @@ export default function ProfileSettingsContent({ omitPageHeading = false }: Read
           <div className="space-y-1.5">
             <div className="flex gap-1">
               {[1, 2, 3].map(i => (
-                <div key={i} className={cn('h-1.5 flex-1 rounded-full transition-colors', strength >= i ? strengthColor(strength) : 'bg-muted')} />
+                <div key={`profile-pw-strength-${i}`} className={cn('h-1.5 flex-1 rounded-full transition-colors', strength >= i ? strengthColor(strength) : 'bg-muted')} />
               ))}
             </div>
             <p className={cn('text-xs font-medium', strengthTextClass)}>

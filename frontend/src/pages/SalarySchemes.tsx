@@ -401,7 +401,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
 
       {loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="bg-card rounded-xl border border-border/50 p-5 h-48 animate-pulse" />)}
+          {[1,2,3,4].map(i => <div key={`scheme-card-skeleton-${i}`} className="bg-card rounded-xl border border-border/50 p-5 h-48 animate-pulse" />)}
         </div>
       ) : schemes.length === 0 ? (
         <div className="bg-card rounded-xl border border-dashed border-border p-16 text-center">
@@ -466,7 +466,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
                     <div className="space-y-1.5 mb-3">
                       <p className="text-xs font-medium text-muted-foreground">الشرائح:</p>
                       {(tiers[s.id] || []).map((t, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm bg-muted/50 rounded-lg px-3 py-1.5">
+                        <div key={`${s.id}-tier-${t.tierType}-${t.from}-${t.to}-${i}`} className="flex items-center gap-2 text-sm bg-muted/50 rounded-lg px-3 py-1.5">
                           <span className="text-xs bg-muted rounded px-1.5 py-0.5 text-muted-foreground">{tierTypeLabels[t.tierType] || t.tierType}</span>
                           <span className="text-muted-foreground">من {t.from} إلى {t.to >= 9999 ? '∞' : t.to}</span>
                           {renderTierDescription(t)}
@@ -646,7 +646,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
                     <Button size="sm" variant="outline" onClick={addTier} className="gap-1 h-7 text-xs"><Plus size={12} /> إضافة شريحة</Button>
                   </div>
                   {formTiers.map((t, i) => (
-                    <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <div key={`form-tier-${t.tierType}-${t.from}-${t.to}-${i}`} className="bg-muted/50 rounded-lg p-3 space-y-2">
                       {/* Tier type selector */}
                       <div className="flex items-center gap-2">
                         <Select value={t.tierType} onValueChange={v => updateTier(i, 'tierType', v)}>

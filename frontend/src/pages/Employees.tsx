@@ -839,7 +839,7 @@ const Employees = () => {
 
             <tbody>
               {loading ? (
-                Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} cols={activeCols.length} />)
+                Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={`employees-grid-skeleton-${i}`} cols={activeCols.length} />)
               ) : paginated.length === 0 ? (
                 <tr>
                   <td colSpan={activeCols.length} className="text-center py-16">
@@ -1387,7 +1387,7 @@ function EmployeesFastList(props: {
             <tbody className="divide-y divide-border">
               {isLoading
                 ? Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`employees-table-skeleton-${i}`}>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>

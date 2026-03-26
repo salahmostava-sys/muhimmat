@@ -108,11 +108,11 @@ const Leaderboard = ({ entries, loading, max }: { entries: { name: string; order
   return (
     <div className="space-y-1">
       {loading
-        ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-12 bg-muted/40 rounded-xl animate-pulse" />)
+        ? Array.from({ length: 5 }).map((_, i) => <div key={`leaderboard-skeleton-${i}`} className="h-12 bg-muted/40 rounded-xl animate-pulse" />)
         : entries.length === 0
           ? <p className="text-sm text-muted-foreground text-center py-8">لا توجد بيانات هذا الشهر</p>
           : entries.map((e, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-muted/40 transition-colors">
+            <div key={`${e.name}-${e.orders}-${e.app ?? 'no-app'}`} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-muted/40 transition-colors">
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${RANK_COLORS[i] || 'bg-muted text-muted-foreground'}`}>{i + 1}</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
@@ -596,7 +596,7 @@ const Dashboard = () => {
               { label: 'المركبات النشطة', value: kpis.activeVehicles, icon: Bike, color: 'text-violet-600', bg: 'bg-violet-50' },
               { label: 'التنبيهات', value: kpis.activeAlerts, icon: Bell, color: 'text-rose-500', bg: 'bg-rose-50', sub: 'غير محلولة' },
               { label: 'إيراد تقديري', value: kpis.estRevenueTotal.toLocaleString(), icon: DollarSign, color: 'text-green-700', bg: 'bg-green-50', sub: 'حسب تسعير المنصات' },
-            ].map((kpi, i) => <KpiCard key={i} {...kpi} loading={loading} />)}
+            ].map((kpi) => <KpiCard key={kpi.label} {...kpi} loading={loading} />)}
           </div>
 
           {/* ════════════════════════════════════════════════════════════
@@ -622,7 +622,7 @@ const Dashboard = () => {
                     </div>
                     <span className="text-3xl font-black text-foreground">{kpis.makkahCount}</span>
                   </div>
-                  {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={i} h="h-10"/>)}</div> : (
+                  {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={`makkah-skeleton-${i}`} h="h-10"/>)}</div> : (
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
                       <div className="grid grid-cols-3 gap-2">
@@ -656,7 +656,7 @@ const Dashboard = () => {
                     </div>
                     <span className="text-3xl font-black text-foreground">{kpis.jeddahCount}</span>
                   </div>
-                  {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={i} h="h-10"/>)}</div> : (
+                  {loading ? <div className="space-y-2">{[1,2].map(i=><Sk key={`jeddah-skeleton-${i}`} h="h-10"/>)}</div> : (
                     <div className="space-y-2">
                       <p className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-widest">حالة الرخصة</p>
                       <div className="grid grid-cols-3 gap-2">
@@ -681,7 +681,7 @@ const Dashboard = () => {
 
               {/* Sponsorship global breakdown */}
               <Card title="توزيع الكفالة — جميع المناديب">
-                {loading ? <div className="grid grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={i} h="h-14"/>)}</div> : (
+                {loading ? <div className="grid grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={`sponsorship-skeleton-${i}`} h="h-14"/>)}</div> : (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <Chip label="مكفول" value={empDetails.filter(e=>e.sponsorship_status==='sponsored').length} color="bg-blue-50 text-blue-700" />
                     <Chip label="غير مكفول" value={empDetails.filter(e=>e.sponsorship_status==='not_sponsored').length} color="bg-muted/40 text-foreground/75" />
@@ -706,7 +706,7 @@ const Dashboard = () => {
               <div>
                 <p className="text-xs text-muted-foreground/80 mb-2">طلبات الشهر حسب المنصة — مع نسبة تحقيق الهدف</p>
                 {loading ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={i} h="h-28"/>)}</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[1,2,3,4].map(i=><Sk key={`app-card-skeleton-${i}`} h="h-28"/>)}</div>
                 ) : ordersByApp.length === 0 ? (
                   <p className="text-sm text-muted-foreground/80 text-center py-8">لا توجد بيانات طلبات لهذا الشهر</p>
                 ) : (
@@ -801,7 +801,7 @@ const Dashboard = () => {
               {/* Today's breakdown */}
               <Card title="الحضور اليوم" subtitle={format(new Date(), 'EEEE، d MMMM yyyy', { locale: ar })}>
                 {loading ? (
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{[1,2,3,4,5].map(i=><Sk key={i} h="h-16"/>)}</div>
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{[1,2,3,4,5].map(i=><Sk key={`attendance-skeleton-${i}`} h="h-16"/>)}</div>
                 ) : (
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                     <div className="rounded-xl bg-emerald-50 p-4 text-center">
@@ -861,8 +861,8 @@ const Dashboard = () => {
           {recentActivity.length > 0 && (
             <Card title="آخر النشاطات" subtitle="آخر 6 إجراءات في النظام">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
-                {recentActivity.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors">
+                {recentActivity.map((item) => (
+                  <div key={`${item.text}-${item.time}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors">
                     <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
                       <item.icon size={14} className="text-blue-600" />
                     </div>

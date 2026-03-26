@@ -954,9 +954,9 @@ const OrdersList = () => {
               {(paged.isLoading || !paged.data) && (
                 <>
                   {Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i} className="border-b border-border/30">
+                    <tr key={`orders-skeleton-row-${i}`} className="border-b border-border/30">
                       {Array.from({ length: 5 }).map((__, j) => (
-                        <td key={j} className="px-3 py-3">
+                        <td key={`orders-skeleton-cell-${i}-${j}`} className="px-3 py-3">
                           <div className="h-4 w-full bg-muted/40 rounded animate-pulse" />
                         </td>
                       ))}
@@ -965,8 +965,8 @@ const OrdersList = () => {
                 </>
               )}
 
-              {!paged.isLoading && rows.map((r, idx) => (
-                <tr key={`${r.employee_id}-${r.app_id}-${r.date}-${idx}`} className="border-b border-border/30 hover:bg-muted/20">
+              {!paged.isLoading && rows.map((r) => (
+                <tr key={`${r.employee_id}-${r.app_id}-${r.date}`} className="border-b border-border/30 hover:bg-muted/20">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2 whitespace-nowrap font-medium">{r.employees?.name ?? '—'}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{r.employees?.city === 'makkah' ? 'مكة' : r.employees?.city === 'jeddah' ? 'جدة' : '—'}</td>

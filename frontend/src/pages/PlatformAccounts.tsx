@@ -1048,7 +1048,7 @@ function PlatformAccountsFastList(props: {
             <tbody className="divide-y divide-border">
               {isLoading
                 ? Array.from({ length: 10 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`platform-accounts-skeleton-${i}`}>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>

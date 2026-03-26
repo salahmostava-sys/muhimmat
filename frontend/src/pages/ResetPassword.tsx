@@ -77,7 +77,7 @@ function ResetPasswordForm(props: Readonly<ResetPasswordFormProps>) {
           <div className="mt-2 space-y-1">
             <div className="flex gap-1">
               {strengthSteps.map(i => (
-                <div key={i} className={`h-1 flex-1 rounded-full transition-colors duration-200 ${strength >= i ? strengthColors[strength] : 'bg-muted'}`} />
+                <div key={`reset-pw-strength-${i}`} className={`h-1 flex-1 rounded-full transition-colors duration-200 ${strength >= i ? strengthColors[strength] : 'bg-muted'}`} />
               ))}
             </div>
             <p className={`text-xs ${strengthTextColors[strength]}`}>{strengthLabels[strength]}</p>

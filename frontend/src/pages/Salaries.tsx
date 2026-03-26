@@ -429,8 +429,8 @@ const SalaryBreakdown = ({ orders, scheme, salary, children }: SalaryBreakdownPr
           <p className="font-bold text-foreground mb-2 border-b border-border/50 pb-1">{scheme.name}</p>
           <p className="text-muted-foreground mb-1">الطلبات: <span className="font-semibold text-foreground">{orders}</span></p>
           <div className="space-y-0.5 mb-2">
-            {tierLines.map((t, i) => (
-              <p key={i} className="text-muted-foreground">{t.label}</p>
+            {tierLines.map((t) => (
+              <p key={t.label} className="text-muted-foreground">{t.label}</p>
             ))}
           </div>
           {hasBonus && (
@@ -2142,7 +2142,7 @@ const Salaries = () => {
           {loadingData ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="bg-card border border-border/50 rounded-xl p-4 space-y-2 animate-pulse">
+                <div key={`salary-card-skeleton-${i}`} className="bg-card border border-border/50 rounded-xl p-4 space-y-2 animate-pulse">
                   <div className="h-4 bg-muted rounded w-3/4" />
                   <div className="h-3 bg-muted rounded w-1/2" />
                   <div className="h-8 bg-muted rounded mt-3" />
@@ -2956,7 +2956,7 @@ function SalariesFastList(props: {
             <tbody className="divide-y divide-border">
               {isLoading ? (
                 Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={i}>
+                  <tr key={`salary-table-skeleton-${i}`}>
                     <td className="px-4 py-3 text-muted-foreground">...</td>
                     <td className="px-4 py-3 text-center text-muted-foreground">...</td>
                     <td className="px-4 py-3 text-center text-muted-foreground">...</td>

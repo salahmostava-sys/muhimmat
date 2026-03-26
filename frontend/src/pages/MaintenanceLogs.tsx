@@ -176,7 +176,7 @@ const MaintenanceFormModal = ({ open, onClose, onSaved, editLog, vehicles }: {
 const SkeletonRow = () => (
   <tr className="border-b border-border/30">
     {Array.from({ length: 8 }).map((_, i) => (
-      <td key={i} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
+      <td key={`maintenance-skeleton-cell-${i}`} className="px-3 py-3"><Skeleton className="h-4 w-full" /></td>
     ))}
   </tr>
 );
@@ -400,7 +400,7 @@ const MaintenanceLogs = () => {
             </thead>
             <tbody>
               {loading ? (
-                Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+                Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={`maintenance-skeleton-row-${i}`} />)
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-16 text-muted-foreground">
