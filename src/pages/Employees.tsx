@@ -36,6 +36,7 @@ import { createEmployeesPageStore } from '@/stores/useEmployeesPageStore';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type SortDir = 'asc' | 'desc' | null;
 type Employee = {
   id: string;
   name: string;
