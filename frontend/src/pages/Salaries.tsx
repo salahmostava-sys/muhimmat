@@ -770,8 +770,8 @@ const EditableCell = ({
   const [local, setLocal] = useState(String(value));
 
   const commit = () => {
-    const n = parseFloat(local);
-    onChange(isNaN(n) ? 0 : Math.max(min, n));
+    const n = Number.parseFloat(local);
+    onChange(Number.isNaN(n) ? 0 : Math.max(min, n));
     setEditing(false);
   };
 
@@ -1769,7 +1769,7 @@ const Salaries = () => {
       </div>
     </body></html>`;
 
-    const win = window.open('', '_blank', 'width=1100,height=800');
+    const win = globalThis.open('', '_blank', 'width=1100,height=800');
     if (win) {
       win.document.write(html);
       win.document.close();
@@ -2026,7 +2026,7 @@ const Salaries = () => {
       @media print{body{padding:0}.page-break{padding:20px;max-width:100%}}
     </style></head><body>${pages}</body></html>`;
 
-    const win = window.open('', '_blank');
+    const win = globalThis.open('', '_blank');
     if (win) {
       win.document.write(mergedHtml);
       win.document.close();

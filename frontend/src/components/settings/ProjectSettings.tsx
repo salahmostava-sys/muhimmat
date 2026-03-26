@@ -339,7 +339,7 @@ export default function ProjectSettings() {
               min={1}
               max={365}
               value={iqamaAlertDays}
-              onChange={e => setIqamaAlertDays(Math.max(1, parseInt(e.target.value) || 90))}
+              onChange={e => setIqamaAlertDays(Math.max(1, Number.parseInt(e.target.value) || 90))}
               className="w-24 text-center"
             />
             <span className="text-sm text-muted-foreground">{isRTL ? 'يوم' : 'days'}</span>

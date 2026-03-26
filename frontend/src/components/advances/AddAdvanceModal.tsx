@@ -77,7 +77,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
     setForm(f => {
       const nf = { ...f, [k]: v };
       if ((k === 'amount' || k === 'totalInstallments') && nf.amount && nf.totalInstallments) {
-        const monthly = Math.ceil(parseFloat(nf.amount) / parseInt(nf.totalInstallments));
+        const monthly = Math.ceil(Number.parseFloat(nf.amount) / Number.parseInt(nf.totalInstallments));
         nf.monthlyAmount = String(monthly);
       }
       return nf;
@@ -87,8 +87,8 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
   const save = async () => {
     const errs: Record<string, string> = {};
     if (!form.employeeId) errs.employeeId = 'اختر المندوب';
-    if (!form.amount || parseFloat(form.amount) <= 0) errs.amount = 'المبلغ مطلوب';
-    if (!form.totalInstallments || parseInt(form.totalInstallments) < 1) errs.totalInstallments = 'عدد الأقساط مطلوب';
+    if (!form.amount || Number.parseFloat(form.amount) <= 0) errs.amount = 'المبلغ مطلوب';
+    if (!form.totalInstallments || Number.parseInt(form.totalInstallments) < 1) errs.totalInstallments = 'عدد الأقساط مطلوب';
     if (!form.disbursementDate) errs.disbursementDate = 'تاريخ الصرف مطلوب';
     if (!editId && !form.firstDeductionMonth) errs.firstDeductionMonth = 'شهر أول خصم مطلوب';
 
@@ -99,9 +99,9 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
     try {
       if (editId) {
         const { error } = await advanceService.update(editId, {
-          amount: parseFloat(form.amount),
-          monthly_amount: parseFloat(form.monthlyAmount),
-          total_installments: parseInt(form.totalInstallments),
+          amount: Number.parseFloat(form.amount),
+          monthly_amount: Number.parseFloat(form.monthlyAmount),
+          total_installments: Number.parseInt(form.totalInstallments),
           disbursement_date: form.disbursementDate,
           note: form.note || null,
           status: form.status as 'active' | 'paused' | 'completed',
@@ -111,9 +111,9 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
       } else {
         const { error } = await advanceService.create({
           employee_id: form.employeeId,
-          amount: parseFloat(form.amount),
-          monthly_amount: parseFloat(form.monthlyAmount),
-          total_installments: parseInt(form.totalInstallments),
+          amount: Number.parseFloat(form.amount),
+          monthly_amount: Number.parseFloat(form.monthlyAmount),
+          total_installments: Number.parseInt(form.totalInstallments),
           disbursement_date: form.disbursementDate,
           first_deduction_month: form.firstDeductionMonth,
           note: form.note || null,
@@ -200,7 +200,7 @@ const AddAdvanceModal = ({ onClose, editId }: Props) => {
             <div className="bg-muted/30 rounded-lg p-4 text-sm">
               <p className="font-medium text-foreground mb-2">ملخص السلفة</p>
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div><p className="text-xs text-muted-foreground">المبلغ الإجمالي</p><p className="font-semibold">{parseFloat(form.amount || '0').toLocaleString()} ر.س</p></div>
+                <div><p className="text-xs text-muted-foreground">المبلغ الإجمالي</p><p className="font-semibold">{Number.parseFloat(form.amount || '0').toLocaleString()} ر.س</p></div>
                 <div><p className="text-xs text-muted-foreground">عدد الأقساط</p><p className="font-semibold">{form.totalInstallments}</p></div>
                 <div><p className="text-xs text-muted-foreground">القسط الشهري</p><p className="font-semibold text-primary">{form.monthlyAmount} ر.س</p></div>
               </div>

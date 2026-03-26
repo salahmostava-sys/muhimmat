@@ -22,10 +22,10 @@ export const MobileSidebarProvider = ({ children }: { children: ReactNode }) => 
   // Close when resizing to desktop
   useEffect(() => {
     const handler = () => {
-      if (window.innerWidth >= 1024) setIsOpen(false);
+      if (globalThis.innerWidth >= 1024) setIsOpen(false);
     };
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
+    globalThis.addEventListener('resize', handler);
+    return () => globalThis.removeEventListener('resize', handler);
   }, []);
 
   return (

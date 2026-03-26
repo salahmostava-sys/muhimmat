@@ -29,14 +29,14 @@ export function parseSalaryAmount(value: unknown): number {
     .join('')
     .replace(/,/g, '')
     .trim();
-  const n = parseFloat(s);
+  const n = Number.parseFloat(s);
   return Number.isFinite(n) ? n : 0;
 }
 
 /** Build YYYY-MM from numeric year + month (1–12). */
 export function monthYearFromParts(year: unknown, month: unknown): string | null {
-  const y = typeof year === 'number' ? year : parseInt(String(year ?? '').trim(), 10);
-  const m = typeof month === 'number' ? month : parseInt(String(month ?? '').trim(), 10);
+  const y = typeof year === 'number' ? year : Number.parseInt(String(year ?? '').trim(), 10);
+  const m = typeof month === 'number' ? month : Number.parseInt(String(month ?? '').trim(), 10);
   if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12 || y < 2000 || y > 2100) return null;
   return `${y}-${String(m).padStart(2, '0')}`;
 }

@@ -5,7 +5,7 @@ export function printHtmlTable(
   table: HTMLTableElement,
   options: { title: string; subtitle?: string }
 ): void {
-  const printWindow = window.open('', '_blank');
+  const printWindow = globalThis.open('', '_blank');
   if (!printWindow) return;
   const { title, subtitle } = options;
   printWindow.document.write(`
@@ -33,7 +33,7 @@ export function printHtmlTable(
   if (!printWindow.document.body) return;
   printWindow.document.body.appendChild(table.cloneNode(true));
   printWindow.document.write(
-    `<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }</script></body></html>`
+    `<script>globalThis.onload = () => { globalThis.print(); globalThis.onafterprint = () => globalThis.close(); }</script></body></html>`
   );
   printWindow.document.close();
 }

@@ -222,7 +222,7 @@ const ViolationResolver = () => {
 
   // ── Search handler ────────────────────────────────────────────────────────
   const handleSearch = async () => {
-    const enteredAmount = parseFloat(form.amount);
+    const enteredAmount = Number.parseFloat(form.amount);
     if (!enteredAmount || enteredAmount <= 0) {
       return toast({ title: 'أدخل مبلغ المخالفة', variant: 'destructive' });
     }
@@ -376,7 +376,7 @@ const ViolationResolver = () => {
 
   const handleSaveEdit = async () => {
     if (!editViolationId) return;
-    const amount = parseFloat(editForm.amount);
+    const amount = Number.parseFloat(editForm.amount);
     if (!amount || amount <= 0) return toast({ title: 'خطأ', description: 'أدخل مبلغ صحيح', variant: 'destructive' });
     if (!editForm.incident_date) return toast({ title: 'خطأ', description: 'أدخل تاريخ المخالفة', variant: 'destructive' });
 

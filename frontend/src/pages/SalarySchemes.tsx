@@ -500,7 +500,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
                           <span className="text-xs text-muted-foreground whitespace-nowrap">السنة</span>
                           <Select
                             value={String(y)}
-                            onValueChange={v => setSchemeSnapshotYear(s.id, parseInt(v, 10))}
+                            onValueChange={v => setSchemeSnapshotYear(s.id, Number.parseInt(v, 10))}
                           >
                             <SelectTrigger className="h-8 w-[88px] text-xs">
                               <SelectValue />

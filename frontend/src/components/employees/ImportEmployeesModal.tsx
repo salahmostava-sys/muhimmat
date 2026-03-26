@@ -92,12 +92,12 @@ const parseDate = (val: any): string | null => {
     const match1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (match1) {
       const d = new Date(`${match1[3]}-${match1[2].padStart(2,'0')}-${match1[1].padStart(2,'0')}`);
-      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+      if (!Number.isNaN(d.getTime())) return d.toISOString().split('T')[0];
     }
     const match2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (match2) return s;
     const d = new Date(s);
-    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    if (!Number.isNaN(d.getTime())) return d.toISOString().split('T')[0];
   }
   return null;
 };
@@ -175,7 +175,7 @@ const getValidationCounts = (parsed: ParsedEmployee[]) => ({
 const validateBeforeImport = (parsed: ParsedEmployee[]): boolean => {
   const criticalErrors = parsed.filter(e => e._errors.length > 0);
   if (criticalErrors.length === 0) return true;
-  return window.confirm(`يوجد ${criticalErrors.length} صف به أخطاء. هل تريد الاستمرار وتخطّي هذه الصفوف؟`);
+  return globalThis.confirm(`يوجد ${criticalErrors.length} صف به أخطاء. هل تريد الاستمرار وتخطّي هذه الصفوف؟`);
 };
 
 const rowCategoryLabel = (emp: ParsedEmployee) => {
@@ -236,7 +236,7 @@ const parseRow = (row: any[], rowIndex: number): ParsedEmployee | null => {
   const national_id = col(3) || undefined;
   const salaryRaw = colRaw(4);
   const base_salary = salaryRaw !== undefined && salaryRaw !== '' && salaryRaw !== null
-    ? parseFloat(String(salaryRaw)) || null
+    ? Number.parseFloat(String(salaryRaw)) || null
     : null;
 
   const cityCol5 = parseCity(col(5));

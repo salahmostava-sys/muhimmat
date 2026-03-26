@@ -108,7 +108,7 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
   const saveAdvance = async () => {
     if (!form.amount || !form.disbursement_date || !form.first_deduction_month)
       return toast({ title: 'أكمل الحقول المطلوبة', variant: 'destructive' });
-    const amt = parseFloat(form.amount);
+    const amt = Number.parseFloat(form.amount);
     if (!Number.isFinite(amt) || amt <= 0)
       return toast({ title: 'أدخل مبلغاً صحيحاً', variant: 'destructive' });
     setSaving(true);
@@ -124,7 +124,7 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
       const installments = buildInstallmentsPayload(
         adv.id,
         form.first_deduction_month,
-        parseFloat(form.amount),
+        Number.parseFloat(form.amount),
         projectedInstallments
       );
       if (installments.length > 0) await advanceService.createInstallments(installments);
@@ -298,7 +298,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
     note: advance.note || '',
   });
 
-  const remaining = parseFloat(form.amount) || 0;
+  const remaining = Number.parseFloat(form.amount) || 0;
   const monthly = advance.monthly_amount > 0 ? advance.monthly_amount : 1;
   const projectedInstallments = monthly > 0 ? Math.ceil(remaining / monthly) : 0;
 
@@ -306,7 +306,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
     setSaving(true);
     try {
       const payload: Partial<AdvancePayload> = {
-        amount: parseFloat(form.amount),
+        amount: Number.parseFloat(form.amount),
         disbursement_date: form.disbursement_date,
         monthly_amount: monthly,
         total_installments: projectedInstallments,
@@ -321,7 +321,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       const paidCount = paidInstallments.length;
       const paidAmount = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
       const remaining_count = Math.max(projectedInstallments - paidCount, 0);
-      const remainingAmount = Math.max((parseFloat(form.amount) || 0) - paidAmount, 0);
+      const remainingAmount = Math.max((Number.parseFloat(form.amount) || 0) - paidAmount, 0);
       const installments = buildInstallmentsPayload(
         advance.id,
         form.first_deduction_month,
@@ -398,7 +398,7 @@ const PrintSlip = ({ employeeName, nationalId, totalDebt, totalPaid, remaining, 
   const handlePrint = () => {
     const contentEl = printRef.current;
     if (!contentEl) return;
-    const win = window.open('', '_blank');
+    const win = globalThis.open('', '_blank');
     if (!win) return;
     win.document.write(`
       <html dir="rtl"><head><title>سلف - ${escapeHtml(employeeName)}</title>
@@ -855,8 +855,8 @@ const Advances = () => {
         if (!empName) continue;
         const emp = employees.find(e => e.name === empName);
         if (!emp) continue;
-        const amount = parseFloat(row['المبلغ']) || 0;
-        const monthly = parseFloat(row['القسط']) || amount;
+        const amount = Number.parseFloat(row['المبلغ']) || 0;
+        const monthly = Number.parseFloat(row['القسط']) || amount;
         const installments = monthly > 0 ? Math.ceil(amount / monthly) : 1;
         await advanceService.create({
           employee_id: emp.id, amount, monthly_amount: monthly, total_installments: installments,
@@ -1008,13 +1008,13 @@ const Advances = () => {
   const handlePrintTable = () => {
     const table = tableRef.current;
     if (!table) return;
-    const printWindow = window.open('', '_blank');
+    const printWindow = globalThis.open('', '_blank');
     if (!printWindow) return;
     printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير السلف</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير السلف</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>`);
     if (!printWindow.document.body) return;
     // Append the live DOM table node to avoid string-interpolating table HTML.
     printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
+    printWindow.document.write(`<script>globalThis.onload=()=>{globalThis.print();globalThis.onafterprint=()=>globalThis.close()}</script></body></html>`);
     printWindow.document.close();
   };
 

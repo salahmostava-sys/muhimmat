@@ -266,7 +266,7 @@ const Apps = () => {
     setLoadingEmployees(true);
     const currentMonth = new Date().toISOString().slice(0, 7);
     const startDate = `${currentMonth}-01`;
-    const endDate = `${currentMonth}-${new Date(parseInt(currentMonth.split('-')[0]), parseInt(currentMonth.split('-')[1]), 0).getDate()}`;
+    const endDate = `${currentMonth}-${new Date(Number.parseInt(currentMonth.split('-')[0]), Number.parseInt(currentMonth.split('-')[1]), 0).getDate()}`;
 
     const { data: empApps } = await appService.getActiveEmployeeAppsWithEmployees(app.id);
 
