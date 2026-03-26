@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
-import { settingsHubService } from '@/services/settingsHubService';
+import { settingsHubService } from '@services/settingsHubService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@/lib/query';
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { employeeService } from '@/services/employeeService';
+import { employeeService } from '@services/employeeService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';

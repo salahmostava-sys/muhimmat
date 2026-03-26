@@ -7,6 +7,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@services/*": [
+        "./services/*"
       ]
     },
     "skipLibCheck": true,

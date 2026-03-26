@@ -11,7 +11,7 @@ import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_PAGE } from '@/hooks
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId } from '@/hooks/useAuthQueryGate';
-import { alertsService } from '@/services/alertsService';
+import { alertsService } from '@services/alertsService';
 import { useAlertsData } from '@/hooks/useAlertsData';
 import type { Alert } from '@shared/lib/alertsBuilder';
 import { escapeHtml } from '@/lib/security';

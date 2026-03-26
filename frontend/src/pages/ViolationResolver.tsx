@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { format, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
-import { violationService } from '@/services/violationService';
+import { violationService } from '@services/violationService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { sortArrowOrNeutral } from '@/lib/sortTableIndicators';
 import { defaultQueryRetry } from '@/lib/query';

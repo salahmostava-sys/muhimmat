@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { profileService } from '@/services/profileService';
+import { profileService } from '@services/profileService';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { validateUploadFile } from '@/lib/validation';

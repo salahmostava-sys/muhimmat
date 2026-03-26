@@ -1,6 +1,6 @@
 import * as XLSX from '@e965/xlsx';
 import { parseExcelDate } from '@/lib/excelDateParse';
-import { employeeService } from '@/services/employeeService';
+import { employeeService } from '@services/employeeService';
 
 /** Must match `handleTemplate` row order in Employees.tsx */
 export const EMPLOYEE_TEMPLATE_AR_HEADERS = [

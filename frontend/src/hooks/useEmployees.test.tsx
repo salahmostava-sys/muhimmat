@@ -3,9 +3,9 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEmployees } from './useEmployees';
-import { employeeService } from '@/services/employeeService';
+import { employeeService } from '@services/employeeService';
 
-vi.mock('@/services/employeeService', () => ({
+vi.mock('@services/employeeService', () => ({
   employeeService: {
     getAll: vi.fn(),
   },

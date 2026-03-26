@@ -26,7 +26,7 @@ import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
 import { usePlatformAccountsPaged } from '@/hooks/usePlatformAccountsPaged';
 import { Skeleton } from '@/components/ui/skeleton';
-import { auditService } from '@/services/auditService';
+import { auditService } from '@services/auditService';
 import * as XLSX from '@e965/xlsx';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { ColorBadge } from '@/components/ui/ColorBadge';
@@ -37,11 +37,11 @@ import {
   type PlatformApp as App,
   type PlatformEmployee as Employee,
   type PlatformAccountWritePayload,
-} from '@/services/platformAccountService';
+} from '@services/platformAccountService';
 import {
   accountAssignmentService,
   type AccountAssignment as Assignment,
-} from '@/services/accountAssignmentService';
+} from '@services/accountAssignmentService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

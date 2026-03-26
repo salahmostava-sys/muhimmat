@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
 import { differenceInDays, parseISO } from 'date-fns';
-import { employeeTierService } from '@/services/employeeTierService';
+import { employeeTierService } from '@services/employeeTierService';
 import { cn } from '@/lib/utils';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@/lib/query';

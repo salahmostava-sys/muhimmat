@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { authService } from '@/services/authService';
+import { authService } from '@services/authService';
 import { authGradientBtn, authBtnStyle } from '@/lib/authStyles';
 
 const ForgotPassword = () => {
@@ -22,12 +22,8 @@ const ForgotPassword = () => {
 
     setLoading(true);
     try {
-      const { error: err } = await authService.sendPasswordReset(email);
-      if (err) {
-        setError('حدث خطأ، يرجى المحاولة مجدداً');
-      } else {
-        setSuccess(true);
-      }
+      await authService.sendPasswordReset(email);
+      setSuccess(true);
     } catch (err) {
       console.error('[ForgotPassword] sendPasswordReset failed', err);
       setError('حدث خطأ، يرجى المحاولة مجدداً');

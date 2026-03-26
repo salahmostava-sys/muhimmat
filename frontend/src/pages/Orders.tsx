@@ -6,7 +6,7 @@ import { Search, Save, Package, Upload, FolderOpen, Loader2, Target, TrendingUp 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { orderService } from '@/services/orderService';
+import { orderService } from '@services/orderService';
 import { useToast } from '@/hooks/use-toast';
 import { useAppColors, getAppColor } from '@/hooks/useAppColors';
 import { usePermissions } from '@/hooks/usePermissions';

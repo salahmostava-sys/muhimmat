@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { userPermissionService } from '@/services/userPermissionService';
+import { userPermissionService } from '@services/userPermissionService';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { usePermissions, DEFAULT_PERMISSIONS, type AppRole, type PagePermission } from '@/hooks/usePermissions';

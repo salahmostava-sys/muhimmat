@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Users, Car, CreditCard, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import { searchService } from '@/services/searchService';
+import { searchService } from '@services/searchService';
 import { cn } from '@/lib/utils';
 
 interface SearchResult {

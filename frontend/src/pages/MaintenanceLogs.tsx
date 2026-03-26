@@ -13,7 +13,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useMaintenanceData } from '@/hooks/useMaintenanceData';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
-import { vehicleService } from '@/services/vehicleService';
+import { vehicleService } from '@services/vehicleService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type MaintenanceType = 'routine' | 'breakdown' | 'accident';

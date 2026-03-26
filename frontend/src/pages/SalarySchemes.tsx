@@ -9,8 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { appService } from '@/services/appService';
-import { salarySchemeService } from '@/services/salarySchemeService';
+import { appService } from '@services/appService';
+import { salarySchemeService } from '@services/salarySchemeService';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';

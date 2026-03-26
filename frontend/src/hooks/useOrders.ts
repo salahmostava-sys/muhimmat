@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { orderService } from '@/services/orderService';
+import { orderService } from '@services/orderService';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';

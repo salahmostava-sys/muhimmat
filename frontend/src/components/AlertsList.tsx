@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@/hooks/useRealtimePostgresChanges';
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
-import { alertsService } from '@/services/alertsService';
+import { alertsService } from '@services/alertsService';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';

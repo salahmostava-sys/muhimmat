@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { fuelService } from '@/services/fuelService';
+import { fuelService } from '@services/fuelService';
 import { usePermissions } from '@/hooks/usePermissions';
 import * as XLSX from '@e965/xlsx';
 import { format, endOfMonth } from 'date-fns';
@@ -19,7 +19,7 @@ import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
 import { useFuelDailyPaged } from '@/hooks/useFuelDailyPaged';
-import { auditService } from '@/services/auditService';
+import { auditService } from '@services/auditService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@/lib/query';
 

@@ -27,7 +27,7 @@ import {
   upsertEmployeeArabicRows,
 } from '@/lib/employeeArabicTemplateImport';
 import { printHtmlTable } from '@/lib/printTable';
-import { driverService } from '@/services/driverService';
+import { driverService } from '@services/driverService';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,8 +38,8 @@ import { filterVisibleEmployeesInMonth, isEmployeeVisibleInMonth } from '@/lib/e
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { useEmployeesPaged } from '@/hooks/useEmployeesPaged';
-import { employeeService } from '@/services/employeeService';
-import { auditService } from '@/services/auditService';
+import { employeeService } from '@services/employeeService';
+import { auditService } from '@services/auditService';
 import {
   CityBadge,
   LicenseBadge,

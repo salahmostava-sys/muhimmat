@@ -3,7 +3,7 @@ import { format, addDays } from 'date-fns';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { alertsService } from '@/services/alertsService';
+import { alertsService } from '@services/alertsService';
 import { buildAlertsFromResponses, type EmployeeAlertRow } from '@shared/lib/alertsBuilder';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { defaultQueryRetry } from '@/lib/query';

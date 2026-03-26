@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/context/LanguageContext";
-import attendanceService from "@/services/attendanceService";
+import attendanceService from "@services/attendanceService";
 
 const MONTHS_AR = [
   "يناير",

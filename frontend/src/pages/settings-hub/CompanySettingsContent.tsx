@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { settingsHubService } from '@/services/settingsHubService';
+import { settingsHubService } from '@services/settingsHubService';
 import { validateUploadFile } from '@/lib/validation';
 import { getErrorMessage } from '@/lib/query';
 

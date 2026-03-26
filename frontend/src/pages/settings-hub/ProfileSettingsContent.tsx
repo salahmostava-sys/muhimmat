@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { cn } from '@/lib/utils';
-import { settingsHubService } from '@/services/settingsHubService';
+import { settingsHubService } from '@services/settingsHubService';
 import { validateUploadFile } from '@/lib/validation';
 
 const getStrength = (pw: string) => {

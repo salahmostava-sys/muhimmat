@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { appService } from '@/services/appService';
+import { appService } from '@services/appService';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';

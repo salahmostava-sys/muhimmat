@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import AttendanceStats from './AttendanceStats';
-import attendanceService from '@/services/attendanceService';
+import attendanceService from '@services/attendanceService';
 
 vi.mock('@/context/LanguageContext', () => ({
   useLanguage: () => ({ isRTL: true }),
@@ -23,7 +23,7 @@ vi.mock('recharts', () => {
   };
 });
 
-vi.mock('@/services/attendanceService', () => ({
+vi.mock('@services/attendanceService', () => ({
   default: {
     getAttendanceStatusRange: vi.fn(),
     getActiveEmployeesCount: vi.fn(),

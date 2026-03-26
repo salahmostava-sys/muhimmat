@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useLanguage } from "@/context/LanguageContext";
 import { usePermissions } from "@/hooks/usePermissions";
-import attendanceService from "@/services/attendanceService";
+import attendanceService from "@services/attendanceService";
 import { useMonthlyActiveEmployeeIds } from "@/hooks/useMonthlyActiveEmployeeIds";
 import { filterVisibleEmployeesInMonth } from "@/lib/employeeVisibility";
 

@@ -5,7 +5,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
-import { dashboardService } from '@/services/dashboardService';
+import { dashboardService } from '@services/dashboardService';
 import { loadRememberedEmail, persistRememberedEmail } from '@/lib/loginRememberStorage';
 import './login.css';
 

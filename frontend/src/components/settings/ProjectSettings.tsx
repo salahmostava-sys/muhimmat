@@ -14,7 +14,7 @@ import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/context/AuthContext';
 import { validateUploadFile } from '@/lib/validation';
-import { settingsHubService } from '@/services/settingsHubService';
+import { settingsHubService } from '@services/settingsHubService';
 
 export default function ProjectSettings() {
   const { t } = useTranslation();

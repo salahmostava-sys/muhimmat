@@ -15,9 +15,9 @@ import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { salaryService, type PricingRule, type SalarySchemeTier } from '@/services/salaryService';
-import { salaryDataService } from '@/services/salaryDataService';
-import { salarySlipService } from '@/services/salarySlipService';
+import { salaryService, type PricingRule, type SalarySchemeTier } from '@services/salaryService';
+import { salaryDataService } from '@services/salaryDataService';
+import { salarySlipService } from '@services/salarySlipService';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
@@ -28,7 +28,7 @@ import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@/lib/salaryValidation
 import { printHtmlTable } from '@/lib/printTable';
 import { defaultQueryRetry } from '@/lib/query';
 import { useSalaryRecordsPaged } from '@/hooks/useSalaryRecordsPaged';
-import { auditService } from '@/services/auditService';
+import { auditService } from '@services/auditService';
 import JSZip from 'jszip';
 
 

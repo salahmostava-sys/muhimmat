@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { invalidateAppColorsCache } from '@/hooks/useAppColors';
 import { useAppsData } from '@/hooks/useAppsData';
 import { usePermissions } from '@/hooks/usePermissions';
-import { appService } from '@/services/appService';
+import { appService } from '@services/appService';
 
 interface CustomColumn {
   key: string;

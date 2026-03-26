@@ -2,7 +2,7 @@ import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Loader2, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { authService } from '@/services/authService';
+import { authService } from '@services/authService';
 import { authGradientBtn, authBtnStyle } from '@/lib/authStyles';
 
 function calcStrength(pw: string): 0 | 1 | 2 | 3 {
@@ -159,7 +159,7 @@ const ResetPassword = () => {
     const hash = globalThis.location.hash;
     if (hash.includes('type=recovery')) {
       setIsRecovery(true);
-      authService.getSession().then(({ session }) => {
+      authService.getSession().then((session) => {
         if (!session) setInvalidLink(true);
       });
     } else {
@@ -178,13 +178,9 @@ const ResetPassword = () => {
 
     setLoading(true);
     try {
-      const { error: err } = await authService.updatePassword(password);
-      if (err) {
-        setError(err.message || 'حدث خطأ أثناء تحديث كلمة المرور');
-      } else {
-        setSuccess(true);
-        setTimeout(() => navigate('/'), 2500);
-      }
+      await authService.updatePassword(password);
+      setSuccess(true);
+      setTimeout(() => navigate('/'), 2500);
     } catch (err) {
       console.error('[ResetPassword] updatePassword failed', err);
       setError('حدث خطأ أثناء تحديث كلمة المرور');

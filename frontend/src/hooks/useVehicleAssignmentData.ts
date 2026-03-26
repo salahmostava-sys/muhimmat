@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { vehicleService } from '@/services/vehicleService';
+import { vehicleService } from '@services/vehicleService';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';

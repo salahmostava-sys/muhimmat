@@ -3,9 +3,9 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useOrders } from './useOrders';
-import { orderService } from '@/services/orderService';
+import { orderService } from '@services/orderService';
 
-vi.mock('@/services/orderService', () => ({
+vi.mock('@services/orderService', () => ({
   orderService: {
     getAll: vi.fn(),
   },

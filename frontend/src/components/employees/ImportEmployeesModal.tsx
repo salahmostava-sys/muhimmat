@@ -4,7 +4,7 @@ import { X, Upload, CheckCircle, AlertTriangle, XCircle, Info, Download, Loader2
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { employeeService } from '@/services/employeeService';
+import { employeeService } from '@services/employeeService';
 import * as XLSX from '@e965/xlsx';
 import { getErrorMessage } from '@/lib/query';
 

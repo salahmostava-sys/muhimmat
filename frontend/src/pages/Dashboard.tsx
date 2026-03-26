@@ -10,7 +10,7 @@ import {
   Minus, Settings2,
 } from 'lucide-react';
 import AlertsList from '@/components/AlertsList';
-import { dashboardService } from '@/services/dashboardService';
+import { dashboardService } from '@services/dashboardService';
 import {
   format, formatDistanceToNow,
   subMonths, startOfMonth, endOfMonth, getDaysInMonth, getDate,

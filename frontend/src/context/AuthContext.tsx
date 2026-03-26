@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { authService } from '@/services/authService';
+import { authService } from '@services/authService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { onAuthFailure } from '@/lib/auth/authFailureBus';
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [queryClient, redirectToLoginIfNeeded]);
 
   const forceSignOut = useCallback(async () => {
-    const { user: currentUser } = await authService.getCurrentUser();
+    const currentUser = await authService.getCurrentUser();
     const userId = currentUser?.id ?? user?.id ?? null;
     await authService.signOut();
     try {
@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const task = (async () => {
       setRefreshing(true);
       try {
-        const { session: current } = await authService.getSession();
+        const current = await authService.getSession();
         if (current?.user) {
           if (opts?.refetchActiveQueries) {
             await queryClient.refetchQueries({ type: 'active' });
@@ -101,7 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!current) return false;
         await authService.refreshSession();
 
-        const { session: after } = await authService.getSession();
+        const after = await authService.getSession();
         if (after?.user) {
           if (opts?.refetchActiveQueries) {
             await queryClient.refetchQueries({ type: 'active' });
@@ -155,7 +155,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     authService.getSession()
-      .then(async ({ session: currentSession }) => {
+      .then(async (currentSession) => {
         if (currentSession?.user) {
           const active = await authService.fetchIsActive(currentSession.user.id);
           if (!active) {
@@ -248,19 +248,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [forceSignOut, user?.id]);
 
   const signIn = async (email: string, password: string) => {
-    const { error, data } = await authService.signIn(email, password);
+    try {
+      const data = await authService.signIn(email, password);
 
-    if (error) return { error };
-
-    if (data.user) {
-      const active = await authService.fetchIsActive(data.user.id);
-      if (!active) {
-        await authService.signOut();
-        return { error: { message: 'هذا الحساب معطّل. تواصل مع المسؤول.' } };
+      if (data.user) {
+        const active = await authService.fetchIsActive(data.user.id);
+        if (!active) {
+          await authService.signOut();
+          return { error: { message: 'هذا الحساب معطّل. تواصل مع المسؤول.' } };
+        }
       }
-    }
 
-    return { error: null };
+      return { error: null };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'تعذر تسجيل الدخول';
+      return { error: { message: msg } };
+    }
   };
 
   const signOut = async () => {

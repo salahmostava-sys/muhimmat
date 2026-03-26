@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { salaryService } from '@/services/salaryService';
+import { salaryService } from '@services/salaryService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';

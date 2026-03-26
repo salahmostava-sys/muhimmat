@@ -15,7 +15,7 @@ import { Sun, Moon, Menu, ChevronLeft, ChevronRight, LogOut, Settings, User, Che
 import NotificationCenter from '@/components/NotificationCenter';
 import GlobalSearch from '@/components/GlobalSearch';
 import { cn } from '@/lib/utils';
-import { profileService } from '@/services/profileService';
+import { profileService } from '@services/profileService';
 
 interface AppLayoutProps {
   children: ReactNode;
