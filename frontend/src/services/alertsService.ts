@@ -24,7 +24,11 @@ export const alertsService = {
         .eq('status', 'active')
         .not('iqama_expiry_date', 'is', null)
         .lte('iqama_expiry_date', iqamaThreshold),
-      Promise.resolve({ data: [], error: null }),
+      supabase
+        .from('alerts')
+        .select('id, type, due_date, is_resolved, message, details')
+        .order('created_at', { ascending: false })
+        .limit(500),
     ]);
 
     const timeoutError = () =>
@@ -36,7 +40,7 @@ export const alertsService = {
         setTimeout(() => reject(timeoutError()), timeoutMs);
       }),
     ]);
-    const [employeesRes, vehiclesRes, platformAccountsRes] = results as [
+    const [employeesRes, vehiclesRes, platformAccountsRes, dbAlertsRes] = results as [
       { error: { message?: string } | null },
       { error: { message?: string } | null },
       { error: { message?: string } | null },
@@ -45,6 +49,7 @@ export const alertsService = {
     throwIfError(employeesRes.error, 'alertsService.fetchAlertsDataWithTimeout.employees');
     throwIfError(vehiclesRes.error, 'alertsService.fetchAlertsDataWithTimeout.vehicles');
     throwIfError(platformAccountsRes.error, 'alertsService.fetchAlertsDataWithTimeout.platformAccounts');
+    throwIfError(dbAlertsRes.error, 'alertsService.fetchAlertsDataWithTimeout.alerts');
     return results;
   },
 
@@ -66,9 +71,32 @@ export const alertsService = {
     return [employeesRes, vehiclesRes] as const;
   },
 
-  resolveAlert: async (alertId: string, resolvedBy: string | null) =>
-    Promise.resolve({ data: null, error: null }),
+  resolveAlert: async (alertId: string, resolvedBy: string | null) => {
+    const { data, error } = await supabase
+      .from('alerts')
+      .update({
+        is_resolved: true,
+        resolved_by: resolvedBy,
+      })
+      .eq('id', alertId)
+      .select('id')
+      .maybeSingle();
+    throwIfError(error, 'alertsService.resolveAlert');
+    return { data, error: null };
+  },
 
-  deferAlert: async (alertId: string, dueDate: string) =>
-    Promise.resolve({ data: null, error: null }),
+  deferAlert: async (alertId: string, dueDate: string) => {
+    const { data, error } = await supabase
+      .from('alerts')
+      .update({
+        due_date: dueDate,
+        is_resolved: false,
+        resolved_by: null,
+      })
+      .eq('id', alertId)
+      .select('id')
+      .maybeSingle();
+    throwIfError(error, 'alertsService.deferAlert');
+    return { data, error: null };
+  },
 };

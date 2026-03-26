@@ -121,8 +121,11 @@ export const authService = {
   },
 
   revokeSession: async (userId: string | null) => {
+    if (!userId) {
+      throw new Error('authService.revokeSession: userId is required');
+    }
     const { error } = await supabase.functions.invoke('admin-update-user', {
-      body: { userId, action: 'revoke_session' },
+      body: { user_id: userId, action: 'revoke_session' },
     });
     throwIfError(error, 'authService.revokeSession');
     return { error: null };

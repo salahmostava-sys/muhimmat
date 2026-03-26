@@ -56,9 +56,19 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { user_id, password } = await req.json() as { user_id?: string; password?: string };
+    const {
+      user_id,
+      password,
+      action,
+    } = await req.json() as {
+      user_id?: string;
+      password?: string;
+      action?: 'update_password' | 'revoke_session';
+    };
     if (!user_id) throw new Error('user_id is required');
     if (!isUuid(user_id)) throw new Error('Invalid user_id');
+    const normalizedAction = action ?? (password ? 'update_password' : undefined);
+    if (!normalizedAction) throw new Error('action is required');
 
     const rateKey = `admin-update-user:${callerUser.id}`;
     const { data: rateRows, error: rateError } = await supabaseAdmin.rpc('enforce_rate_limit', {
@@ -91,12 +101,26 @@ Deno.serve(async (req) => {
       remaining: rate.remaining ?? null,
     });
 
-    const updates: Record<string, unknown> = {};
-    if (password) updates.password = password;
+    if (normalizedAction === 'revoke_session') {
+      // Revoke all refresh tokens/sessions for target user.
+      const authSchema = supabaseAdmin.schema('auth');
+      const { error: refreshTokensError } = await authSchema
+        .from('refresh_tokens')
+        .delete()
+        .eq('user_id', user_id);
+      if (refreshTokensError) throw refreshTokensError;
 
-    if (Object.keys(updates).length > 0) {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, updates);
+      const { error: sessionsError } = await authSchema
+        .from('sessions')
+        .delete()
+        .eq('user_id', user_id);
+      if (sessionsError) throw sessionsError;
+    } else if (normalizedAction === 'update_password') {
+      if (!password) throw new Error('password is required for update_password');
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, { password });
       if (error) throw error;
+    } else {
+      throw new Error('Unsupported action');
     }
 
     return new Response(JSON.stringify({ success: true }), {
