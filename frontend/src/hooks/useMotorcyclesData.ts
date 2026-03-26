@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { vehicleService } from '@/services/vehicleService';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 
 export const motorcyclesDataQueryKey = (userId: string) => ['motorcycles', userId, 'list'] as const;
 
 export const useMotorcyclesData = () => {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const q = useQuery({
     queryKey: motorcyclesDataQueryKey(uid),
     queryFn: async () => {

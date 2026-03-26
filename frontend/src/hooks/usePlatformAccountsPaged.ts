@@ -1,6 +1,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { platformAccountService } from '@/services/platformAccountService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
@@ -23,8 +24,10 @@ export function usePlatformAccountsPaged(params: {
   pageSize: number;
   filters: PlatformAccountsPagedFilters;
 }): UseQueryResult<PagedResult> {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const { page, pageSize, filters } = params;
 
   const employeeId = filters.driverId?.trim() || undefined;

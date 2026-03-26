@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 
@@ -23,8 +24,10 @@ function monthStartEnd(monthKey: string): { start: string; end: string } {
 }
 
 export function useMonthlyActiveEmployeeIds(monthKey?: string) {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const mk = monthKey ?? toMonthKey(new Date());
   const { start, end } = monthStartEnd(mk);
 

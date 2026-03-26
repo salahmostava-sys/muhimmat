@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { salaryService } from '@/services/salaryService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
@@ -22,8 +23,10 @@ export function useSalaryRecordsPaged(params: {
   pageSize: number;
   filters: SalaryRecordsPagedFilters;
 }) {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const { monthYear, page, pageSize, filters } = params;
   const branch = filters.branch === 'all' ? undefined : filters.branch;
   const search = filters.search?.trim() || undefined;
