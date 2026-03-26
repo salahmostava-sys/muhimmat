@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { X, Upload, CheckCircle, AlertTriangle, XCircle, Info, Download, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -45,6 +45,7 @@ interface Props {
 }
 
 type ImportError = { name: string; error: string };
+type PreviewFilter = 'all' | 'errors' | 'warnings';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const parseCity = (val: string | undefined): 'makkah' | 'jeddah' | null => {
@@ -104,6 +105,119 @@ const parseDate = (val: any): string | null => {
 const isValidPhone = (phone?: string) => !phone || /^[0-9+\s-]{7,15}$/.test(phone);
 const isValidEmail = (email?: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidNationalId = (id?: string) => !id || /^[0-9]{10}$/.test(id);
+
+const STEP_LABELS = ['رفع الملف', 'معاينة وتحقق', 'استيراد'] as const;
+
+const findStartRow = (rows: any[][]): number => {
+  const maxHeaderScanRows = Math.min(5, rows.length);
+  for (let i = 0; i < maxHeaderScanRows; i++) {
+    const nameCell = rows[i]?.[7];
+    if (!nameCell || typeof nameCell !== 'string') continue;
+    const nameValue = nameCell.trim();
+    const looksLikeDataRow = nameValue.length > 1 && !/اسم|name/i.test(nameValue);
+    if (looksLikeDataRow) return i;
+  }
+  return 1;
+};
+
+const buildImportSummary = (employees: ParsedEmployee[]): ImportSummary => ({
+  active_delivery: employees.filter(e => e.rowCategory === 'active_delivery').length,
+  accident: employees.filter(e => e.rowCategory === 'accident').length,
+  absconded: employees.filter(e => e.rowCategory === 'absconded').length,
+  supervisor: employees.filter(e => e.rowCategory === 'supervisor').length,
+  errors: employees.filter(e => e._errors.length > 0).length,
+  warnings: employees.filter(e => e._warnings.length > 0).length,
+});
+
+const parseEmployeesFromSheetRows = (rows: any[][]): ParsedEmployee[] => {
+  const startRow = findStartRow(rows);
+  const employees: ParsedEmployee[] = [];
+
+  for (let i = startRow; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every((c: any) => !c)) continue;
+    const emp = parseRow(row, i + 1);
+    if (emp) employees.push(emp);
+  }
+
+  return employees;
+};
+
+const parseWorkbook = (arrayBuffer: ArrayBuffer): { employees: ParsedEmployee[]; summary: ImportSummary } => {
+  const data = new Uint8Array(arrayBuffer);
+  const wb = XLSX.read(data, { type: 'array', cellDates: false });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  const employees = parseEmployeesFromSheetRows(rows);
+  return { employees, summary: buildImportSummary(employees) };
+};
+
+const buildAppsMap = (appsData: { id: string; name: string }[]): Record<string, string> => {
+  const appsMap: Record<string, string> = {};
+  appsData.forEach(a => {
+    appsMap[a.name] = a.id;
+  });
+  return appsMap;
+};
+
+const getFilteredRows = (parsed: ParsedEmployee[], previewFilter: PreviewFilter): ParsedEmployee[] => {
+  if (previewFilter === 'errors') return parsed.filter(e => e._errors.length > 0);
+  if (previewFilter === 'warnings') return parsed.filter(e => e._warnings.length > 0 && e._errors.length === 0);
+  return parsed;
+};
+
+const getValidationCounts = (parsed: ParsedEmployee[]) => ({
+  criticalCount: parsed.filter(e => e._errors.length > 0).length,
+  warningCount: parsed.filter(e => e._warnings.length > 0).length,
+  validCount: parsed.filter(e => e._errors.length === 0).length,
+});
+
+const validateBeforeImport = (parsed: ParsedEmployee[]): boolean => {
+  const criticalErrors = parsed.filter(e => e._errors.length > 0);
+  if (criticalErrors.length === 0) return true;
+  return window.confirm(`يوجد ${criticalErrors.length} صف به أخطاء. هل تريد الاستمرار وتخطّي هذه الصفوف؟`);
+};
+
+const rowCategoryLabel = (emp: ParsedEmployee) => {
+  if (emp.rowCategory === 'active_delivery') return { text: 'نشط — مندوب', cls: 'badge-success' };
+  if (emp.rowCategory === 'accident') return { text: 'موقوف — حادث', cls: 'badge-warning' };
+  if (emp.rowCategory === 'absconded') return { text: 'هروب', cls: 'badge-urgent' };
+  return { text: 'مشرف/ميكانيكي', cls: 'bg-muted text-muted-foreground text-xs font-medium px-2 py-0.5 rounded-full' };
+};
+
+const ValidationMessages = ({ emp }: { emp: ParsedEmployee }) => {
+  if (emp._errors.length > 0) {
+    return (
+      <div className="space-y-0.5">
+        {emp._errors.map((errorMessage) => (
+          <div key={`err-${emp._rowIndex}-${errorMessage}`} className="flex items-center gap-1 text-destructive">
+            <AlertCircle size={10} className="flex-shrink-0" />
+            <span>{errorMessage}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (emp._warnings.length > 0) {
+    return (
+      <div className="space-y-0.5">
+        {emp._warnings.map((warningMessage) => (
+          <div key={`warn-${emp._rowIndex}-${warningMessage}`} className="flex items-center gap-1 text-warning">
+            <AlertTriangle size={10} className="flex-shrink-0" />
+            <span>{warningMessage}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1 text-success">
+      <CheckCircle size={11} /> صحيح
+    </span>
+  );
+};
 
 const parseRow = (row: any[], rowIndex: number): ParsedEmployee | null => {
   const col = (i: number) => {
@@ -275,6 +389,105 @@ const processEmployeeBatches = async (
   return importErrors;
 };
 
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+const StepIndicator = ({ step }: { step: 1 | 2 | 3 }) => (
+  <div className="flex items-center gap-0 px-6 pt-4 pb-2 shrink-0">
+    {STEP_LABELS.map((label, i) => {
+      const stepNumber = i + 1;
+      const isDone = stepNumber < step;
+      const isCurrent = stepNumber === step;
+      return (
+        <div key={label} className="flex items-center flex-1 last:flex-none">
+          <div className="flex items-center gap-2">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isDone ? 'bg-success text-success-foreground' : isCurrent ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+              {isDone ? <CheckCircle size={14} /> : stepNumber}
+            </div>
+            <span className={`text-xs hidden sm:block ${isCurrent ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{label}</span>
+          </div>
+          {i < 2 && <div className={`flex-1 h-px mx-2 ${isDone ? 'bg-success' : 'bg-border'}`} />}
+        </div>
+      );
+    })}
+  </div>
+);
+
+const CityBadge = ({ city }: { city: string | null | undefined }) => {
+  if (city === 'makkah') return <span className="bg-accent/20 text-accent-foreground px-1.5 py-0.5 rounded text-xs">مكة</span>;
+  if (city === 'jeddah') return <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs">جدة</span>;
+  return <span className="text-warning text-xs">⚠️ غير محدد</span>;
+};
+
+const SummaryCards = ({ summary }: { summary: ImportSummary }) => (
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="bg-success/10 rounded-xl p-3 text-center">
+      <CheckCircle size={18} className="text-success mx-auto mb-1" />
+      <p className="text-xl font-bold text-success">{summary.active_delivery}</p>
+      <p className="text-xs text-muted-foreground">✅ مندوب توصيل نشط</p>
+    </div>
+    <div className="bg-warning/10 rounded-xl p-3 text-center">
+      <AlertTriangle size={18} className="text-warning mx-auto mb-1" />
+      <p className="text-xl font-bold text-warning">{summary.accident}</p>
+      <p className="text-xs text-muted-foreground">⚠️ حادث (موقوف)</p>
+    </div>
+    <div className="bg-destructive/10 rounded-xl p-3 text-center">
+      <XCircle size={18} className="text-destructive mx-auto mb-1" />
+      <p className="text-xl font-bold text-destructive">{summary.absconded}</p>
+      <p className="text-xs text-muted-foreground">🔴 هروب (غير نشط)</p>
+    </div>
+    <div className="bg-muted rounded-xl p-3 text-center">
+      <Info size={18} className="text-muted-foreground mx-auto mb-1" />
+      <p className="text-xl font-bold text-foreground">{summary.supervisor}</p>
+      <p className="text-xs text-muted-foreground">ℹ️ مشرف/ميكانيكي</p>
+    </div>
+  </div>
+);
+
+const PREVIEW_TABLE_HEADERS = ['#', 'الاسم', 'الكود', 'رقم الهوية', 'الراتب', 'المنصة', 'المدينة', 'الجنسية', 'الهاتف', 'الحالة', 'تحقق'] as const;
+
+const PreviewTableHeader = () => (
+  <thead>
+    <tr className="border-b border-border bg-muted/50">
+      {PREVIEW_TABLE_HEADERS.map((header) => (
+        <th key={header} className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">{header}</th>
+      ))}
+    </tr>
+  </thead>
+);
+
+const PreviewRow = ({ emp }: { emp: ParsedEmployee }) => {
+  const st = rowCategoryLabel(emp);
+  const hasError = emp._errors.length > 0;
+  const hasWarning = emp._warnings.length > 0;
+  const rowBg = hasError ? 'bg-destructive/5' : hasWarning ? 'bg-warning/5' : 'hover:bg-muted/20';
+  const idHasError = emp._errors.some(e => e.includes('هوية'));
+  const phoneHasWarning = emp._warnings.some(w => w.includes('هاتف'));
+
+  return (
+    <tr className={`border-b border-border/50 ${rowBg}`}>
+      <td className="px-3 py-2 text-muted-foreground">{emp._rowIndex}</td>
+      <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{emp.name}</td>
+      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{emp.employee_code || '—'}</td>
+      <td className={`px-3 py-2 whitespace-nowrap font-mono text-xs ${idHasError ? 'text-destructive' : 'text-muted-foreground'}`}>
+        {emp.national_id || <span className="text-warning">⚠️ مفقود</span>}
+      </td>
+      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+        {emp.base_salary != null ? `${emp.base_salary.toLocaleString()} ر.س` : '—'}
+      </td>
+      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{emp.platform || '—'}</td>
+      <td className="px-3 py-2 whitespace-nowrap"><CityBadge city={emp.city} /></td>
+      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{emp.nationality || '—'}</td>
+      <td className={`px-3 py-2 whitespace-nowrap font-mono text-xs ${phoneHasWarning ? 'text-warning' : 'text-muted-foreground'}`}>
+        {emp.phone || '—'}
+      </td>
+      <td className="px-3 py-2 whitespace-nowrap"><span className={st.cls}>{st.text}</span></td>
+      <td className="px-3 py-2 whitespace-nowrap min-w-[160px]">
+        <ValidationMessages emp={emp} />
+      </td>
+    </tr>
+  );
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
   const { toast } = useToast();
@@ -286,48 +499,42 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('');
-  const [errors, setErrors] = useState<{ name: string; error: string }[]>([]);
+  const [errors, setErrors] = useState<ImportError[]>([]);
   const [showAllRows, setShowAllRows] = useState(false);
-  const [previewFilter, setPreviewFilter] = useState<'all' | 'errors' | 'warnings'>('all');
+  const [previewFilter, setPreviewFilter] = useState<PreviewFilter>('all');
+
+  const { criticalCount, warningCount, validCount } = useMemo(
+    () => getValidationCounts(parsed),
+    [parsed],
+  );
+
+  const filteredRows = useMemo(
+    () => getFilteredRows(parsed, previewFilter),
+    [parsed, previewFilter],
+  );
+
+  const displayRows = useMemo(
+    () => (showAllRows ? filteredRows : filteredRows.slice(0, 15)),
+    [filteredRows, showAllRows],
+  );
+
+  const filterTabs = useMemo(() => {
+    const tabs: { key: PreviewFilter; label: string }[] = [
+      { key: 'all', label: `الكل (${parsed.length})` },
+    ];
+    if (criticalCount > 0) tabs.push({ key: 'errors', label: `🔴 أخطاء (${criticalCount})` });
+    if (warningCount > 0) tabs.push({ key: 'warnings', label: `⚠️ تحذيرات (${warningCount})` });
+    return tabs;
+  }, [parsed.length, criticalCount, warningCount]);
 
   const handleFile = useCallback((file: File) => {
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: 'array', cellDates: false });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
-        let startRow = 1;
-        for (let i = 0; i < Math.min(5, rows.length); i++) {
-          const nameCell = rows[i][7];
-          if (nameCell && typeof nameCell === 'string' && nameCell.trim().length > 1 && !/اسم|name/i.test(nameCell)) {
-            startRow = i;
-            break;
-          }
-        }
-
-        const employees: ParsedEmployee[] = [];
-        for (let i = startRow; i < rows.length; i++) {
-          const row = rows[i];
-          if (!row || row.every((c: any) => !c)) continue;
-          const emp = parseRow(row, i + 1);
-          if (emp) employees.push(emp);
-        }
-
-        const sum: ImportSummary = {
-          active_delivery: employees.filter(e => e.rowCategory === 'active_delivery').length,
-          accident: employees.filter(e => e.rowCategory === 'accident').length,
-          absconded: employees.filter(e => e.rowCategory === 'absconded').length,
-          supervisor: employees.filter(e => e.rowCategory === 'supervisor').length,
-          errors: employees.filter(e => e._errors.length > 0).length,
-          warnings: employees.filter(e => e._warnings.length > 0).length,
-        };
-
-        setParsed(employees);
-        setSummary(sum);
+        const result = parseWorkbook(e.target!.result as ArrayBuffer);
+        setParsed(result.employees);
+        setSummary(result.summary);
         setStep(2);
       } catch (err: unknown) {
         console.error('[ImportEmployeesModal] parse file failed', err);
@@ -338,12 +545,12 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
   }, [toast]);
 
   const handleConfirm = async () => {
-    const criticalErrors = parsed.filter(e => e._errors.length > 0);
-    if (criticalErrors.length > 0 && !window.confirm(`يوجد ${criticalErrors.length} صف به أخطاء. هل تريد الاستمرار وتخطّي هذه الصفوف؟`)) return;
+    if (!validateBeforeImport(parsed)) return;
 
     setImporting(true);
     setStep(3);
     setProgress(0);
+
     const validRows = parsed.filter(e => e._errors.length === 0);
     if (validRows.length === 0) {
       setErrors([]);
@@ -358,8 +565,8 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
       toast({ title: 'لا توجد منصات فعّالة للربط', variant: 'destructive' });
       return;
     }
-    const appsMap: Record<string, string> = {};
-    (appsData || []).forEach(a => { appsMap[a.name] = a.id; });
+
+    const appsMap = buildAppsMap(appsData);
     const importErrors = await processEmployeeBatches(validRows, appsMap, (done, total) => {
       const pct = Math.round((done / total) * 100);
       setProgress(pct);
@@ -381,30 +588,17 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
     }
   };
 
-  const downloadErrorReport = () => {
+  const downloadErrorReport = useCallback(() => {
     const ws = XLSX.utils.json_to_sheet(errors);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'أخطاء');
     XLSX.writeFile(wb, 'import_errors.xlsx');
-  };
+  }, [errors]);
 
-  const rowCategoryLabel = (emp: ParsedEmployee) => {
-    if (emp.rowCategory === 'active_delivery') return { text: 'نشط — مندوب', cls: 'badge-success' };
-    if (emp.rowCategory === 'accident') return { text: 'موقوف — حادث', cls: 'badge-warning' };
-    if (emp.rowCategory === 'absconded') return { text: 'هروب', cls: 'badge-urgent' };
-    return { text: 'مشرف/ميكانيكي', cls: 'bg-muted text-muted-foreground text-xs font-medium px-2 py-0.5 rounded-full' };
-  };
-
-  // Filter for preview
-  const filteredRows = previewFilter === 'errors'
-    ? parsed.filter(e => e._errors.length > 0)
-    : previewFilter === 'warnings'
-    ? parsed.filter(e => e._warnings.length > 0 && e._errors.length === 0)
-    : parsed;
-
-  const displayRows = showAllRows ? filteredRows : filteredRows.slice(0, 15);
-  const criticalCount = parsed.filter(e => e._errors.length > 0).length;
-  const warningCount = parsed.filter(e => e._warnings.length > 0).length;
+  const handleFilterChange = useCallback((key: PreviewFilter) => {
+    setPreviewFilter(key);
+    setShowAllRows(false);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -412,25 +606,12 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <h2 className="text-lg font-bold text-foreground">استيراد بيانات الموظفين</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground">
+          <button type="button" onClick={onClose} className="p-2 hover:bg-muted rounded-lg text-muted-foreground">
             <X size={18} />
           </button>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-0 px-6 pt-4 pb-2 shrink-0">
-          {['رفع الملف', 'معاينة وتحقق', 'استيراد'].map((s, i) => (
-            <div key={s} className="flex items-center flex-1 last:flex-none">
-              <div className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i + 1 < step ? 'bg-success text-success-foreground' : i + 1 === step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                  {i + 1 < step ? <CheckCircle size={14} /> : i + 1}
-                </div>
-                <span className={`text-xs hidden sm:block ${i + 1 === step ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{s}</span>
-              </div>
-              {i < 2 && <div className={`flex-1 h-px mx-2 ${i + 1 < step ? 'bg-success' : 'bg-border'}`} />}
-            </div>
-          ))}
-        </div>
+        <StepIndicator step={step} />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -446,6 +627,9 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
                 onClick={() => fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') fileRef.current?.click(); }}
               >
                 <Upload size={32} className="mx-auto text-muted-foreground mb-3" />
                 <p className="font-medium text-foreground">اضغط لاختيار ملف أو اسحبه هنا</p>
@@ -460,29 +644,7 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
           {/* ── Step 2: Preview + Validation ── */}
           {step === 2 && summary && (
             <div className="space-y-4">
-              {/* Summary cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-success/10 rounded-xl p-3 text-center">
-                  <CheckCircle size={18} className="text-success mx-auto mb-1" />
-                  <p className="text-xl font-bold text-success">{summary.active_delivery}</p>
-                  <p className="text-xs text-muted-foreground">✅ مندوب توصيل نشط</p>
-                </div>
-                <div className="bg-warning/10 rounded-xl p-3 text-center">
-                  <AlertTriangle size={18} className="text-warning mx-auto mb-1" />
-                  <p className="text-xl font-bold text-warning">{summary.accident}</p>
-                  <p className="text-xs text-muted-foreground">⚠️ حادث (موقوف)</p>
-                </div>
-                <div className="bg-destructive/10 rounded-xl p-3 text-center">
-                  <XCircle size={18} className="text-destructive mx-auto mb-1" />
-                  <p className="text-xl font-bold text-destructive">{summary.absconded}</p>
-                  <p className="text-xs text-muted-foreground">🔴 هروب (غير نشط)</p>
-                </div>
-                <div className="bg-muted rounded-xl p-3 text-center">
-                  <Info size={18} className="text-muted-foreground mx-auto mb-1" />
-                  <p className="text-xl font-bold text-foreground">{summary.supervisor}</p>
-                  <p className="text-xs text-muted-foreground">ℹ️ مشرف/ميكانيكي</p>
-                </div>
-              </div>
+              <SummaryCards summary={summary} />
 
               {/* Validation summary */}
               {(criticalCount > 0 || warningCount > 0) && (
@@ -503,7 +665,7 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
                     )}
                     <span className="flex items-center gap-1.5 text-xs bg-success/10 text-success border border-success/20 px-3 py-1.5 rounded-full font-medium">
                       <CheckCircle size={13} />
-                      {parsed.length - criticalCount} صف جاهز للاستيراد
+                      {validCount} صف جاهز للاستيراد
                     </span>
                   </div>
                 </div>
@@ -512,14 +674,11 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
               {/* Filter tabs */}
               <div className="flex items-center justify-between">
                 <div className="flex gap-1">
-                  {[
-                    { key: 'all', label: `الكل (${parsed.length})` },
-                    ...(criticalCount > 0 ? [{ key: 'errors', label: `🔴 أخطاء (${criticalCount})` }] : []),
-                    ...(warningCount > 0 ? [{ key: 'warnings', label: `⚠️ تحذيرات (${warningCount})` }] : []),
-                  ].map(f => (
+                  {filterTabs.map(f => (
                     <button
                       key={f.key}
-                      onClick={() => { setPreviewFilter(f.key as 'all' | 'errors' | 'warnings'); setShowAllRows(false); }}
+                      type="button"
+                      onClick={() => handleFilterChange(f.key)}
                       className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${previewFilter === f.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                     >
                       {f.label}
@@ -534,86 +693,20 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
               {/* Preview table */}
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">#</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">الاسم</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">الكود</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">رقم الهوية</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">الراتب</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">المنصة</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">المدينة</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">الجنسية</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">الهاتف</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">الحالة</th>
-                      <th className="px-3 py-2 text-start text-muted-foreground font-medium whitespace-nowrap">تحقق</th>
-                    </tr>
-                  </thead>
+                  <PreviewTableHeader />
                   <tbody>
-                    {displayRows.map((emp) => {
-                      const st = rowCategoryLabel(emp);
-                      const hasError = emp._errors.length > 0;
-                      const hasWarning = emp._warnings.length > 0;
-                      return (
-                        <tr
-                          key={`preview-row-${emp._rowIndex}-${emp.national_id || emp.employee_code || emp.name}`}
-                          className={`border-b border-border/50 ${hasError ? 'bg-destructive/5' : hasWarning ? 'bg-warning/5' : 'hover:bg-muted/20'}`}
-                        >
-                          <td className="px-3 py-2 text-muted-foreground">{emp._rowIndex}</td>
-                          <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{emp.name}</td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{emp.employee_code || '—'}</td>
-                          <td className={`px-3 py-2 whitespace-nowrap font-mono text-xs ${emp._errors.some(e => e.includes('هوية')) ? 'text-destructive' : 'text-muted-foreground'}`}>
-                            {emp.national_id || <span className="text-warning">⚠️ مفقود</span>}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                            {emp.base_salary !== null && emp.base_salary !== undefined ? `${emp.base_salary.toLocaleString()} ر.س` : '—'}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{emp.platform || '—'}</td>
-                          <td className="px-3 py-2 whitespace-nowrap">
-                            {emp.city === 'makkah'
-                              ? <span className="bg-accent/20 text-accent-foreground px-1.5 py-0.5 rounded text-xs">مكة</span>
-                              : emp.city === 'jeddah'
-                              ? <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs">جدة</span>
-                              : <span className="text-warning text-xs">⚠️ غير محدد</span>}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{emp.nationality || '—'}</td>
-                          <td className={`px-3 py-2 whitespace-nowrap font-mono text-xs ${emp._warnings.some(w => w.includes('هاتف')) ? 'text-warning' : 'text-muted-foreground'}`}>
-                            {emp.phone || '—'}
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap"><span className={st.cls}>{st.text}</span></td>
-                          <td className="px-3 py-2 whitespace-nowrap min-w-[160px]">
-                            {hasError ? (
-                              <div className="space-y-0.5">
-                                {emp._errors.map((e, ei) => (
-                                  <div key={ei} className="flex items-center gap-1 text-destructive">
-                                    <AlertCircle size={10} className="flex-shrink-0" />
-                                    <span>{e}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : hasWarning ? (
-                              <div className="space-y-0.5">
-                                {emp._warnings.map((w, wi) => (
-                                  <div key={wi} className="flex items-center gap-1 text-warning">
-                                    <AlertTriangle size={10} className="flex-shrink-0" />
-                                    <span>{w}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="flex items-center gap-1 text-success">
-                                <CheckCircle size={11} /> صحيح
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {displayRows.map((emp) => (
+                      <PreviewRow
+                        key={`row-${emp._rowIndex}-${emp.national_id ?? emp.employee_code ?? ''}`}
+                        emp={emp}
+                      />
+                    ))}
                   </tbody>
                 </table>
               </div>
               {filteredRows.length > 15 && !showAllRows && (
                 <button
+                  type="button"
                   onClick={() => setShowAllRows(true)}
                   className="w-full text-xs text-muted-foreground hover:text-foreground py-2 border border-dashed border-border rounded-lg transition-colors"
                 >
@@ -640,13 +733,13 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
                   {errors.length === 0 ? (
                     <>
                       <CheckCircle size={48} className="text-success mx-auto" />
-                      <p className="text-lg font-bold text-foreground">✅ تم استيراد {parsed.filter(e => e._errors.length === 0).length} موظف بنجاح</p>
+                      <p className="text-lg font-bold text-foreground">✅ تم استيراد {validCount} موظف بنجاح</p>
                     </>
                   ) : (
                     <>
                       <AlertTriangle size={48} className="text-warning mx-auto" />
                       <p className="text-lg font-bold text-foreground">
-                        ✅ نجح {parsed.filter(e => e._errors.length === 0).length - errors.length} | ⚠️ فشل {errors.length}
+                        ✅ نجح {validCount - errors.length} | ⚠️ فشل {errors.length}
                       </p>
                       <Button variant="outline" size="sm" onClick={downloadErrorReport} className="gap-2">
                         <Download size={14} /> تحميل تقرير الأخطاء
@@ -676,8 +769,8 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
             {step === 2 && (
               <>
                 <Button variant="outline" onClick={() => setStep(1)}>رجوع</Button>
-                <Button onClick={handleConfirm} className="gap-2" disabled={parsed.filter(e => e._errors.length === 0).length === 0}>
-                  تأكيد استيراد {parsed.filter(e => e._errors.length === 0).length} موظف
+                <Button onClick={handleConfirm} className="gap-2" disabled={validCount === 0}>
+                  تأكيد استيراد {validCount} موظف
                 </Button>
               </>
             )}
