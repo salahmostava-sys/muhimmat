@@ -64,10 +64,11 @@ const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
-      gcTime: 5 * 60 * 1000,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      // Global default = semi-fresh baseline. Domain-specific overrides live in each query.
+      staleTime: 60_000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       retry: (failureCount, error: any) => {
         if (!error) return false;
         if (error?.status === 401 || error?.status === 403) return false;

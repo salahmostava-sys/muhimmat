@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, Search, CheckCircle, Clock, X, Download, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -288,6 +288,7 @@ const Alerts = () => {
   const { toast } = useToast();
   const { settings } = useSystemSettings();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
   const iqamaAlertDays = settings?.iqama_alert_days ?? 90;
@@ -328,7 +329,10 @@ const Alerts = () => {
       return buildAlertsFromResponses(employeesVisibleRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today);
     },
     retry: defaultQueryRetry,
-    staleTime: 30_000,
+    // Alerts domain policy: always fresh
+    staleTime: 0,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: 'always',
     refetchInterval: 60_000,
   });
 
@@ -370,6 +374,7 @@ const Alerts = () => {
 
   const handleResolve = async () => {
     if (!resolveDialog) return;
+    const targetAlertId = resolveDialog.id;
     setLocalAlerts(prev => prev.map(a => a.id === resolveDialog.id ? { ...a, resolved: true } : a));
     toast({ title: 'تم الحسم', description: `تم حسم تنبيه: ${resolveDialog.entityName}` });
 
@@ -377,7 +382,10 @@ const Alerts = () => {
     if (isDbBackedEmployeeAlertType(resolveDialog.type)) {
       const { error } = await alertsService.resolveAlert(resolveDialog.id, user?.id ?? null);
       if (error) {
+        setLocalAlerts(prev => prev.map(a => a.id === targetAlertId ? { ...a, resolved: false } : a));
         toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ['alerts', uid, 'page-data'] });
       }
     }
 
@@ -388,6 +396,9 @@ const Alerts = () => {
   const handleDefer = async () => {
     if (!deferDialog) return;
     const days = Number.parseInt(deferDays) || 7;
+    const targetAlertId = deferDialog.id;
+    const originalDueDate = deferDialog.dueDate;
+    const originalDaysLeft = deferDialog.daysLeft;
     const newDate = new Date(deferDialog.dueDate);
     newDate.setDate(newDate.getDate() + days);
     setLocalAlerts(prev => prev.map(a =>
@@ -402,7 +413,14 @@ const Alerts = () => {
       const due = newDate.toISOString().split('T')[0];
       const { error } = await alertsService.deferAlert(deferDialog.id, due);
       if (error) {
+        setLocalAlerts(prev => prev.map(a =>
+          a.id === targetAlertId
+            ? { ...a, dueDate: originalDueDate, daysLeft: originalDaysLeft }
+            : a
+        ));
         toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ['alerts', uid, 'page-data'] });
       }
     }
 

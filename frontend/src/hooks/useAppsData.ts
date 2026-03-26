@@ -49,7 +49,11 @@ export const useAppsData = () => {
 
       return appsWithCounts;
     },
-    staleTime: 60_000,
+    // Static-ish domain policy: cached aggressively
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     enabled,
   });
   useQueryErrorToast(q.isError, q.error);

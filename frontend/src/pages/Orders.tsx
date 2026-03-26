@@ -187,7 +187,10 @@ const SpreadsheetGrid = () => {
       };
     },
     retry: defaultQueryRetry,
+    // Orders domain policy: semi-fresh
     staleTime: 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const {
@@ -203,7 +206,10 @@ const SpreadsheetGrid = () => {
       return (rows || []) as OrderRawRow[];
     },
     retry: defaultQueryRetry,
+    // Orders domain policy: semi-fresh (faster-changing rows)
     staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const { data: spreadsheetMonthLock, error: spreadsheetLockError } = useQuery({
@@ -215,6 +221,8 @@ const SpreadsheetGrid = () => {
     },
     retry: defaultQueryRetry,
     staleTime: 15_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const loading = spreadsheetBaseLoading || spreadsheetMonthLoading;
