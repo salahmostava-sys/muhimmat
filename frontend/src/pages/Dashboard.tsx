@@ -6,7 +6,7 @@ import {
   Users, UserCheck, Bell, Package, Bike, Smartphone,
   TrendingUp, ArrowUpRight, ArrowDownRight, Award,
   BarChart2, Download, Activity, MapPin, ShieldCheck,
-  Target, Clock, AlertTriangle, ChevronUp, ChevronDown,
+  Target, Clock, AlertTriangle, ChevronUp, ChevronDown, DollarSign,
   Star, ThumbsUp, ThumbsDown, Minus, Settings2,
 } from 'lucide-react';
 import AlertsList from '@/components/AlertsList';
@@ -429,7 +429,7 @@ const useDashboardRealtimeInvalidation = (
 
 const fetchDashboardKpis = async (
   currentMonth: string,
-  activeEmployeeIdsInMonth: string[] | undefined
+  activeEmployeeIdsInMonth: ReadonlySet<string> | undefined
 ) => {
   const today = format(new Date(), 'yyyy-MM-dd');
   const { data: rpcData, error } = await dashboardService.getOverviewRpc(currentMonth, today);

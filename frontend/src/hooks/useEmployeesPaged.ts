@@ -3,6 +3,7 @@ import { employeeService } from '@/services/employeeService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
+import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
 
 export type EmployeesPagedFilters = {
   branch?: BranchKey;
@@ -30,11 +31,13 @@ export function useEmployeesPaged(params: {
   const q = useQuery<PagedResult>({
     queryKey: ['employees', uid, 'paged', page, pageSize, branch ?? null, status ?? null, search ?? null] as const,
     queryFn: async () => {
-      const res = await employeeService.getPaged({ page, pageSize, filters: { branch, status, search } });
+      const res = await withQueryTimeout(
+        employeeService.getPaged({ page, pageSize, filters: { branch, status, search } })
+      );
       if (res.error) throw res.error;
       return { data: res.data, count: res.count };
     },
-    retry: 1,
+    retry: safeRetry,
     staleTime: 15_000,
     enabled,
   });

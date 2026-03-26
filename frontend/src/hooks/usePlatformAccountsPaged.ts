@@ -3,6 +3,7 @@ import { platformAccountService } from '@/services/platformAccountService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
+import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
 
 export type PlatformAccountsPagedFilters = {
   driverId?: string;
@@ -46,15 +47,17 @@ export function usePlatformAccountsPaged(params: {
       search ?? null,
     ] as const,
     queryFn: async () => {
-      const res = await platformAccountService.getAccountsPaged({
-        page,
-        pageSize,
-        filters: { employeeId, appId, branch, status, search },
-      });
+      const res = await withQueryTimeout(
+        platformAccountService.getAccountsPaged({
+          page,
+          pageSize,
+          filters: { employeeId, appId, branch, status, search },
+        })
+      );
       if (res.error) throw res.error;
       return { data: res.data, count: res.count };
     },
-    retry: 1,
+    retry: safeRetry,
     staleTime: 15_000,
     enabled,
   });

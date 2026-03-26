@@ -3,6 +3,7 @@ import { orderService } from '@/services/orderService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
+import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
 
 export type OrdersPagedFilters = {
   driverId?: string | 'all';
@@ -28,15 +29,18 @@ export function useOrdersMonthPaged(params: {
   const q = useQuery({
     queryKey: ['orders', uid, 'month-paged', monthYear, page, pageSize, driverId ?? null, appId ?? null, branch ?? null, search ?? null] as const,
     queryFn: async () => {
-      const res = await orderService.getMonthPaged({
-        monthYear,
-        page,
-        pageSize,
-        filters: { employeeId: driverId, appId, branch, search },
-      });
+      const res = await withQueryTimeout(
+        orderService.getMonthPaged({
+          monthYear,
+          page,
+          pageSize,
+          filters: { employeeId: driverId, appId, branch, search },
+        })
+      );
+      if (res.error) throw res.error;
       return res;
     },
-    retry: 1,
+    retry: safeRetry,
     staleTime: 15_000,
     enabled,
   });
