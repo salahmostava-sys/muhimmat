@@ -22,6 +22,7 @@ import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterS
 import { useOrdersMonthPaged } from '@/hooks/useOrdersPaged';
 import { toast as sonnerToast } from '@/components/ui/sonner';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -95,6 +96,44 @@ const isPastMonth = (y: number, m: number) => {
   return selectedMonthIndex < currentMonthIndex;
 };
 
+const toCellText = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '';
+  }
+};
+
+const toCityArabic = (city?: string | null, fallback = '') => {
+  if (city === 'makkah') return 'مكة';
+  if (city === 'jeddah') return 'جدة';
+  return fallback;
+};
+
+const ORDERS_SKELETON_ROW_KEYS = [
+  'orders-skeleton-row-1',
+  'orders-skeleton-row-2',
+  'orders-skeleton-row-3',
+  'orders-skeleton-row-4',
+  'orders-skeleton-row-5',
+  'orders-skeleton-row-6',
+  'orders-skeleton-row-7',
+  'orders-skeleton-row-8',
+  'orders-skeleton-row-9',
+  'orders-skeleton-row-10',
+] as const;
+
+const ORDERS_SKELETON_CELL_KEYS = [
+  'orders-skeleton-cell-1',
+  'orders-skeleton-cell-2',
+  'orders-skeleton-cell-3',
+  'orders-skeleton-cell-4',
+  'orders-skeleton-cell-5',
+] as const;
+
 // ─── SpreadsheetGrid ─────────────────────────────────────────────────
 const SpreadsheetGrid = () => {
   const { enabled, userId } = useAuthQueryGate();
@@ -116,7 +155,7 @@ const SpreadsheetGrid = () => {
   const [saving, setSaving] = useState(false);
   const [expandedEmp, setExpandedEmp] = useState<Set<string>>(new Set());
   const [cellPopover, setCellPopover] = useState<OrdersPopoverState | null>(null);
-  const [platformFilter, setPlatformFilter] = useState<'all' | string>('all');
+  const [platformFilter, setPlatformFilter] = useState('all');
   const [appEmployeeIds, setAppEmployeeIds] = useState<Record<string, Set<string>>>({});
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [lockingMonth, setLockingMonth] = useState(false);
@@ -147,7 +186,7 @@ const SpreadsheetGrid = () => {
         employeeApps: (empAppsRes.data || []) as EmployeeAppAssignmentRow[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 
@@ -163,7 +202,7 @@ const SpreadsheetGrid = () => {
       if (error) throw error;
       return (rows || []) as OrderRawRow[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -174,7 +213,7 @@ const SpreadsheetGrid = () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -281,39 +320,35 @@ const SpreadsheetGrid = () => {
   };
 
   // ── Import ──
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const wb = XLSX.read(ev.target?.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-        let imported = 0;
-        const newData = { ...data };
-        rows.forEach(row => {
-          const empName = String(row['الاسم'] || '');
-          const emp = employees.find(e => e.name === empName);
-          if (!emp) return;
-          dayArr.forEach(d => {
-            const val = Number(row[String(d)]);
-            if (val > 0) {
-              apps.forEach(app => {
-                newData[`${emp.id}::${app.id}::${d}`] = val;
-                imported++;
-              });
-            }
-          });
-        });
-        setData(newData);
-        toast({ title: `تم استيراد ${imported} إدخال` });
-      } catch (err) {
-        console.error('[Orders] import spreadsheet failed', err);
-        toast({ title: 'فشل الاستيراد', variant: 'destructive' });
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const wb = XLSX.read(arrayBuffer, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+      let imported = 0;
+      const newData = { ...data };
+      for (const row of rows) {
+        const empName = toCellText(row['الاسم']);
+        const emp = employees.find(employee => employee.name === empName);
+        if (!emp) continue;
+        for (const d of dayArr) {
+          const val = Number(row[String(d)]);
+          if (val <= 0) continue;
+          for (const app of apps) {
+            newData[`${emp.id}::${app.id}::${d}`] = val;
+            imported++;
+          }
+        }
       }
-    };
-    reader.readAsArrayBuffer(file);
+      setData(newData);
+      toast({ title: `تم استيراد ${imported} إدخال` });
+    } catch (err) {
+      console.error('[Orders] import spreadsheet failed', err);
+      toast({ title: 'فشل الاستيراد', variant: 'destructive' });
+    }
     e.target.value = '';
   };
 
@@ -330,14 +365,33 @@ const SpreadsheetGrid = () => {
   const handlePrint = () => {
     const table = tableRef.current;
     if (!table) return;
-    const printWindow = window.open('', '_blank');
+    const printWindow = globalThis.open('', '_blank');
     if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>طلبات ${month}/${year}</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:14px}p.sub{text-align:center;color:#666;font-size:10px;margin-bottom:10px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:5px 6px;text-align:right;font-size:9px;white-space:nowrap}td{padding:4px 6px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>طلبات شهر ${month}/${year}</h2><p class="sub">المجموع: ${filteredEmployees.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>`);
-    if (!printWindow.document.body) return;
-    // Append the live DOM table node to avoid string-interpolating table HTML.
-    printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}</script></body></html>`);
-    printWindow.document.close();
+    const doc = printWindow.document;
+    const html = doc.documentElement;
+    const head = doc.head;
+    const body = doc.body;
+    if (!html || !head || !body) return;
+    html.setAttribute('dir', 'rtl');
+    html.setAttribute('lang', 'ar');
+    head.innerHTML = `
+      <meta charset="UTF-8" />
+      <title>طلبات ${month}/${year}</title>
+      <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:10px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:14px}p.sub{text-align:center;color:#666;font-size:10px;margin-bottom:10px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:5px 6px;text-align:right;font-size:9px;white-space:nowrap}td{padding:4px 6px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style>
+    `;
+    const title = doc.createElement('h2');
+    title.textContent = `طلبات شهر ${month}/${year}`;
+    const subtitle = doc.createElement('p');
+    subtitle.className = 'sub';
+    subtitle.textContent = `المجموع: ${filteredEmployees.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}`;
+    body.innerHTML = '';
+    body.appendChild(title);
+    body.appendChild(subtitle);
+    body.appendChild(table.cloneNode(true));
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.onafterprint = () => printWindow.close();
+    };
   };
 
   // ── Save ──
@@ -347,8 +401,8 @@ const SpreadsheetGrid = () => {
     const rows: { employee_id: string; app_id: string; date: string; orders_count: number }[] = [];
     Object.entries(data).forEach(([key, count]) => {
       const [empId, appId, dayStr] = key.split('::');
-      const day = parseInt(dayStr);
-      if (!isNaN(day) && day >= 1 && day <= days)
+      const day = Number.parseInt(dayStr, 10);
+      if (!Number.isNaN(day) && day >= 1 && day <= days)
         rows.push({ employee_id: empId, app_id: appId, date: dateStr(year, month, day), orders_count: count });
     });
     const { saved, failed } = await orderService.bulkUpsert(rows);
@@ -415,7 +469,7 @@ const SpreadsheetGrid = () => {
             <>
               <span className="h-3 w-px bg-border" aria-hidden />
               <span className="text-primary font-medium truncate max-w-[7rem]">
-                {apps.find(a => a.id === platformFilter)!.name}
+                {apps.find(a => a.id === platformFilter)?.name}
               </span>
             </>
           )}
@@ -585,7 +639,7 @@ const MonthSummary = () => {
         apps: (appRes.data || []) as App[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 
@@ -598,7 +652,7 @@ const MonthSummary = () => {
       if (error) throw error;
       return (rows || []) as AppTargetRow[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -609,7 +663,7 @@ const MonthSummary = () => {
       const my = monthYear(year, month);
       return orderService.getMonthLockStatus(my);
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -625,7 +679,7 @@ const MonthSummary = () => {
       if (error) throw error;
       return (rows || []) as OrderRawRow[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -667,7 +721,7 @@ const MonthSummary = () => {
 
   const saveTarget = async (appId: string, value: string) => {
     if (isMonthLocked) return;
-    const targetOrders = parseInt(value) || 0;
+    const targetOrders = Number.parseInt(value, 10) || 0;
     const my = monthYear(year, month);
     setSavingTarget(appId);
     const { error } = await orderService.upsertAppTarget(appId, my, targetOrders);
@@ -758,7 +812,7 @@ const MonthSummary = () => {
             {apps.map(app => {
               const c = getAppColor(appColorsList, app.name);
               const total = appGrandTotal(app.id);
-              const targetVal = parseInt(targets[app.id] || '0') || 0;
+              const targetVal = Number.parseInt(targets[app.id] || '0', 10) || 0;
               const pct = targetVal > 0 ? Math.min(Math.round((total / targetVal) * 100), 100) : 0;
               const overTarget = targetVal > 0 && total >= targetVal;
               const isSaving = savingTarget === app.id;
@@ -837,7 +891,6 @@ const MonthSummary = () => {
 const OrdersList = () => {
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
-  const { permissions } = usePermissions('orders');
   const { toast } = useToast();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -869,7 +922,7 @@ const OrdersList = () => {
     },
     enabled: enabled && !!activeIdsData,
     staleTime: 60_000,
-    retry: 1,
+    retry: defaultQueryRetry,
   });
 
   useEffect(() => {
@@ -909,7 +962,7 @@ const OrdersList = () => {
       const out = (raw || []).map((r) => ({
         التاريخ: r.date,
         المندوب: empMap[r.employee_id]?.name ?? r.employee_id,
-        الفرع: empMap[r.employee_id]?.city === 'makkah' ? 'مكة' : empMap[r.employee_id]?.city === 'jeddah' ? 'جدة' : '',
+        الفرع: toCityArabic(empMap[r.employee_id]?.city, ''),
         المنصة: appMap[r.app_id]?.name ?? r.app_id,
         الطلبات: r.orders_count,
       }));
@@ -961,10 +1014,10 @@ const OrdersList = () => {
             <tbody>
               {(paged.isLoading || !paged.data) && (
                 <>
-                  {Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={`orders-skeleton-row-${i}`} className="border-b border-border/30">
-                      {Array.from({ length: 5 }).map((__, j) => (
-                        <td key={`orders-skeleton-cell-${i}-${j}`} className="px-3 py-3">
+                  {ORDERS_SKELETON_ROW_KEYS.map((rowKey) => (
+                    <tr key={rowKey} className="border-b border-border/30">
+                      {ORDERS_SKELETON_CELL_KEYS.map((cellKey) => (
+                        <td key={`${rowKey}-${cellKey}`} className="px-3 py-3">
                           <div className="h-4 w-full bg-muted/40 rounded animate-pulse" />
                         </td>
                       ))}
@@ -977,7 +1030,7 @@ const OrdersList = () => {
                 <tr key={`${r.employee_id}-${r.app_id}-${r.date}`} className="border-b border-border/30 hover:bg-muted/20">
                   <td className="px-3 py-2 whitespace-nowrap">{r.date}</td>
                   <td className="px-3 py-2 whitespace-nowrap font-medium">{r.employees?.name ?? '—'}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{r.employees?.city === 'makkah' ? 'مكة' : r.employees?.city === 'jeddah' ? 'جدة' : '—'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{toCityArabic(r.employees?.city, '—')}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{r.apps?.name ?? '—'}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{r.orders_count}</td>
                 </tr>

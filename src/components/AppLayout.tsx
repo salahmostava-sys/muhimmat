@@ -90,7 +90,9 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
     if (!user?.id) return;
     profileService.getProfileName(user.id)
       .then(({ data }) => { if (data?.name) setProfileName(data.name); })
-      .catch(() => {});
+      .catch((error: unknown) => {
+        console.error('[AppLayout] getProfileName failed', error);
+      });
   }, [user?.id]);
 
   const Sep = isRTL ? ChevronLeft : ChevronRight;

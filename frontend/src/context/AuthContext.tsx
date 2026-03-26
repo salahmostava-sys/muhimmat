@@ -47,10 +47,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setRole(null);
   }, [user?.id]);
 
-  const isAuthed = useMemo(() => !!(user && session), [session, user]);
-
   const recoverSessionSilently = useCallback(async (opts?: { refetchActiveQueries?: boolean }) => {
-    if (recoverInFlightRef.current) return recoverInFlightRef.current;
+    if (recoverInFlightRef.current !== null) return recoverInFlightRef.current;
 
     const task = (async () => {
       setRefreshing(true);
@@ -90,50 +88,61 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const subscription = authService.onAuthStateChange(async (event, nextSession) => {
-      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
-        try {
-          await queryClient.cancelQueries();
-          queryClient.clear();
-        } catch (e) {
-          console.error('[Auth] queryClient cancel/clear failed', e);
+      try {
+        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
+          try {
+            await queryClient.cancelQueries();
+            queryClient.clear();
+          } catch (e) {
+            console.error('[Auth] queryClient cancel/clear failed', e);
+          }
+          setRefreshing(false);
+          setLoading(false);
         }
-        setRefreshing(false);
+        if (nextSession?.user) {
+          const active = await authService.fetchIsActive(nextSession.user.id);
+          if (!active) {
+            await forceSignOut();
+            setLoading(false);
+            return;
+          }
+          setSession(nextSession);
+          setUser(nextSession.user);
+          const r = await fetchRole(nextSession.user.id);
+          setRole(r);
+        } else {
+          setSession(null);
+          setUser(null);
+          setRole(null);
+        }
+      } catch (e) {
+        console.error('[Auth] onAuthStateChange handler failed', e);
+      } finally {
         setLoading(false);
       }
-      if (nextSession?.user) {
-        const active = await authService.fetchIsActive(nextSession.user.id);
-        if (!active) {
-          await forceSignOut();
-          setLoading(false);
-          return;
-        }
-        setSession(nextSession);
-        setUser(nextSession.user);
-        const r = await fetchRole(nextSession.user.id);
-        setRole(r);
-      } else {
-        setSession(null);
-        setUser(null);
-        setRole(null);
-      }
-      setLoading(false);
     });
 
-    authService.getSession().then(async ({ session: currentSession }) => {
-      if (currentSession?.user) {
-        const active = await authService.fetchIsActive(currentSession.user.id);
-        if (!active) {
-          await forceSignOut();
-          setLoading(false);
-          return;
+    authService.getSession()
+      .then(async ({ session: currentSession }) => {
+        if (currentSession?.user) {
+          const active = await authService.fetchIsActive(currentSession.user.id);
+          if (!active) {
+            await forceSignOut();
+            setLoading(false);
+            return;
+          }
+          setSession(currentSession);
+          setUser(currentSession.user);
+          const r = await fetchRole(currentSession.user.id);
+          setRole(r);
         }
-        setSession(currentSession);
-        setUser(currentSession.user);
-        const r = await fetchRole(currentSession.user.id);
-        setRole(r);
-      }
-      setLoading(false);
-    });
+      })
+      .catch((e) => {
+        console.error('[Auth] getSession bootstrap failed', e);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     return () => subscription.unsubscribe();
   }, [forceSignOut, queryClient]);
@@ -156,12 +165,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       void onWake();
     };
     document.addEventListener('visibilitychange', onWake);
-    window.addEventListener('focus', onFocus);
-    window.addEventListener('online', onOnline);
+    globalThis.addEventListener('focus', onFocus);
+    globalThis.addEventListener('online', onOnline);
     return () => {
       document.removeEventListener('visibilitychange', onWake);
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('online', onOnline);
+      globalThis.removeEventListener('focus', onFocus);
+      globalThis.removeEventListener('online', onOnline);
     };
   }, [recoverSessionSilently]);
 
@@ -214,19 +223,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const busy = loading || refreshing;
+  const contextValue = useMemo<AuthContextType>(() => ({
+    user,
+    session,
+    role,
+    loading: busy,
+    authLoading: busy,
+    recoverSessionSilently,
+    signIn,
+    signOut,
+  }), [user, session, role, busy, recoverSessionSilently, signIn, signOut]);
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        role,
-        loading: busy,
-        authLoading: busy,
-        recoverSessionSilently,
-        signIn,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

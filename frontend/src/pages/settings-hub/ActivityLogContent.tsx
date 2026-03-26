@@ -14,6 +14,7 @@ import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { settingsHubService } from '@/services/settingsHubService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 interface AuditLog {
   id: string;
@@ -86,9 +87,23 @@ const formatJson = (obj: Record<string, unknown> | null) => {
     return JSON.stringify(obj, null, 2);
   } catch (e) {
     console.error('[ActivityLog] formatJson failed', e);
-    return String(obj);
+    return '[unserializable-object]';
   }
 };
+
+const getHeaderAlignmentClass = (index: number, isRTL: boolean) => {
+  if (index === 2) return 'text-center';
+  return isRTL ? 'text-right' : 'text-left';
+};
+
+const SKELETON_ROWS = [
+  'activity-skeleton-row-1',
+  'activity-skeleton-row-2',
+  'activity-skeleton-row-3',
+  'activity-skeleton-row-4',
+  'activity-skeleton-row-5',
+  'activity-skeleton-row-6',
+] as const;
 
 const hasPayload = (log: AuditLog) =>
   Boolean(
@@ -148,7 +163,7 @@ export default function ActivityLogContent() {
         total: count || 0,
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 15_000,
   });
 
@@ -270,7 +285,7 @@ export default function ActivityLogContent() {
                 ].map((h, i) => (
                   <th
                     key={`activity-header-${h}`}
-                    className={`p-3 text-xs font-semibold whitespace-nowrap ${i === 2 ? 'text-center' : isRTL ? 'text-right' : 'text-left'} ${i === 4 ? 'hidden lg:table-cell' : ''}`}
+                    className={`p-3 text-xs font-semibold whitespace-nowrap ${getHeaderAlignmentClass(i, isRTL)} ${i === 4 ? 'hidden lg:table-cell' : ''}`}
                     style={{ color: 'var(--ds-on-surface-variant)' }}
                   >
                     {h}
@@ -279,28 +294,26 @@ export default function ActivityLogContent() {
               </tr>
             </thead>
             <tbody style={{ background: 'var(--ds-surface-lowest)' }}>
-              {loading
-                ? Array.from({ length: 6 }).map((_, i) => (
-                  <tr key={`activity-skeleton-row-${i}`} style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
-                    <td className="p-3"><Skeleton className="h-4 w-28" /></td>
-                    <td className="p-3"><Skeleton className="h-4 w-24" /></td>
-                    <td className="p-3 text-center"><Skeleton className="h-5 w-14 mx-auto rounded-full" /></td>
-                    <td className="p-3"><Skeleton className="h-4 w-20" /></td>
-                    <td className="p-3 hidden lg:table-cell"><Skeleton className="h-4 w-36" /></td>
-                  </tr>
-                ))
-                : logs.length === 0
-                  ? (
-                    <tr>
-                      <td colSpan={5} className="p-12 text-center">
-                        <Activity size={32} className="mx-auto mb-3 opacity-20" style={{ color: 'var(--ds-on-surface-variant)' }} />
-                        <p className="text-sm" style={{ color: 'var(--ds-on-surface-variant)' }}>
-                          لا توجد سجلات
-                        </p>
-                      </td>
-                    </tr>
-                  )
-                  : logs.map(log => (
+              {loading && SKELETON_ROWS.map((skeletonKey) => (
+                <tr key={skeletonKey} style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>
+                  <td className="p-3"><Skeleton className="h-4 w-28" /></td>
+                  <td className="p-3"><Skeleton className="h-4 w-24" /></td>
+                  <td className="p-3 text-center"><Skeleton className="h-5 w-14 mx-auto rounded-full" /></td>
+                  <td className="p-3"><Skeleton className="h-4 w-20" /></td>
+                  <td className="p-3 hidden lg:table-cell"><Skeleton className="h-4 w-36" /></td>
+                </tr>
+              ))}
+              {!loading && logs.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-12 text-center">
+                    <Activity size={32} className="mx-auto mb-3 opacity-20" style={{ color: 'var(--ds-on-surface-variant)' }} />
+                    <p className="text-sm" style={{ color: 'var(--ds-on-surface-variant)' }}>
+                      لا توجد سجلات
+                    </p>
+                  </td>
+                </tr>
+              )}
+              {!loading && logs.length > 0 && logs.map(log => (
                     <Fragment key={log.id}>
                     <tr
                       style={{ borderBottom: expandedId === log.id ? 'none' : '1px solid var(--ds-surface-container)' }}
@@ -308,15 +321,6 @@ export default function ActivityLogContent() {
                       onClick={() => {
                         if (!hasPayload(log)) return;
                         setExpandedId(expandedId === log.id ? null : log.id);
-                      }}
-                      role={hasPayload(log) ? 'button' : undefined}
-                      tabIndex={hasPayload(log) ? 0 : undefined}
-                      onKeyDown={e => {
-                        if (!hasPayload(log)) return;
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setExpandedId(expandedId === log.id ? null : log.id);
-                        }
                       }}
                     >
                       <td className="p-3 whitespace-nowrap">
@@ -475,8 +479,7 @@ export default function ActivityLogContent() {
                       </tr>
                     )}
                     </Fragment>
-                  ))
-              }
+                  ))}
             </tbody>
           </table>
         </div>

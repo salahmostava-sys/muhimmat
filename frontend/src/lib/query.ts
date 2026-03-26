@@ -5,7 +5,8 @@ import { toast } from '@/components/ui/sonner';
  * Use in `QueryClient` `defaultOptions.queries.retry`.
  */
 export function defaultQueryRetry(failureCount: number, error: unknown): boolean {
-  if (error == null || typeof error !== 'object') return failureCount < 2;
+  if (!error) return false;
+  if (typeof error !== 'object') return failureCount < 2;
   const status = (error as { status?: number }).status;
   if (status === 401 || status === 403) return false;
   return failureCount < 2;
