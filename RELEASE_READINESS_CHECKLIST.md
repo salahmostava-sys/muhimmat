@@ -5,8 +5,8 @@
 - [ ] Confirm latest `main` is pulled in deployment environment.
 - [ ] Verify `.env`/Supabase keys are set correctly for target environment.
 - [ ] Confirm required migrations exist:
-  - `backend/supabase/migrations/20260324140000_pricing_rules.sql`
-  - `backend/supabase/migrations/20260324150000_rls_payroll_attendance_employees_hardening.sql`
+  - `supabase/migrations/20260324140000_pricing_rules.sql`
+  - `supabase/migrations/20260324150000_rls_payroll_attendance_employees_hardening.sql`
 - [ ] Confirm frontend build works on CI/target machine (`npm run build` in `frontend`).
 
 ## 2) Database Migration Order

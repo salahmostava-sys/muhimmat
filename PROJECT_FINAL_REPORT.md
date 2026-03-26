@@ -3,26 +3,27 @@
 ## What Was Completed
 
 - Removed duplicate migration conflict (`locked_months`) and prevented fresh-db migration collision.
-- Reorganized repo into `backend/` and `frontend/`.
-- Introduced and expanded service layer usage across core payroll/order flows.
+- Adopted Supabase-only backend architecture.
+- Removed legacy server runtimes (`backend/`, `api/`) from active architecture.
+- Consolidated service-layer usage across payroll/order flows.
 - Added centralized payroll domain service:
   - `frontend/src/services/payrollService.ts`
 - Added centralized salary data service:
   - `frontend/src/services/salaryDataService.ts`
 - Added pricing-rules migration and payroll-ready DB model:
-  - `backend/supabase/migrations/20260324140000_pricing_rules.sql`
+  - `supabase/migrations/20260324140000_pricing_rules.sql`
 - Added RLS hardening migration for payroll-critical tables:
-  - `backend/supabase/migrations/20260324150000_rls_payroll_attendance_employees_hardening.sql`
+  - `supabase/migrations/20260324150000_rls_payroll_attendance_employees_hardening.sql`
 - Enabled React Router future flags for v7 compatibility in app routing.
 - Completed security audit report:
   - `SECURITY_AUDIT_REPORT.md`
 
 ## Current Architecture State
 
-- Payroll logic is now partially centralized in `payrollService` (tier/fixed/rules-ready).
+- Backend authority is Supabase only (`supabase/` migrations/functions).
+- Payroll logic is partially centralized in `payrollService` (tier/fixed/rules-ready).
 - Salary page moved significant read/write DB responsibilities into `salaryDataService`.
-- Orders page uses `orderService` for main operations (no page-level direct Supabase usage).
-- Employees update path now flows through `employeeService`.
+- Orders and employee flows are increasingly service-driven.
 
 ## Validation Status
 

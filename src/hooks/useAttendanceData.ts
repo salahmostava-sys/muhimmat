@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 export type AttendanceArchiveEmployee = {
   id: string;
@@ -24,9 +25,12 @@ export type AttendanceDayRow = {
 };
 
 export function useAttendanceArchiveMonth(params: { year: number; monthIndex0: number } | null) {
+  const { user, session, loading: authLoading } = useAuth();
+  const uid = user?.id ?? '__none__';
+  const authEnabled = !!session && !!user && !authLoading;
   return useQuery({
-    queryKey: ['attendance', 'archive', params?.year ?? null, params?.monthIndex0 ?? null] as const,
-    enabled: !!params,
+    queryKey: ['attendance', uid, 'archive', params?.year ?? null, params?.monthIndex0 ?? null] as const,
+    enabled: authEnabled && !!params,
     queryFn: async () => {
       const monthStr = String(params!.monthIndex0 + 1).padStart(2, '0');
       const startDate = `${params!.year}-${monthStr}-01`;
@@ -61,8 +65,12 @@ export function useAttendanceArchiveMonth(params: { year: number; monthIndex0: n
 }
 
 export function useAttendanceBaseData() {
+  const { user, session, loading: authLoading } = useAuth();
+  const uid = user?.id ?? '__none__';
+  const authEnabled = !!session && !!user && !authLoading;
   return useQuery({
-    queryKey: ['attendance', 'base'] as const,
+    queryKey: ['attendance', uid, 'base'] as const,
+    enabled: authEnabled,
     queryFn: async () => {
       const [empRes, appRes, empAppsRes] = await Promise.all([
         supabase
@@ -97,9 +105,12 @@ export function useAttendanceBaseData() {
 }
 
 export function useAttendanceDay(dateStr: string, enabled: boolean) {
+  const { user, session, loading: authLoading } = useAuth();
+  const uid = user?.id ?? '__none__';
+  const authEnabled = !!session && !!user && !authLoading;
   return useQuery({
-    queryKey: ['attendance', 'day', dateStr] as const,
-    enabled,
+    queryKey: ['attendance', uid, 'day', dateStr] as const,
+    enabled: authEnabled && enabled,
     queryFn: async () => {
       const { data, error } = await supabase.from('attendance').select('*').eq('date', dateStr);
       if (error) throw new Error(error.message || 'تعذر تحميل حضور اليوم');

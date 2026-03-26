@@ -56,6 +56,7 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
       retry: (failureCount, error: any) => {
+        if (!error) return false;
         if (error?.status === 401 || error?.status === 403) return false;
         return failureCount < 2;
       },

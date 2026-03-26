@@ -2,10 +2,10 @@
 
 ## Scope
 
-- Backend RLS migrations reviewed:
-  - `backend/supabase/migrations/20260320000002_rls_comprehensive_fix.sql`
-  - `backend/supabase/migrations/20260324140000_pricing_rules.sql`
-  - `backend/supabase/migrations/20260324150000_rls_payroll_attendance_employees_hardening.sql`
+- Supabase RLS migrations reviewed:
+  - `supabase/migrations/20260320000002_rls_comprehensive_fix.sql`
+  - `supabase/migrations/20260324140000_pricing_rules.sql`
+  - `supabase/migrations/20260324150000_rls_payroll_attendance_employees_hardening.sql`
 - Frontend data-access usage reviewed from:
   - `frontend/src/pages/*`
   - `frontend/src/services/*`
