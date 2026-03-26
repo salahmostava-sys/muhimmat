@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import Loading from '@/components/Loading';
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { user, role, loading, signOut, recoverSessionSilently } = useAuth();
+  const { session, role, loading, signOut, recoverSessionSilently } = useAuth();
   const [checkingRecovery, setCheckingRecovery] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
-    if (loading || user) return;
+    if (loading || session) return;
     let mounted = true;
     setCheckingRecovery(true);
     void recoverSessionSilently().finally(() => {
@@ -19,14 +19,14 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
     return () => {
       mounted = false;
     };
-  }, [loading, recoverSessionSilently, user]);
+  }, [loading, recoverSessionSilently, session]);
 
   if (loading || checkingRecovery) {
     const resetKey = `${location.pathname}${location.search}`;
     return <Loading minHeightClassName="min-h-screen" className="bg-background" resetKey={resetKey} />;
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!session) return <Navigate to="/login" replace />;
 
   if (!role) {
     return (

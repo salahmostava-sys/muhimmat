@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
   const recoverInFlightRef = useRef<Promise<boolean> | null>(null);
+  const isFirstLoad = useRef(true);
 
   const forceSignOut = useCallback(async () => {
     const { user: currentUser } = await authService.getCurrentUser();
@@ -90,6 +91,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const subscription = authService.onAuthStateChange(async (event, nextSession) => {
       try {
+        if (isFirstLoad.current) {
+          isFirstLoad.current = false;
+          setLoading(false);
+        }
         if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESH_FAILED') {
           try {
             await queryClient.cancelQueries();
@@ -118,8 +123,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch (e) {
         console.error('[Auth] onAuthStateChange handler failed', e);
-      } finally {
-        setLoading(false);
       }
     });
 
