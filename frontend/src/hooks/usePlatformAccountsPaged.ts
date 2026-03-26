@@ -24,10 +24,10 @@ export function usePlatformAccountsPaged(params: {
   pageSize: number;
   filters: PlatformAccountsPagedFilters;
 }): UseQueryResult<PagedResult> {
-  const { user, session, authLoading } = useAuth();
-  const { userId } = useAuthQueryGate();
+  const { user, session } = useAuth();
+  const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && authReady;
   const { page, pageSize, filters } = params;
 
   const employeeId = filters.driverId?.trim() || undefined;

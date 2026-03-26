@@ -22,10 +22,10 @@ export function useEmployeesPaged(params: {
   pageSize: number;
   filters: EmployeesPagedFilters;
 }) {
-  const { user, session, authLoading } = useAuth();
-  const { userId } = useAuthQueryGate();
+  const { user, session } = useAuth();
+  const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && authReady;
   const { page, pageSize, filters } = params;
   const branch = filters.branch === 'all' ? undefined : filters.branch;
   const status = filters.status && filters.status !== 'all' ? filters.status : undefined;

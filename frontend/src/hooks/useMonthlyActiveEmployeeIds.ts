@@ -24,10 +24,10 @@ function monthStartEnd(monthKey: string): { start: string; end: string } {
 }
 
 export function useMonthlyActiveEmployeeIds(monthKey?: string) {
-  const { user, session, authLoading } = useAuth();
-  const { userId } = useAuthQueryGate();
+  const { user, session } = useAuth();
+  const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && authReady;
   const mk = monthKey ?? toMonthKey(new Date());
   const { start, end } = monthStartEnd(mk);
 

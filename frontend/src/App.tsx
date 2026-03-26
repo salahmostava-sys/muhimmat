@@ -52,7 +52,8 @@ const RootLoader = () => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
+      staleTime: 0,
+      gcTime: 5 * 60 * 1000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
       retry: (failureCount, error: any) => {

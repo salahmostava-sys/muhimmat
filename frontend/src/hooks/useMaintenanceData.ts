@@ -7,10 +7,10 @@ import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 export const maintenanceDataQueryKey = (userId: string) => ['maintenance', userId, 'page-data'] as const;
 
 export const useMaintenanceData = () => {
-  const { user, session, authLoading } = useAuth();
-  const { userId } = useAuthQueryGate();
+  const { user, session } = useAuth();
+  const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && authReady;
   const q = useQuery({
     queryKey: maintenanceDataQueryKey(uid),
     queryFn: async () => {

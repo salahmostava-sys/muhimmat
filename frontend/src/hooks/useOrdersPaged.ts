@@ -19,10 +19,10 @@ export function useOrdersMonthPaged(params: {
   pageSize: number;
   filters: OrdersPagedFilters;
 }) {
-  const { user, session, authLoading } = useAuth();
-  const { userId } = useAuthQueryGate();
+  const { user, session } = useAuth();
+  const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && authReady;
   const { monthYear, page, pageSize, filters } = params;
   const driverId = filters.driverId && filters.driverId !== 'all' ? filters.driverId : undefined;
   const appId = filters.platformAppId && filters.platformAppId !== 'all' ? filters.platformAppId : undefined;

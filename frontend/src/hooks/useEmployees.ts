@@ -7,10 +7,10 @@ import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 export const employeesQueryKey = (userId: string) => ['employees', userId] as const;
 
 export const useEmployees = () => {
-  const { user, session, authLoading } = useAuth();
-  const { userId } = useAuthQueryGate();
+  const { user, session } = useAuth();
+  const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
-  const enabled = !!session && !!user && !authLoading;
+  const enabled = !!session && authReady;
   const q = useQuery({
     queryKey: employeesQueryKey(uid),
     queryFn: async () => {
