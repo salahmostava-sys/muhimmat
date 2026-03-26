@@ -1,11 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { vehicleService } from '@/services/vehicleService';
+import { useAuth } from '@/context/AuthContext';
 
-export const vehicleAssignmentDataQueryKey = ['vehicle-assignment', 'page-data'] as const;
+export const vehicleAssignmentDataQueryKey = (userId: string) => ['vehicle-assignment', userId, 'page-data'] as const;
 
-export const useVehicleAssignmentData = () =>
-  useQuery({
-    queryKey: vehicleAssignmentDataQueryKey,
+export const useVehicleAssignmentData = () => {
+  const { user, session, loading: authLoading } = useAuth();
+  const uid = user?.id ?? '__none__';
+  const enabled = !!session && !!user && !authLoading;
+
+  return useQuery({
+    queryKey: vehicleAssignmentDataQueryKey(uid),
     queryFn: async () => {
       const [assignRes, vehicleRes, empRes] = await Promise.all([
         vehicleService.getAssignmentsWithRelations(200),
@@ -29,6 +34,8 @@ export const useVehicleAssignmentData = () =>
         employees: empRes.data || [],
       };
     },
+    enabled,
     retry: 2,
     staleTime: 60_000,
   });
+};

@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { alertsService } from '@/services/alertsService';
 import { escapeHtml } from '@/lib/security';
+import { defaultQueryRetry } from '@/lib/query';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import * as XLSX from '@e965/xlsx';
@@ -326,7 +327,7 @@ const Alerts = () => {
       };
       return buildAlertsFromResponses(employeesVisibleRes, vehiclesRes, platformAccountsRes, dbAlertsRes, threshold, today);
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });

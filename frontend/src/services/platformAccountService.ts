@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { throwIfError } from '@/services/serviceError';
 
 export interface PlatformApp {
   id: string;
@@ -41,18 +42,27 @@ export interface PlatformAccountWritePayload {
 }
 
 export const platformAccountService = {
-  getApps: async () =>
-    supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name'),
+  getApps: async () => {
+    const { data, error } = await supabase.from('apps').select('id, name, brand_color, text_color').eq('is_active', true).order('name');
+    throwIfError(error, 'platformAccountService.getApps');
+    return { data, error: null };
+  },
 
-  getEmployees: async () =>
-    supabase
+  getEmployees: async () => {
+    const { data, error } = await supabase
       .from('employees')
       .select('id, name, national_id, residency_expiry, sponsorship_status')
       .eq('status', 'active')
-      .order('name'),
+      .order('name');
+    throwIfError(error, 'platformAccountService.getEmployees');
+    return { data, error: null };
+  },
 
-  getAccounts: async () =>
-    supabase.from('platform_accounts').select('*').order('created_at', { ascending: false }),
+  getAccounts: async () => {
+    const { data, error } = await supabase.from('platform_accounts').select('*').order('created_at', { ascending: false });
+    throwIfError(error, 'platformAccountService.getAccounts');
+    return { data, error: null };
+  },
 
   /**
    * Server-side list for large volumes (pagination + filters).
@@ -102,7 +112,8 @@ export const platformAccountService = {
     }
 
     const { data, error, count } = await query;
-    return { data: data || [], error, count: count ?? 0 };
+    throwIfError(error, 'platformAccountService.getAccountsPaged');
+    return { data: data || [], error: null, count: count ?? 0 };
   },
 
   /** Export helper for large datasets (chunked). */
@@ -128,19 +139,27 @@ export const platformAccountService = {
         pageSize: chunkSize,
         filters,
       });
-      if (res.error) return { data: all, error: res.error };
       all.push(...(res.data || []));
       if ((res.data || []).length < chunkSize) break;
     }
     return { data: all, error: null };
   },
 
-  createAccount: async (payload: PlatformAccountWritePayload) =>
-    supabase.from('platform_accounts').insert(payload),
+  createAccount: async (payload: PlatformAccountWritePayload) => {
+    const { data, error } = await supabase.from('platform_accounts').insert(payload);
+    throwIfError(error, 'platformAccountService.createAccount');
+    return { data, error: null };
+  },
 
-  updateAccount: async (id: string, payload: PlatformAccountWritePayload) =>
-    supabase.from('platform_accounts').update(payload).eq('id', id),
+  updateAccount: async (id: string, payload: PlatformAccountWritePayload) => {
+    const { data, error } = await supabase.from('platform_accounts').update(payload).eq('id', id);
+    throwIfError(error, 'platformAccountService.updateAccount');
+    return { data, error: null };
+  },
 
-  syncAccountEmployee: async (id: string, employeeId: string) =>
-    supabase.from('platform_accounts').update({ employee_id: employeeId }).eq('id', id),
+  syncAccountEmployee: async (id: string, employeeId: string) => {
+    const { data, error } = await supabase.from('platform_accounts').update({ employee_id: employeeId }).eq('id', id);
+    throwIfError(error, 'platformAccountService.syncAccountEmployee');
+    return { data, error: null };
+  },
 };

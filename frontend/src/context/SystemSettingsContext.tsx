@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 interface SystemSettings {
   id: string;
@@ -42,18 +43,28 @@ const SystemSettingsContext = createContext<SystemSettingsContextType>({
 });
 
 export const SystemSettingsProvider = ({ children }: { children: ReactNode }) => {
+  const { user, session, authLoading } = useAuth();
+  const enabled = !!session && !!user && !authLoading;
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchSettings = useCallback(async () => {
-    const { data } = await supabase
+    if (!enabled) {
+      setLoading(authLoading);
+      return;
+    }
+
+    const { data, error } = await supabase
       .from('system_settings')
       .select('*')
       .limit(1)
       .maybeSingle();
+    if (error) {
+      console.error(error);
+    }
     setSettings((data as unknown as SystemSettings) ?? defaults);
     setLoading(false);
-  }, []);
+  }, [enabled, authLoading]);
 
   useEffect(() => {
     fetchSettings();

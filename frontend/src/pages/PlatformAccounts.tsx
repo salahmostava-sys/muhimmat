@@ -31,6 +31,7 @@ import * as XLSX from '@e965/xlsx';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { ColorBadge } from '@/components/ui/ColorBadge';
 import { sortArrowGlyph } from '@/lib/sortTableIndicators';
+import { defaultQueryRetry } from '@/lib/query';
 import {
   platformAccountService,
   type PlatformApp as App,
@@ -142,7 +143,7 @@ const PlatformAccounts = () => {
 
       return { appsData, empData, enriched };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 

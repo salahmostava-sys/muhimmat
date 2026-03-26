@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { format, endOfMonth } from 'date-fns';
+import { throwIfError } from '@/services/serviceError';
 
 export interface DashboardKPIs {
   totalOrders: number;
@@ -33,7 +34,8 @@ export const dashboardService = {
       p_month_year: monthYear,
       p_today: today,
     });
-    return { data, error };
+    throwIfError(error, 'dashboardService.getOverviewRpc');
+    return { data, error: null };
   },
 
   /** Active apps with basic metadata */
@@ -42,7 +44,8 @@ export const dashboardService = {
       .from('apps')
       .select('id, name, brand_color, text_color')
       .eq('is_active', true);
-    return { data, error };
+    throwIfError(error, 'dashboardService.getActiveApps');
+    return { data, error: null };
   },
 
   /** Active employee count */
@@ -51,7 +54,8 @@ export const dashboardService = {
       .from('employees')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    return { count: count ?? 0, error };
+    throwIfError(error, 'dashboardService.getActiveEmployeeCount');
+    return { count: count ?? 0, error: null };
   },
 
   /** Approved salary totals for a given month (YYYY-MM) */
@@ -62,7 +66,8 @@ export const dashboardService = {
       .eq('month_year', monthYear)
       .eq('is_approved', true);
     const total = data?.reduce((sum, r) => sum + (r.net_salary ?? 0), 0) ?? 0;
-    return { total, error };
+    throwIfError(error, 'dashboardService.getMonthSalaryTotal');
+    return { total, error: null };
   },
 
   /** Total active advance amount */
@@ -72,7 +77,8 @@ export const dashboardService = {
       .select('amount')
       .eq('status', 'active');
     const total = data?.reduce((sum, r) => sum + (r.amount ?? 0), 0) ?? 0;
-    return { total, error };
+    throwIfError(error, 'dashboardService.getActiveAdvancesTotal');
+    return { total, error: null };
   },
 
   /** Today's attendance breakdown */
@@ -84,7 +90,8 @@ export const dashboardService = {
     const present = data?.filter(r => r.status === 'present').length ?? 0;
     const absent  = data?.filter(r => r.status === 'absent').length  ?? 0;
     const leave   = data?.filter(r => r.status === 'leave').length   ?? 0;
-    return { present, absent, leave, error };
+    throwIfError(error, 'dashboardService.getAttendanceToday');
+    return { present, absent, leave, error: null };
   },
 
   /** Orders per month with employee+app detail (for platform breakdown) */
@@ -96,7 +103,8 @@ export const dashboardService = {
       .select('employee_id, app_id, orders_count, apps(id, name, brand_color, text_color), employees(name)')
       .gte('date', start)
       .lte('date', end);
-    return { data, error };
+    throwIfError(error, 'dashboardService.getMonthOrders');
+    return { data, error: null };
   },
 
   /** Simple orders count for a previous month (for trend comparison) */
@@ -109,7 +117,8 @@ export const dashboardService = {
       .gte('date', start)
       .lte('date', end);
     const total = data?.reduce((sum, r) => sum + (r.orders_count ?? 0), 0) ?? 0;
-    return { total, error };
+    throwIfError(error, 'dashboardService.getMonthOrdersCount');
+    return { total, error: null };
   },
 
   /** Attendance trend for the last N days */
@@ -129,7 +138,8 @@ export const dashboardService = {
       else if (r.status === 'leave') grouped[r.date].leave++;
     });
 
-    return { data: Object.values(grouped), error };
+    throwIfError(error, 'dashboardService.getAttendanceTrend');
+    return { data: Object.values(grouped), error: null };
   },
 
   /** Latest audit log entries */
@@ -139,7 +149,8 @@ export const dashboardService = {
       .select('action, table_name, created_at, user_id')
       .order('created_at', { ascending: false })
       .limit(limit);
-    return { data, error };
+    throwIfError(error, 'dashboardService.getRecentActivity');
+    return { data, error: null };
   },
 
   /** Active employee-app assignments (for platform employee map) */
@@ -148,7 +159,8 @@ export const dashboardService = {
       .from('employee_apps')
       .select('app_id, employee_id, apps(name, brand_color, text_color)')
       .eq('status', 'active');
-    return { data, error };
+    throwIfError(error, 'dashboardService.getEmployeeAppAssignments');
+    return { data, error: null };
   },
 
   /** System settings (project name, logo, subtitle) */
@@ -158,7 +170,8 @@ export const dashboardService = {
       .select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url')
       .limit(1)
       .maybeSingle();
-    return { data, error };
+    throwIfError(error, 'dashboardService.getSystemSettings');
+    return { data, error: null };
   },
 
   /** Employee city + license + sponsorship distribution (for map/stats) */
@@ -167,7 +180,8 @@ export const dashboardService = {
       .from('employees')
       .select('id, city, license_status, sponsorship_status')
       .eq('status', 'active');
-    return { data, error };
+    throwIfError(error, 'dashboardService.getEmployeeDistribution');
+    return { data, error: null };
   },
 
   /** Active vehicles count */
@@ -176,7 +190,8 @@ export const dashboardService = {
       .from('vehicles')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    return { count: count ?? 0, error };
+    throwIfError(error, 'dashboardService.getActiveVehiclesCount');
+    return { count: count ?? 0, error: null };
   },
 
   /** Unresolved alerts count */
@@ -185,7 +200,8 @@ export const dashboardService = {
       .from('alerts')
       .select('id', { count: 'exact', head: true })
       .eq('is_resolved', false);
-    return { count: count ?? 0, error };
+    throwIfError(error, 'dashboardService.getUnresolvedAlertsCount');
+    return { count: count ?? 0, error: null };
   },
 
   /** App monthly targets */
@@ -194,7 +210,8 @@ export const dashboardService = {
       .from('app_targets')
       .select('app_id, target_orders')
       .eq('month_year', monthYear);
-    return { data, error };
+    throwIfError(error, 'dashboardService.getAppTargets');
+    return { data, error: null };
   },
 
   /**
@@ -216,6 +233,18 @@ export const dashboardService = {
       supabase.from('app_targets').select('app_id, target_orders').eq('month_year', currentMonth),
       supabase.from('pricing_rules').select('app_id, rule_type, rate_per_order, fixed_salary, is_active, priority, min_orders, max_orders').eq('is_active', true),
     ]);
+    throwIfError(empRes.error, 'dashboardService.fetchMainData.empRes');
+    throwIfError(attRes.error, 'dashboardService.fetchMainData.attRes');
+    throwIfError(ordersRes.error, 'dashboardService.fetchMainData.ordersRes');
+    throwIfError(prevOrdersRes.error, 'dashboardService.fetchMainData.prevOrdersRes');
+    throwIfError(weekAttRes.error, 'dashboardService.fetchMainData.weekAttRes');
+    throwIfError(auditRes.error, 'dashboardService.fetchMainData.auditRes');
+    throwIfError(empDetailsRes.error, 'dashboardService.fetchMainData.empDetailsRes');
+    throwIfError(vehiclesRes.error, 'dashboardService.fetchMainData.vehiclesRes');
+    throwIfError(alertsRes.error, 'dashboardService.fetchMainData.alertsRes');
+    throwIfError(appsRes.error, 'dashboardService.fetchMainData.appsRes');
+    throwIfError(targetsRes.error, 'dashboardService.fetchMainData.targetsRes');
+    throwIfError(pricingRes.error, 'dashboardService.fetchMainData.pricingRes');
     return { empRes, attRes, ordersRes, prevOrdersRes, weekAttRes, auditRes, empDetailsRes, vehiclesRes, alertsRes, appsRes, targetsRes, pricingRes };
   },
 
@@ -230,6 +259,11 @@ export const dashboardService = {
         supabase.from('daily_orders').select('employee_id, orders_count, app_id').gte('date', m.start).lte('date', m.end)
       ),
     ]);
+    throwIfError(appsRes.error, 'dashboardService.fetchHistoricalData.appsRes');
+    throwIfError(empRes.error, 'dashboardService.fetchHistoricalData.empRes');
+    monthOrdersResults.forEach((result, idx) => {
+      throwIfError(result.error, `dashboardService.fetchHistoricalData.monthOrdersResults.${idx}`);
+    });
     return { appsRes, empRes, monthOrdersResults };
   },
 
@@ -251,7 +285,10 @@ export const dashboardService = {
       totalOrders:    0, // filled separately via getMonthOrders
     };
 
-    const firstError = empRes.error || attRes.error || advRes.error || salRes.error;
-    return { kpis, error: firstError };
+    throwIfError(empRes.error, 'dashboardService.getKPIs.empRes');
+    throwIfError(attRes.error, 'dashboardService.getKPIs.attRes');
+    throwIfError(advRes.error, 'dashboardService.getKPIs.advRes');
+    throwIfError(salRes.error, 'dashboardService.getKPIs.salRes');
+    return { kpis, error: null };
   },
 };

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { throwIfError } from '@/services/serviceError';
 
 export interface MileageDailyPayload {
   employee_id: string;
@@ -23,7 +24,8 @@ export const fuelService = {
       .select('id, name, personal_photo_url, city')
       .eq('status', 'active')
       .order('name');
-    return { data, error };
+    throwIfError(error, 'fuelService.getActiveEmployees');
+    return { data, error: null };
   },
 
   getActiveApps: async () => {
@@ -32,7 +34,8 @@ export const fuelService = {
       .select('id, name')
       .eq('is_active', true)
       .order('name');
-    return { data, error };
+    throwIfError(error, 'fuelService.getActiveApps');
+    return { data, error: null };
   },
 
   getActiveEmployeeAppLinks: async () => {
@@ -40,7 +43,8 @@ export const fuelService = {
       .from('employee_apps')
       .select('employee_id, app_id')
       .eq('status', 'active');
-    return { data, error };
+    throwIfError(error, 'fuelService.getActiveEmployeeAppLinks');
+    return { data, error: null };
   },
 
   getMonthlyDailyMileage: async (monthStart: string, monthEnd: string) => {
@@ -49,7 +53,8 @@ export const fuelService = {
       .select('employee_id, km_total, fuel_cost, employees(name, personal_photo_url)')
       .gte('date', monthStart)
       .lte('date', monthEnd);
-    return { data, error };
+    throwIfError(error, 'fuelService.getMonthlyDailyMileage');
+    return { data, error: null };
   },
 
   getMonthlyOrders: async (monthStart: string, monthEnd: string) => {
@@ -58,7 +63,8 @@ export const fuelService = {
       .select('employee_id, orders_count')
       .gte('date', monthStart)
       .lte('date', monthEnd);
-    return { data, error };
+    throwIfError(error, 'fuelService.getMonthlyOrders');
+    return { data, error: null };
   },
 
   getMonthlyFuelByMonthYear: async (monthYear: string) => {
@@ -66,7 +72,8 @@ export const fuelService = {
       .from('vehicle_mileage')
       .select('employee_id, fuel_cost')
       .eq('month_year', monthYear);
-    return { data, error };
+    throwIfError(error, 'fuelService.getMonthlyFuelByMonthYear');
+    return { data, error: null };
   },
 
   getActiveVehicleAssignments: async () => {
@@ -75,7 +82,8 @@ export const fuelService = {
       .select('employee_id, vehicles(plate_number, type, brand, model)')
       .is('end_date', null)
       .order('start_date', { ascending: false });
-    return { data, error };
+    throwIfError(error, 'fuelService.getActiveVehicleAssignments');
+    return { data, error: null };
   },
 
   getDailyMileageByMonth: async (monthStart: string, monthEnd: string) => {
@@ -85,7 +93,8 @@ export const fuelService = {
       .gte('date', monthStart)
       .lte('date', monthEnd)
       .order('date', { ascending: false });
-    return { data, error };
+    throwIfError(error, 'fuelService.getDailyMileageByMonth');
+    return { data, error: null };
   },
 
   /**
@@ -126,7 +135,8 @@ export const fuelService = {
     }
 
     const { data, error, count } = await query;
-    return { data: data || [], error, count: count ?? 0 };
+    throwIfError(error, 'fuelService.getDailyMileagePaged');
+    return { data: data || [], error: null, count: count ?? 0 };
   },
 
   /** Export helper for large daily mileage datasets (chunked). */
@@ -155,7 +165,6 @@ export const fuelService = {
         pageSize: chunkSize,
         filters,
       });
-      if (res.error) return { data: all, error: res.error };
       all.push(...(res.data || []));
       if ((res.data || []).length < chunkSize) break;
     }
@@ -168,12 +177,14 @@ export const fuelService = {
         .from('vehicle_mileage_daily')
         .update(payload)
         .eq('id', editId);
-      return { error };
+      throwIfError(error, 'fuelService.upsertDailyMileage.update');
+      return { error: null };
     }
     const { error } = await supabase
       .from('vehicle_mileage_daily')
       .upsert(payload, { onConflict: 'employee_id,date' });
-    return { error };
+    throwIfError(error, 'fuelService.upsertDailyMileage.upsert');
+    return { error: null };
   },
 
   deleteDailyMileage: async (id: string) => {
@@ -181,7 +192,8 @@ export const fuelService = {
       .from('vehicle_mileage_daily')
       .delete()
       .eq('id', id);
-    return { error };
+    throwIfError(error, 'fuelService.deleteDailyMileage');
+    return { error: null };
   },
 
   saveMonthlyMileageImport: async (rows: MileageMonthlyPayload[], replaceExisting: boolean) => {
@@ -189,12 +201,14 @@ export const fuelService = {
       const { error } = await supabase
         .from('vehicle_mileage')
         .upsert(rows, { onConflict: 'employee_id,month_year' });
-      return { error };
+      throwIfError(error, 'fuelService.saveMonthlyMileageImport.upsert');
+      return { error: null };
     }
     const { error } = await supabase
       .from('vehicle_mileage')
       .insert(rows as Record<string, unknown>[], { ignoreDuplicates: true });
-    return { error };
+    throwIfError(error, 'fuelService.saveMonthlyMileageImport.insert');
+    return { error: null };
   },
 };
 

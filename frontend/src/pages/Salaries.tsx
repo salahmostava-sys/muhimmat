@@ -5,8 +5,8 @@ import { escapeHtml } from '@/lib/security';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Search, Wallet, Download, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
 import * as XLSX from '@e965/xlsx';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -16,7 +16,6 @@ import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useNavigate } from 'react-router-dom';
 import { getSlipTranslations, getStatusLabel, LANGUAGE_META, type SlipLanguage } from '@/lib/salarySlipTranslations';
 import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { employeeService } from '@/services/employeeService';
 import { salaryService, type PricingRule, type SalarySchemeTier } from '@/services/salaryService';
 import { salaryDataService } from '@/services/salaryDataService';
 import { salarySlipService } from '@/services/salarySlipService';
@@ -28,6 +27,7 @@ import { TableActions } from '@/components/table/TableActions';
 import { SALARY_IMPORT_TEMPLATE_HEADERS, parseSalaryImportWorkbook } from '@/lib/salaryExcelImport';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@/lib/salaryValidation';
 import { printHtmlTable } from '@/lib/printTable';
+import { defaultQueryRetry } from '@/lib/query';
 import { useSalaryRecordsPaged } from '@/hooks/useSalaryRecordsPaged';
 import { auditService } from '@/services/auditService';
 import html2canvas from 'html2canvas';
@@ -40,6 +40,121 @@ const PLATFORM_COLORS: Record<string, { header: string; headerText: string; cell
 
 const statusLabels: Record<string, string> = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' };
 const statusStyles: Record<string, string> = { pending: 'badge-warning', approved: 'badge-info', paid: 'badge-success' };
+const SALARY_CARD_SKELETON_KEYS = [
+  'salary-card-skeleton-1',
+  'salary-card-skeleton-2',
+  'salary-card-skeleton-3',
+  'salary-card-skeleton-4',
+  'salary-card-skeleton-5',
+  'salary-card-skeleton-6',
+  'salary-card-skeleton-7',
+  'salary-card-skeleton-8',
+] as const;
+const SALARY_TABLE_SKELETON_KEYS = [
+  'salary-table-skeleton-1',
+  'salary-table-skeleton-2',
+  'salary-table-skeleton-3',
+  'salary-table-skeleton-4',
+  'salary-table-skeleton-5',
+  'salary-table-skeleton-6',
+  'salary-table-skeleton-7',
+  'salary-table-skeleton-8',
+  'salary-table-skeleton-9',
+  'salary-table-skeleton-10',
+  'salary-table-skeleton-11',
+  'salary-table-skeleton-12',
+] as const;
+
+const toCityArabicLabel = (city?: string | null) => {
+  if (city === 'makkah') return 'مكة';
+  if (city === 'jeddah') return 'جدة';
+  return '—';
+};
+
+const getStatusStyleForPrint = (status: SalaryRow['status']) => {
+  if (status === 'paid') return 'background:#dcfce7;color:#15803d';
+  if (status === 'approved') return 'background:#dbeafe;color:#1d4ed8';
+  return 'background:#fef9c3;color:#92400e';
+};
+
+const getOrdersCellBackground = (
+  orders: number,
+  hitTarget: boolean,
+  defaultBackground: string | undefined
+) => {
+  if (orders === 0) return undefined;
+  if (hitTarget) return 'rgba(34,197,94,0.08)';
+  return defaultBackground;
+};
+
+const toComparableSortValue = (value: unknown): string | number => {
+  if (typeof value === 'number' || typeof value === 'string') return value;
+  return Number(value) || 0;
+};
+
+const wasFixedSchemeAlreadyCalculated = (
+  platformNames: string[],
+  appSchemeMap: Record<string, SchemeData | null>,
+  platformSalaries: Record<string, number>,
+  currentPlatform: string,
+  schemeId: string,
+) => {
+  return platformNames.some(
+    (prev) =>
+      prev !== currentPlatform &&
+      appSchemeMap[prev]?.id === schemeId &&
+      platformSalaries[prev] !== undefined
+  );
+};
+
+const calculatePlatformSalary = ({
+  platformName,
+  orders,
+  attendanceDays,
+  platformNames,
+  appNameToId,
+  rulesMap,
+  appSchemeMap,
+  platformSalaries,
+}: {
+  platformName: string;
+  orders: number;
+  attendanceDays: number;
+  platformNames: string[];
+  appNameToId: Record<string, string>;
+  rulesMap: Record<string, PricingRule[]>;
+  appSchemeMap: Record<string, SchemeData | null>;
+  platformSalaries: Record<string, number>;
+}) => {
+  const appId = appNameToId[platformName];
+  const appRules = appId ? (rulesMap[appId] || []) : [];
+  const ruleResult = salaryService.applyPricingRules(appRules, orders);
+  if (ruleResult.matchedRule) return Math.round(ruleResult.salary);
+
+  const scheme = appSchemeMap[platformName];
+  if (!scheme) return 0;
+
+  if (scheme.scheme_type === 'fixed_monthly') {
+    const alreadyCalculated = wasFixedSchemeAlreadyCalculated(
+      platformNames,
+      appSchemeMap,
+      platformSalaries,
+      platformName,
+      scheme.id
+    );
+    if (alreadyCalculated) return 0;
+    return salaryService.calculateFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
+  }
+
+  if (orders === 0) return 0;
+  if (!scheme.salary_scheme_tiers) return 0;
+  return salaryService.calculateTierSalary(
+    orders,
+    scheme.salary_scheme_tiers as SalarySchemeTier[],
+    scheme.target_orders,
+    scheme.target_bonus
+  );
+};
 
 const generateMonths = () => {
   const months = [];
@@ -61,6 +176,7 @@ const shortEmployeeName = (name: string) => {
 };
 
 type SortDir = 'asc' | 'desc' | null;
+type FastApprovedFilter = 'all' | 'approved' | 'pending';
 
 interface SalaryRow {
   id: string;
@@ -179,14 +295,6 @@ const buildFuelCostMap = (rows: Array<{ employee_id: string; fuel_cost: number |
   return fuelCostMap;
 };
 
-const buildExternalDeductionsMap = (rows: Array<{ employee_id: string; amount: number | string }> | null | undefined) => {
-  const extMap: Record<string, number> = {};
-  rows?.forEach((d) => {
-    extMap[d.employee_id] = (extMap[d.employee_id] || 0) + Number(d.amount);
-  });
-  return extMap;
-};
-
 const buildOrdersMap = (rows: OrderWithAppRow[] | null | undefined) => {
   const ordMap: Record<string, Record<string, number>> = {};
   (rows || []).forEach((r) => {
@@ -201,6 +309,239 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
   if (sortField !== field) return <ChevronsUpDown size={10} className="inline ml-0.5 opacity-40" />;
   if (sortDir === 'asc') return <ChevronUp size={10} className="inline ml-0.5" />;
   return <ChevronDown size={10} className="inline ml-0.5" />;
+};
+
+const renderEngineStatusBadge = (loadingData: boolean, previewBackendError: string | null) => {
+  if (loadingData) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
+        <span className="h-2 w-2 rounded-full bg-muted-foreground/70 animate-pulse" />
+        <span>جارٍ فحص محرك الرواتب</span>
+      </span>
+    );
+  }
+  if (previewBackendError) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive">
+        <span className="h-2 w-2 rounded-full bg-destructive" />
+        <span>Backend Engine Offline</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[11px] text-success">
+      <span className="h-2 w-2 rounded-full bg-success" />
+      <span>Backend Engine Online</span>
+    </span>
+  );
+};
+
+const resolveRowStatus = (
+  saved: { is_approved: boolean; net_salary: number } | undefined,
+  pendingInstallmentsCount: number,
+  deductedInstallmentsCount: number,
+): SalaryRow['status'] => {
+  if (!saved?.is_approved) return 'pending';
+  if (deductedInstallmentsCount > 0 || pendingInstallmentsCount === 0) {
+    return pendingInstallmentsCount === 0 ? 'paid' : 'approved';
+  }
+  return 'approved';
+};
+
+const buildEmpPlatformSchemeMap = (
+  employeeIds: string[],
+  platformNames: string[],
+  appSchemeMap: Record<string, SchemeData | null>,
+) => {
+  const out: Record<string, Record<string, SchemeData | null>> = {};
+  for (const employeeId of employeeIds) {
+    out[employeeId] = {};
+    for (const platformName of platformNames) {
+      out[employeeId][platformName] = appSchemeMap[platformName] ?? null;
+    }
+  }
+  return out;
+};
+
+const buildAdvanceInstallmentMaps = async (
+  selectedMonth: string,
+  allAdvances: Array<{ id: string; employee_id: string }> | null | undefined,
+) => {
+  const advInstIds: Record<string, string[]> = {};
+  const deductedInstIds: Record<string, string[]> = {};
+  const advRemainingMap: Record<string, number> = {};
+  if (!allAdvances || allAdvances.length === 0) {
+    return { advInstIds, deductedInstIds, advRemainingMap };
+  }
+
+  const advanceIds = allAdvances.map(a => a.id);
+  const advIdToEmpMap: Record<string, string> = {};
+  for (const advance of allAdvances) advIdToEmpMap[advance.id] = advance.employee_id;
+
+  const { data: advInstData } = await salaryDataService.getMonthInstallmentsForAdvances(selectedMonth, advanceIds);
+  const { data: allPendingInsts } = await salaryDataService.getPendingInstallmentsForAdvances(advanceIds);
+
+  allPendingInsts?.forEach((inst) => {
+    const empId = advIdToEmpMap[inst.advance_id];
+    if (!empId) return;
+    advRemainingMap[empId] = (advRemainingMap[empId] || 0) + Number(inst.amount);
+  });
+
+  advInstData?.forEach((inst) => {
+    const empId = advIdToEmpMap[inst.advance_id];
+    if (!empId) return;
+    if (inst.status === 'pending' || inst.status === 'deferred') {
+      if (!advInstIds[empId]) advInstIds[empId] = [];
+      advInstIds[empId].push(inst.id);
+      return;
+    }
+    if (inst.status === 'deducted') {
+      if (!deductedInstIds[empId]) deductedInstIds[empId] = [];
+      deductedInstIds[empId].push(inst.id);
+    }
+  });
+
+  return { advInstIds, deductedInstIds, advRemainingMap };
+};
+
+const buildSalaryRows = ({
+  employees,
+  selectedMonth,
+  platformNames,
+  appNameToId,
+  rulesMap,
+  appSchemeMap,
+  ordMap,
+  attendanceDaysMap,
+  savedMap,
+  previewMap,
+  advInstIds,
+  deductedInstIds,
+  advRemainingMap,
+  fuelCostMap,
+}: {
+  employees: Array<Record<string, unknown>>;
+  selectedMonth: string;
+  platformNames: string[];
+  appNameToId: Record<string, string>;
+  rulesMap: Record<string, PricingRule[]>;
+  appSchemeMap: Record<string, SchemeData | null>;
+  ordMap: Record<string, Record<string, number>>;
+  attendanceDaysMap: Record<string, number>;
+  savedMap: Record<string, { is_approved: boolean; net_salary: number }>;
+  previewMap: Record<string, { base_salary: number; advance_deduction: number; external_deduction: number }>;
+  advInstIds: Record<string, string[]>;
+  deductedInstIds: Record<string, string[]>;
+  advRemainingMap: Record<string, number>;
+  fuelCostMap: Record<string, number>;
+}) => {
+  const newRows: SalaryRow[] = [];
+  for (const emp of employees) {
+    const employeeId = String(emp.id);
+    const empOrders = ordMap[employeeId] || {};
+    const attendanceDays = attendanceDaysMap[employeeId] || 0;
+    const registeredApps = Object.keys(empOrders).filter(k => empOrders[k] > 0);
+
+    const platformOrders: Record<string, number> = {};
+    const platformSalaries: Record<string, number> = {};
+    for (const platformName of platformNames) {
+      const orders = empOrders[platformName] || 0;
+      platformOrders[platformName] = orders;
+      platformSalaries[platformName] = calculatePlatformSalary({
+        platformName,
+        orders,
+        attendanceDays,
+        platformNames,
+        appNameToId,
+        rulesMap,
+        appSchemeMap,
+        platformSalaries,
+      });
+    }
+
+    const saved = savedMap[employeeId];
+    const pendingInstallmentsCount = (advInstIds[employeeId] || []).length;
+    const deductedInstallmentsCount = (deductedInstIds[employeeId] || []).length;
+    const status = resolveRowStatus(saved, pendingInstallmentsCount, deductedInstallmentsCount);
+    const preview = previewMap[employeeId];
+    const hasIban = !!emp.iban;
+    const preferredLanguage = (emp as { preferred_language?: SlipLanguage | null }).preferred_language || 'ar';
+    const phone = (emp as { phone?: string | null }).phone || null;
+
+    newRows.push({
+      id: `${employeeId}-${selectedMonth}`,
+      employeeId,
+      employeeName: String(emp.name || ''),
+      jobTitle: String(emp.job_title || 'مندوب توصيل'),
+      nationalId: String(emp.national_id || '—'),
+      city: toCityArabicLabel((emp.city as string | null) || null),
+      bankAccount: emp.iban ? String(emp.iban).slice(-6) : '',
+      hasIban,
+      paymentMethod: hasIban ? 'bank' : 'cash',
+      registeredApps,
+      platformOrders,
+      platformSalaries,
+      incentives: 0,
+      sickAllowance: 0,
+      violations: 0,
+      customDeductions: {},
+      transfer: 0,
+      advanceDeduction: preview.advance_deduction,
+      advanceInstallmentIds: advInstIds[employeeId] || [],
+      advanceRemaining: advRemainingMap[employeeId] || 0,
+      externalDeduction: preview.external_deduction,
+      status,
+      preferredLanguage,
+      phone,
+      workDays: attendanceDays,
+      fuelCost: fuelCostMap[employeeId] || 0,
+      platformIncome: 0,
+      engineBaseSalary: preview.base_salary,
+    });
+  }
+
+  return newRows;
+};
+
+const hydrateRowsWithDraft = (rows: SalaryRow[], draftKey: string) => {
+  let hydratedRows = rows;
+  try {
+    const draftRaw = localStorage.getItem(draftKey);
+    if (!draftRaw) return hydratedRows;
+    const draft = JSON.parse(draftRaw) as Record<string, SalaryDraftPatch>;
+    hydratedRows = rows.map((row) => {
+      const patch = draft[row.id];
+      return patch ? { ...row, ...patch, isDirty: true } : row;
+    });
+  } catch (e) {
+    console.warn('[Salaries] ignored malformed salaries draft in localStorage', e);
+  }
+  return hydratedRows;
+};
+
+const buildAppMaps = (appsWithScheme: AppWithSchemeRow[] | null | undefined) => {
+  const appSchemeMap: Record<string, SchemeData | null> = {};
+  const appNameToId: Record<string, string> = {};
+  (appsWithScheme || []).forEach((app) => {
+    appSchemeMap[app.name] = app.salary_schemes ? (app.salary_schemes as SchemeData) : null;
+    appNameToId[app.name] = app.id;
+  });
+  return { appSchemeMap, appNameToId };
+};
+
+const fetchPricingRulesMap = async (appNameToId: Record<string, string>) => {
+  const appIds = Object.values(appNameToId);
+  const rulesByApp = await Promise.all(
+    appIds.map(async (appId) => {
+      const { data } = await salaryService.getPricingRules(appId);
+      return { appId, rules: data || [] };
+    })
+  );
+  const rulesMap: Record<string, PricingRule[]> = {};
+  rulesByApp.forEach(({ appId, rules }) => {
+    rulesMap[appId] = rules;
+  });
+  return rulesMap;
 };
 
 interface PayslipProps { row: SalaryRow; onClose: () => void; onApprove: () => void; selectedMonth: string; companyName?: string; }
@@ -338,6 +679,12 @@ const PayslipModal = ({ row, onClose, onApprove, selectedMonth, companyName }: P
             <div className="border-l border-[#8c6239]">
               <div className="bg-[#8c6239] text-white text-center font-bold py-1">الاستحقاقات (ر.س)</div>
               <table className="w-full border-collapse">
+                <thead className="sr-only">
+                  <tr>
+                    <th>البند</th>
+                    <th>القيمة</th>
+                  </tr>
+                </thead>
                 <tbody>
                   <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">الراتب الأساسي</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(totalPlatformSalary).toLocaleString()}</td></tr>
                   <tr><td className="border border-[#8c6239] px-2 py-1 font-semibold">{t.incentives}</td><td className="border border-[#8c6239] px-2 py-1 text-center font-bold">{Math.round(row.incentives).toLocaleString()}</td></tr>
@@ -502,6 +849,122 @@ const SalaryBreakdown = ({ orders, scheme, salary, children }: SalaryBreakdownPr
   );
 };
 
+type PlatformOrderCellProps = {
+  rowId: string;
+  platformName: string;
+  tdClass: string;
+  pc?: { cellBg: string; focusBorder: string };
+  orders: number;
+  salary: number;
+  scheme: SchemeData | null | undefined;
+  editingCell: { rowId: string; platform: string } | null;
+  setEditingCell: (value: { rowId: string; platform: string } | null) => void;
+  updatePlatformOrders: (id: string, platform: string, value: number) => void;
+};
+
+const PlatformOrderCell = ({
+  rowId,
+  platformName,
+  tdClass,
+  pc,
+  orders,
+  salary,
+  scheme,
+  editingCell,
+  setEditingCell,
+  updatePlatformOrders,
+}: PlatformOrderCellProps) => {
+  const target = scheme?.target_orders;
+  const hitTarget = target && orders >= target;
+  const rowBg = getOrdersCellBackground(orders, !!hitTarget, pc?.cellBg);
+  const noScheme = orders > 0 && scheme === null;
+  const isEditing = editingCell?.rowId === rowId && editingCell?.platform === platformName;
+
+  const handleBlur = (value: number) => {
+    updatePlatformOrders(rowId, platformName, value);
+    setEditingCell(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+    if (e.key === 'Escape') setEditingCell(null);
+  };
+
+  let salaryMeta: React.ReactNode = null;
+  if (orders > 0) {
+    if (noScheme) {
+      salaryMeta = (
+        <span
+          className="text-[10px] text-warning/90 font-medium"
+          title="بدون سكيمة رواتب لهذه المنصة — راجع شريط التنبيه أعلى الصفحة"
+        >
+          —
+        </span>
+      );
+    } else {
+      salaryMeta = (
+        <span className="text-[10px] text-foreground font-medium">
+          {salary.toLocaleString()} ر.س
+        </span>
+      );
+    }
+  }
+
+  return (
+    <td
+      key={`${platformName}-col`}
+      className={`${tdClass} text-center border-l border-border/20`}
+      style={{ background: noScheme ? 'rgba(234,179,8,0.1)' : rowBg }}
+      onDoubleClick={() => setEditingCell({ rowId, platform: platformName })}
+    >
+      {isEditing ? (
+        <input
+          autoFocus
+          type="number"
+          defaultValue={orders}
+          className="w-16 text-center border rounded px-1 py-0.5 text-xs bg-background"
+          style={{ borderColor: pc?.focusBorder }}
+          onBlur={e => handleBlur(Number(e.target.value))}
+          onKeyDown={handleKeyDown}
+        />
+      ) : (
+        <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
+          <div className="flex flex-col items-center leading-tight">
+            <span className={`font-semibold text-xs ${orders === 0 ? 'text-muted-foreground/30' : 'text-foreground'}`}>
+              {orders === 0 ? '—' : orders}
+            </span>
+            {salaryMeta}
+          </div>
+        </SalaryBreakdown>
+      )}
+    </td>
+  );
+};
+
+const CustomDeductionCell = ({
+  row,
+  fullKey,
+  tdClass,
+  updateRow,
+}: {
+  row: SalaryRow;
+  fullKey: string;
+  tdClass: string;
+  updateRow: (id: string, patch: Partial<SalaryRow>) => void;
+}) => {
+  return (
+    <td className={tdClass}>
+      <EditableCell
+        value={row.customDeductions?.[fullKey] || 0}
+        onChange={(value) =>
+          updateRow(row.id, { customDeductions: { ...row.customDeductions, [fullKey]: value } })
+        }
+        className="text-foreground"
+      />
+    </td>
+  );
+};
+
 // ─── Main Salaries Page ───────────────────────────────────────────
 const Salaries = () => {
   const { toast } = useToast();
@@ -531,7 +994,7 @@ const Salaries = () => {
   const [fastPage, setFastPage] = useState(1);
   const [fastPageSize] = useState(50);
   const [fastFilters, setFastFilters] = useState(() => createDefaultGlobalFilters());
-  const [fastApproved, setFastApproved] = useState<'all' | 'approved' | 'pending'>('all');
+  const [fastApproved, setFastApproved] = useState<FastApprovedFilter>('all');
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ rowId: string; platform: string } | null>(null);
   const [platforms, setPlatforms] = useState<string[]>([]);
@@ -618,7 +1081,7 @@ const Salaries = () => {
         previewData: previewData || [],
       };
     },
-    retry: 1,
+    retry: defaultQueryRetry,
     staleTime: 20_000,
   });
 
@@ -647,239 +1110,62 @@ const Salaries = () => {
       if (cancelled) return;
       try {
         const { monthlyContext, previewData } = salaryBaseContext;
-        const { empRes, extRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
+        const { empRes, ordersRes, appsWithSchemeRes, attendanceRes, fuelRes, savedRecords, allAdvances } = monthlyContext;
+        const savedMap = buildSavedMap(savedRecords as Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined);
+        const previewMap = buildPreviewMap((previewData || []) as Array<Record<string, unknown>>);
 
-      const savedMap = buildSavedMap(savedRecords as Array<{ employee_id: string; is_approved: boolean; net_salary: number }> | null | undefined);
-      const previewMap = buildPreviewMap((previewData || []) as Array<Record<string, unknown>>);
-
-      // ── Fetch advance installments via advances → employee_id ──
-      // Step 1: get all active/paused advances with total amount for remaining calc
-      const advInstIds: Record<string, string[]> = {};
-      const deductedInstIds: Record<string, string[]> = {};
-      const advRemainingMap: Record<string, number> = {}; // total remaining balance
-
-      if (allAdvances && allAdvances.length > 0) {
-        const advIdToEmpMap: Record<string, string> = {};
-        allAdvances.forEach(adv => { advIdToEmpMap[adv.id] = adv.employee_id; });
-
-        // Fetch installments for this month
-        const { data: advInstData } = await salaryDataService.getMonthInstallmentsForAdvances(
+        const { advInstIds, deductedInstIds, advRemainingMap } = await buildAdvanceInstallmentMaps(
           selectedMonth,
-          allAdvances.map(a => a.id)
+          (allAdvances as Array<{ id: string; employee_id: string }> | null | undefined) || []
         );
+        if (cancelled) return;
 
-        // Fetch all pending/deferred installments to calculate remaining balance
-        const { data: allPendingInsts } = await salaryDataService.getPendingInstallmentsForAdvances(
-          allAdvances.map(a => a.id)
+        const employees = filterVisibleEmployeesInMonth(
+          (empRes.data || []) as unknown as { id: string; sponsorship_status?: string | null }[],
+          activeEmployeeIdsInMonth
         );
-
-        // Build remaining balance per employee
-        allPendingInsts?.forEach(inst => {
-          const empId = advIdToEmpMap[inst.advance_id];
-          if (empId) {
-            advRemainingMap[empId] = (advRemainingMap[empId] || 0) + Number(inst.amount);
-          }
-        });
-
-        advInstData?.forEach(inst => {
-          const empId = advIdToEmpMap[inst.advance_id];
-          if (empId) {
-            if (inst.status === 'pending' || inst.status === 'deferred') {
-              if (!advInstIds[empId]) advInstIds[empId] = [];
-              advInstIds[empId].push(inst.id);
-            } else if (inst.status === 'deducted') {
-              if (!deductedInstIds[empId]) deductedInstIds[empId] = [];
-              deductedInstIds[empId].push(inst.id);
-            }
-          }
-        });
-      }
-      if (cancelled) return;
-
-      const employees = filterVisibleEmployeesInMonth(
-        (empRes.data || []) as unknown as { id: string; sponsorship_status?: string | null }[],
-        activeEmployeeIdsInMonth
-      );
-      const missingPreviewEmployees = employees.filter((emp) => !previewMap[emp.id]);
-      if (missingPreviewEmployees.length > 0) {
-        throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
-      }
-
-      // Build attendance days map: employeeId → count of present/late days
-      const attendanceDaysMap = buildAttendanceDaysMap(attendanceRes.data as Array<{ employee_id: string }> | null | undefined);
-
-      // Build fuel cost map: employeeId → fuel_cost
-      const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
-
-      const extMap = buildExternalDeductionsMap(extRes.data as Array<{ employee_id: string; amount: number | string }> | null | undefined);
-
-      const ordMap = buildOrdersMap(ordersRes.data as OrderWithAppRow[] | null);
-
-      // ── Build appName→scheme map from apps.scheme_id (scheme per platform) ──
-      const appSchemeMap: Record<string, SchemeData | null> = {};
-      const appNameToId: Record<string, string> = {};
-      (appsWithSchemeRes.data as AppWithSchemeRow[] | null)?.forEach((a) => {
-        appSchemeMap[a.name] = a.salary_schemes ? (a.salary_schemes as SchemeData) : null;
-        appNameToId[a.name] = a.id;
-      });
-      const appsFromApi = (appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [];
-      const platformNames = appsFromApi.map(a => a.name);
-      setAppIdByName(appNameToId);
-
-      // ── Fetch pricing rules for active apps (fallbacks keep legacy scheme behavior) ──
-      const appIds = Object.values(appNameToId);
-      const rulesByApp = await Promise.all(
-        appIds.map(async (appId) => {
-          const { data } = await salaryService.getPricingRules(appId);
-          return { appId, rules: data || [] };
-        })
-      );
-      const rulesMap: Record<string, PricingRule[]> = {};
-      rulesByApp.forEach(({ appId, rules }) => {
-        rulesMap[appId] = rules;
-      });
-      if (cancelled) return;
-      setPricingRulesByAppId(rulesMap);
-
-      const missingPricing = ((appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [])
-        .filter((a) => !rulesMap[a.id] || rulesMap[a.id].length === 0)
-        .map((a) => a.name);
-      setAppsWithoutPricingRules(missingPricing);
-
-      // Track which active platforms have no scheme
-      const missing = ((appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [])
-        .filter((a) => !a.salary_schemes)
-        .map((a) => a.name);
-      setAppsWithoutScheme(missing);
-
-      // ── Build empPlatformScheme: per-employee per-platform → uses app's scheme ──
-      const builtEmpPlatformScheme: Record<string, Record<string, SchemeData | null>> = {};
-      employees.forEach(emp => {
-        builtEmpPlatformScheme[emp.id] = {};
-        platformNames.forEach(p => {
-          builtEmpPlatformScheme[emp.id][p] = appSchemeMap[p] ?? null;
-        });
-      });
-      setEmpPlatformScheme(builtEmpPlatformScheme);
-
-      const newRows: SalaryRow[] = employees.map(emp => {
-        const empOrders = ordMap[emp.id] || {};
-        const attendanceDays = attendanceDaysMap[emp.id] || 0;
-        const registeredApps = Object.keys(empOrders).filter(k => empOrders[k] > 0);
-
-        const platformOrders: Record<string, number> = {};
-        const platformSalaries: Record<string, number> = {};
-
-        platformNames.forEach(p => {
-          const orders = empOrders[p] || 0;
-          platformOrders[p] = orders;
-          const appId = appNameToId[p];
-          const appRules = appId ? (rulesMap[appId] || []) : [];
-          const ruleResult = salaryService.applyPricingRules(appRules, orders);
-          if (ruleResult.matchedRule) {
-            platformSalaries[p] = Math.round(ruleResult.salary);
-            return;
-          }
-
-          const scheme = appSchemeMap[p];
-          if (!scheme) { platformSalaries[p] = 0; return; }
-
-          if (scheme.scheme_type === 'fixed_monthly') {
-            // Fixed monthly: calculate once per employee, assign to first platform that has this scheme
-            // Only calculate if this is the first platform using this scheme for the employee
-            const alreadyCalcForScheme = platformNames.some(prev => prev !== p && appSchemeMap[prev]?.id === scheme.id && platformSalaries[prev] !== undefined);
-            if (alreadyCalcForScheme) {
-              platformSalaries[p] = 0; // already counted
-            } else {
-              platformSalaries[p] = salaryService.calculateFixedMonthlySalary(scheme.monthly_amount || 0, attendanceDays);
-            }
-          } else if (orders === 0) {
-            platformSalaries[p] = 0;
-          } else if (scheme.salary_scheme_tiers) {
-            platformSalaries[p] = salaryService.calculateTierSalary(
-              orders,
-              scheme.salary_scheme_tiers as SalarySchemeTier[],
-              scheme.target_orders,
-              scheme.target_bonus
-            );
-          } else {
-            platformSalaries[p] = 0;
-          }
-        });
-
-        const saved = savedMap[emp.id];
-        // If already paid (all deducted installments exist), mark as paid
-        let status: 'pending' | 'approved' | 'paid' = 'pending';
-        if (saved) {
-          if (deductedInstIds[emp.id]?.length > 0 || advInstIds[emp.id]?.length === 0) {
-            // check if it was saved as paid
-            const hasPendingInst = (advInstIds[emp.id] || []).length > 0;
-            if (!hasPendingInst && saved.is_approved) {
-              status = 'paid';
-            } else if (saved.is_approved) {
-              status = 'approved';
-            }
-          } else if (saved.is_approved) {
-            status = 'approved';
-          }
+        if (employees.some((emp) => !previewMap[emp.id])) {
+          throw new Error('PREVIEW_BACKEND: تعذر تحميل نتائج المعاينة من الخادم لكل الموظفين');
         }
 
-        const preview = previewMap[emp.id];
-        const advDeduction = preview.advance_deduction;
-        const extDeduction = preview.external_deduction;
-        const cityLabel = emp.city === 'makkah' ? 'مكة' : emp.city === 'jeddah' ? 'جدة' : '—';
-        const bankAccount = emp.iban ? emp.iban.slice(-6) : '';
-        const hasIban = !!emp.iban;
-        // platformIncome is manual — not computed from anywhere
+        const attendanceDaysMap = buildAttendanceDaysMap(attendanceRes.data as Array<{ employee_id: string }> | null | undefined);
+        const fuelCostMap = buildFuelCostMap(fuelRes.data as Array<{ employee_id: string; fuel_cost: number | string }> | null | undefined);
+        const ordMap = buildOrdersMap(ordersRes.data as OrderWithAppRow[] | null);
+        const appsFromApi = (appsWithSchemeRes.data as AppWithSchemeRow[] | null) || [];
+        const { appSchemeMap, appNameToId } = buildAppMaps(appsFromApi);
+        const platformNames = appsFromApi.map(a => a.name);
+        const rulesMap = await fetchPricingRulesMap(appNameToId);
+        if (cancelled) return;
 
-        return {
-          id: `${emp.id}-${selectedMonth}`,
-          employeeId: emp.id,
-          employeeName: emp.name,
-          jobTitle: emp.job_title || 'مندوب توصيل',
-          nationalId: emp.national_id || '—',
-          city: cityLabel,
-          bankAccount,
-          hasIban,
-          paymentMethod: hasIban ? 'bank' as const : 'cash' as const,
-          registeredApps,
-          platformOrders,
-          platformSalaries,
-          incentives: 0,
-          sickAllowance: 0,
-          violations: 0,
-          customDeductions: {},
-          transfer: 0,
-          advanceDeduction: advDeduction,
-          advanceInstallmentIds: advInstIds[emp.id] || [],
-          advanceRemaining: advRemainingMap[emp.id] || 0,
-          externalDeduction: extDeduction,
-          status,
-          preferredLanguage: ((emp as Record<string, unknown>).preferred_language as SlipLanguage) || 'ar',
-          phone: ((emp as Record<string, unknown>).phone as string) || null,
-          workDays: attendanceDays,
-          fuelCost: fuelCostMap[emp.id] || 0,
-          platformIncome: 0,
-          engineBaseSalary: preview.base_salary,
-        };
-      });
-
-      // Restore draft values for this month if present
-      let hydratedRows = newRows;
-      try {
-        const draftRaw = localStorage.getItem(salariesDraftKey);
-        if (draftRaw) {
-          const draft = JSON.parse(draftRaw) as Record<string, SalaryDraftPatch>;
-          hydratedRows = newRows.map((row) => {
-            const patch = draft[row.id];
-            return patch ? { ...row, ...patch, isDirty: true } : row;
-          });
-        }
-      } catch (e) {
-        console.warn('[Salaries] ignored malformed salaries draft in localStorage', e);
-      }
+        const builtEmpPlatformScheme = buildEmpPlatformSchemeMap(
+          employees.map(emp => emp.id),
+          platformNames,
+          appSchemeMap
+        );
+        const newRows = buildSalaryRows({
+          employees: employees as Array<Record<string, unknown>>,
+          selectedMonth,
+          platformNames,
+          appNameToId,
+          rulesMap,
+          appSchemeMap,
+          ordMap,
+          attendanceDaysMap,
+          savedMap,
+          previewMap,
+          advInstIds,
+          deductedInstIds,
+          advRemainingMap,
+          fuelCostMap,
+        });
+        const hydratedRows = hydrateRowsWithDraft(newRows, salariesDraftKey);
 
         if (cancelled) return;
+        setAppIdByName(appNameToId);
+        setPricingRulesByAppId(rulesMap);
+        setAppsWithoutPricingRules(appsFromApi.filter((a) => !rulesMap[a.id] || rulesMap[a.id].length === 0).map((a) => a.name));
+        setAppsWithoutScheme(appsFromApi.filter((a) => !a.salary_schemes).map((a) => a.name));
+        setEmpPlatformScheme(builtEmpPlatformScheme);
         setRows(hydratedRows);
       } catch (error) {
         if (!cancelled) {
@@ -975,32 +1261,28 @@ const Salaries = () => {
 
   const filtered = useMemo(() => {
     if (!sortField || !sortDir) return filteredBase;
-    return [...filteredBase].sort((a, b) => {
-      let va: string | number;
-      let vb: string | number;
-      const ca = computeRow(a), cb = computeRow(b);
+    const getSortValue = (row: SalaryRow) => {
+      const computed = computeRow(row);
       switch (sortField) {
-        case 'employeeName': va = a.employeeName; vb = b.employeeName; break;
-        case 'jobTitle': va = a.jobTitle; vb = b.jobTitle; break;
-        case 'nationalId': va = a.nationalId; vb = b.nationalId; break;
-        case 'platformSalaries': va = ca.totalPlatformSalary; vb = cb.totalPlatformSalary; break;
-        case 'incentives': va = a.incentives; vb = b.incentives; break;
-        case 'totalAdditions': va = ca.totalAdditions; vb = cb.totalAdditions; break;
-        case 'advanceDeduction': va = a.advanceDeduction; vb = b.advanceDeduction; break;
-        case 'totalDeductions': va = ca.totalDeductions; vb = cb.totalDeductions; break;
-        case 'netSalary': va = ca.netSalary; vb = cb.netSalary; break;
-        case 'status': va = a.status; vb = b.status; break;
+        case 'employeeName': return row.employeeName;
+        case 'jobTitle': return row.jobTitle;
+        case 'nationalId': return row.nationalId;
+        case 'platformSalaries': return computed.totalPlatformSalary;
+        case 'incentives': return row.incentives;
+        case 'totalAdditions': return computed.totalAdditions;
+        case 'advanceDeduction': return row.advanceDeduction;
+        case 'totalDeductions': return computed.totalDeductions;
+        case 'netSalary': return computed.netSalary;
+        case 'status': return row.status;
         default:
-          if (platforms.includes(sortField)) {
-            va = a.platformOrders[sortField] || 0;
-            vb = b.platformOrders[sortField] || 0;
-          } else {
-            const ra = (a as unknown as Record<string, unknown>)[sortField];
-            const rb = (b as unknown as Record<string, unknown>)[sortField];
-            va = typeof ra === 'number' || typeof ra === 'string' ? ra : Number(ra) || 0;
-            vb = typeof rb === 'number' || typeof rb === 'string' ? rb : Number(rb) || 0;
-          }
+          if (platforms.includes(sortField)) return row.platformOrders[sortField] || 0;
+          return toComparableSortValue((row as Record<string, unknown>)[sortField]);
       }
+    };
+
+    return [...filteredBase].sort((a, b) => {
+      const va = getSortValue(a);
+      const vb = getSortValue(b);
       if (va < vb) return sortDir === 'asc' ? -1 : 1;
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
@@ -1020,20 +1302,6 @@ const Salaries = () => {
     if (payslipRow?.id === id) setPayslipRow(prev => prev ? { ...prev, ...patch } : prev);
   }, [payslipRow]);
 
-  const updateSalaryCityFromMenu = useCallback(async (
-    row: SalaryRow,
-    cityLabel: 'مكة' | 'جدة',
-    cityVal: 'makkah' | 'jeddah',
-  ) => {
-    const prev = row.city;
-    updateRow(row.id, { city: cityLabel });
-    const { error } = await employeeService.updateCity(row.employeeId, cityVal);
-    if (error) {
-      updateRow(row.id, { city: prev });
-      toast({ title: 'تعذّر حفظ المدينة', description: error.message, variant: 'destructive' });
-    }
-  }, [updateRow, toast]);
-
   const updatePlatformOrders = (id: string, platform: string, value: number) => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
@@ -1045,7 +1313,7 @@ const Salaries = () => {
       if (!ruleResult.matchedRule) {
         // Fallback to scheme behavior when pricing_rules are not configured.
         const scheme = empPlatformScheme?.[r.employeeId]?.[platform];
-        if (scheme && scheme.salary_scheme_tiers) {
+        if (scheme?.salary_scheme_tiers) {
           salary = salaryService.calculateTierSalary(
             value,
             scheme.salary_scheme_tiers as SalarySchemeTier[],
@@ -1118,6 +1386,42 @@ const Salaries = () => {
     }
   };
 
+  const computeServerSalaryForPayment = useCallback(async (row: SalaryRow, monthYear: string) => {
+    const manualDeduction = getManualDeductionTotal(row);
+    const { data: calcData, error: calcError } = await salaryDataService.calculateSalaryForEmployeeMonth(
+      row.employeeId,
+      monthYear,
+      row.paymentMethod,
+      manualDeduction,
+      null
+    );
+    if (calcError) throw calcError;
+    const calc = (Array.isArray(calcData) ? calcData[0] : calcData) as Record<string, number> | undefined;
+    const baseSalary = Number(calc?.base_salary ?? 0);
+    const advanceDeduction = Number(calc?.advance_deduction ?? row.advanceDeduction ?? 0);
+    const externalDeduction = Number(calc?.external_deduction ?? row.externalDeduction ?? 0);
+    const totalAdditions = row.incentives + row.sickAllowance;
+    const totalDeductions = row.violations + manualDeduction + advanceDeduction + externalDeduction;
+    const netSalary = Math.max(baseSalary + totalAdditions - totalDeductions, 0);
+    return { manualDeduction, baseSalary, advanceDeduction, externalDeduction, totalAdditions, netSalary };
+  }, []);
+
+  const settleAdvanceInstallments = useCallback(async (row: SalaryRow, nowStr: string) => {
+    if (row.advanceInstallmentIds.length === 0) return;
+
+    await salaryDataService.markInstallmentsDeducted(row.advanceInstallmentIds, nowStr);
+    const { data: instData } = await salaryDataService.getInstallmentsByIds(row.advanceInstallmentIds);
+    if (!instData) return;
+
+    const advanceIds = [...new Set(instData.map(i => i.advance_id))];
+    for (const advId of advanceIds) {
+      const { data: allInsts } = await salaryDataService.getAdvanceInstallmentStatuses(advId);
+      if (allInsts?.every(i => i.status === 'deducted')) {
+        await salaryDataService.markAdvanceCompleted(advId);
+      }
+    }
+  }, []);
+
   // ── Mark as PAID: save to salary_records + update installments + complete advance ──
   const markAsPaid = async (row: SalaryRow) => {
     if (!isEmployeeIdUuid(row.employeeId) || !isValidSalaryMonthYear(selectedMonth)) {
@@ -1130,22 +1434,8 @@ const Salaries = () => {
     }
     setMarkingPaid(row.id);
     try {
-      const manualDeduction = getManualDeductionTotal(row);
-      const { data: calcData, error: calcError } = await salaryDataService.calculateSalaryForEmployeeMonth(
-        row.employeeId,
-        selectedMonth,
-        row.paymentMethod,
-        manualDeduction,
-        null
-      );
-      if (calcError) throw calcError;
-      const calc = (Array.isArray(calcData) ? calcData[0] : calcData) as Record<string, number> | undefined;
-      const baseSalary = Number(calc?.base_salary ?? 0);
-      const advanceDeduction = Number(calc?.advance_deduction ?? row.advanceDeduction ?? 0);
-      const externalDeduction = Number(calc?.external_deduction ?? row.externalDeduction ?? 0);
-      const totalAdditions = row.incentives + row.sickAllowance;
-      const totalDeductions = row.violations + manualDeduction + advanceDeduction + externalDeduction;
-      const netSalary = Math.max(baseSalary + totalAdditions - totalDeductions, 0);
+      const { manualDeduction, baseSalary, advanceDeduction, externalDeduction, totalAdditions, netSalary } =
+        await computeServerSalaryForPayment(row, selectedMonth);
       const nowStr = new Date().toISOString();
 
       // 1. Upsert into salary_records
@@ -1167,23 +1457,8 @@ const Salaries = () => {
 
       if (srError) throw srError;
 
-      // 2. Mark installments as deducted (if any)
-      if (row.advanceInstallmentIds.length > 0) {
-        await salaryDataService.markInstallmentsDeducted(row.advanceInstallmentIds, nowStr);
-
-        // 3. Check if advance is fully paid
-        const { data: instData } = await salaryDataService.getInstallmentsByIds(row.advanceInstallmentIds);
-
-        if (instData) {
-          const advanceIds = [...new Set(instData.map(i => i.advance_id))];
-          for (const advId of advanceIds) {
-            const { data: allInsts } = await salaryDataService.getAdvanceInstallmentStatuses(advId);
-            if (allInsts?.every(i => i.status === 'deducted')) {
-              await salaryDataService.markAdvanceCompleted(advId);
-            }
-          }
-        }
-      }
+      // 2. Mark installments as deducted (if any), then complete fully paid advances.
+      await settleAdvanceInstallments(row, nowStr);
 
       updateRow(row.id, { status: 'paid', isDirty: false, advanceDeduction, externalDeduction });
       toast({ title: '✅ تم الصرف وحفظ سجل الراتب' });
@@ -1372,7 +1647,7 @@ const Salaries = () => {
           ? `<td style="text-align:center">${r.platformOrders[p] || 0}</td>`
           : `<td style="text-align:center;color:#ccc">—</td>`
       ).join('');
-      const statusStyle = r.status === 'paid' ? 'background:#dcfce7;color:#15803d' : r.status === 'approved' ? 'background:#dbeafe;color:#1d4ed8' : 'background:#fef9c3;color:#92400e';
+      const statusStyle = getStatusStyleForPrint(r.status);
       const statusLabel = { pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' }[r.status];
       return `<tr>
         <td>${escapeHtml(r.employeeName)}</td>
@@ -1561,114 +1836,16 @@ const Salaries = () => {
     }
   };
 
-  // ── Generate & print individual PDF per employee ──────────────────
-  const generateEmployeePDF = (row: SalaryRow, monthLabel: string) => {
-    const c = computeRow(row);
-    const html = `<html dir="rtl"><head><meta charset="utf-8">
-    <title>كشف راتب — ${escapeHtml(row.employeeName)}</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'Segoe UI',Arial,sans-serif;padding:24px;color:#1a1a1a;font-size:13px;background:#fff}
-      .page{max-width:700px;margin:0 auto}
-      .header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #4f46e5;padding-bottom:12px;margin-bottom:16px}
-      .title{font-size:20px;font-weight:800;color:#4f46e5}
-      .subtitle{font-size:11px;color:#666;margin-top:2px}
-      .badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700}
-      .badge-paid{background:#dcfce7;color:#15803d}
-      .badge-approved{background:#dbeafe;color:#1d4ed8}
-      .badge-pending{background:#fef9c3;color:#b45309}
-      .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f8f8ff;border-radius:8px;padding:12px;margin-bottom:14px}
-      .info-row{display:flex;flex-direction:column}
-      .info-label{font-size:10px;color:#888;margin-bottom:1px}
-      .info-value{font-size:12px;font-weight:600;color:#111}
-      h3{font-size:12px;font-weight:700;color:#4f46e5;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.5px}
-      table{width:100%;border-collapse:collapse;margin-bottom:10px}
-      td{padding:7px 10px;border:1px solid #e5e7eb;font-size:12px}
-      .label{background:#f3f4f6;font-weight:600;width:55%}
-      .val-blue{color:#2563eb;font-weight:700}
-      .val-green{color:#16a34a;font-weight:700}
-      .val-red{color:#dc2626;font-weight:700}
-      .val-orange{color:#ea580c;font-weight:600}
-      .total-row td{background:#eff6ff;font-weight:700;font-size:13px}
-      .deduction-total td{background:#fff1f2;font-weight:700}
-      .net-row td{background:#f0fdf4;font-size:15px;font-weight:800}
-      .footer{display:flex;justify-content:space-between;margin-top:28px;border-top:1px solid #ddd;padding-top:16px;font-size:11px;color:#555}
-      @media print{body{padding:10px}.page{max-width:100%}}
-    </style></head><body>
-    <div class="page">
-      <div class="header">
-        <div>
-          <div class="title">🚀 كشف راتب شهري</div>
-          <div class="subtitle">${monthLabel}</div>
-        </div>
-        <span class="badge badge-${row.status}">${{ pending: 'معلّق', approved: 'معتمد', paid: 'مصروف' }[row.status]}</span>
-      </div>
-
-      <div class="info-grid">
-        <div class="info-row"><span class="info-label">الاسم الكامل</span><span class="info-value">${escapeHtml(row.employeeName)}</span></div>
-        <div class="info-row"><span class="info-label">رقم الهوية</span><span class="info-value">${escapeHtml(row.nationalId)}</span></div>
-        <div class="info-row"><span class="info-label">المدينة</span><span class="info-value">${escapeHtml(row.city)}</span></div>
-        <div class="info-row"><span class="info-label">طريقة الصرف</span><span class="info-value">${row.paymentMethod === 'bank' ? '🏦 بنكي' : '💵 كاش'}</span></div>
-      </div>
-
-      <h3>الطلبات والراتب حسب المنصة</h3>
-      <table>
-        <tr><td class="label" style="background:#e0e7ff;color:#4338ca;font-weight:700">المنصة</td>
-            <td style="background:#e0e7ff;color:#4338ca;font-weight:700;text-align:center">عدد الطلبات</td>
-            <td style="background:#e0e7ff;color:#4338ca;font-weight:700;text-align:center">الراتب</td></tr>
-        ${row.registeredApps.length > 0 ? row.registeredApps.map(app => {
-          const orders = row.platformOrders[app] || 0;
-          const salary = row.platformSalaries[app] || 0;
-          return `<tr><td class="label">${escapeHtml(app)}</td><td style="text-align:center">${orders.toLocaleString()}</td><td class="val-blue" style="text-align:center">${salary.toLocaleString()} ر.س</td></tr>`;
-        }).join('') : `<tr><td colspan="3" style="text-align:center;color:#999">لا توجد منصات مسجلة</td></tr>`}
-        <tr class="total-row"><td class="label">إجمالي الراتب الأساسي</td><td></td><td class="val-blue" style="text-align:center">${c.totalPlatformSalary.toLocaleString()} ر.س</td></tr>
-      </table>
-
-      ${c.totalAdditions > 0 ? `
-      <h3>الإضافات</h3>
-      <table>
-        ${row.incentives > 0 ? `<tr><td class="label">الحوافز</td><td class="val-green">+ ${row.incentives.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.sickAllowance > 0 ? `<tr><td class="label">بدل مرضي</td><td class="val-green">+ ${row.sickAllowance.toLocaleString()} ر.س</td></tr>` : ''}
-        <tr class="total-row"><td class="label">المجموع مع الراتب</td><td class="val-blue">${c.totalWithSalary.toLocaleString()} ر.س</td></tr>
-      </table>` : ''}
-
-      ${c.totalDeductions > 0 ? `
-      <h3>المستقطعات</h3>
-      <table>
-        ${row.advanceDeduction > 0 ? `<tr><td class="label">قسط سلفة</td><td class="val-red">- ${row.advanceDeduction.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.advanceRemaining > 0 ? `<tr><td class="label">رصيد السلفة المتبقي (للمعلومية)</td><td class="val-orange">${row.advanceRemaining.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.externalDeduction > 0 ? `<tr><td class="label">خصومات خارجية</td><td class="val-red">- ${row.externalDeduction.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.violations > 0 ? `<tr><td class="label">مخالفات</td><td class="val-red">- ${row.violations.toLocaleString()} ر.س</td></tr>` : ''}
-        <tr class="deduction-total"><td class="label">إجمالي المستقطعات</td><td class="val-red">- ${c.totalDeductions.toLocaleString()} ر.س</td></tr>
-      </table>` : ''}
-
-      <h3>الصافي</h3>
-      <table>
-        <tr class="net-row"><td class="label">إجمالي الراتب الصافي</td><td class="val-green">${c.netSalary.toLocaleString()} ر.س</td></tr>
-        ${row.transfer > 0 ? `<tr><td class="label">المبلغ المحوّل</td><td>${row.transfer.toLocaleString()} ر.س</td></tr>` : ''}
-        ${row.transfer > 0 ? `<tr><td class="label">المتبقي نقداً</td><td class="val-orange">${c.remaining.toLocaleString()} ر.س</td></tr>` : ''}
-      </table>
-
-      <div class="footer">
-        <div>توقيع المندوب: _______________________</div>
-        <div>اعتماد المدير: _______________________</div>
-        <div>التاريخ: ${new Date().toLocaleDateString('ar-SA')}</div>
-      </div>
-    </div></body></html>`;
-    return html;
-  };
-
   // ── Download individual PDFs — one file per employee named after them ──
-  const downloadAllPDFs = () => {
+  const downloadAllPDFs = async () => {
     const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
     const toPrint = filtered;
     if (toPrint.length === 0) { toast({ title: 'لا يوجد بيانات للتحميل' }); return; }
 
-    import('jspdf-autotable').then((autoTableMod) => {
-      const autoTable = autoTableMod.default;
+    const autoTableMod = await import('jspdf-autotable');
+    const autoTable = autoTableMod.default;
 
-      toPrint.forEach((row, idx) => {
-        setTimeout(() => {
+    for (const row of toPrint) {
           const c = computeRow(row);
           const [y, m] = selectedMonth.split('-');
           const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -1746,10 +1923,9 @@ const Salaries = () => {
 
           const safeName = row.employeeName.replace(/\s+/g, '_');
           doc.save(`كشف_راتب_${safeName}_${m}_${y}.pdf`);
-        }, idx * 200);
-      });
-      toast({ title: `⬇️ جارٍ تحميل ${toPrint.length} ملف PDF...` });
-    });
+    }
+
+    toast({ title: `⬇️ جارٍ تحميل ${toPrint.length} ملف PDF...` });
   };
 
   // ── Merged PDF: all employees in a single printable page ──
@@ -1898,7 +2074,6 @@ const Salaries = () => {
 
   const thFrozenBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/40 bg-muted/60 text-right sticky z-20";
   const thBase = "px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border border-border/40 bg-muted/50 text-center";
-  const tdFrozenClass = "px-3 py-2 text-xs whitespace-nowrap border border-border/40 bg-card text-foreground sticky z-10";
   const tdClass = "px-3 py-2 text-xs whitespace-nowrap text-center border border-border/40 text-foreground";
   const tfClass = "px-3 py-2 text-xs font-bold whitespace-nowrap text-center border border-border/40 bg-muted/60 text-foreground";
   const stickyLeft = (offset: number) => ({ left: offset });
@@ -1951,27 +2126,13 @@ const Salaries = () => {
           </nav>
           <h1 className="page-title flex items-center gap-2"><Wallet size={20} /> الرواتب الشهرية</h1>
           <div className="mt-1">
-            {loadingData ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground">
-                <span className="h-2 w-2 rounded-full bg-muted-foreground/70 animate-pulse" />
-                جارٍ فحص محرك الرواتب
-              </span>
-            ) : previewBackendError ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[11px] text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                Backend Engine Offline
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[11px] text-success">
-                <span className="h-2 w-2 rounded-full bg-success" />
-                Backend Engine Online
-              </span>
-            )}
+            {renderEngineStatusBadge(loadingData, previewBackendError)}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-2" onClick={() => setPageMode('fast')}>
-            <Table2 size={16} /> قائمة (سريعة)
+            <Table2 size={16} />
+            <span>قائمة (سريعة)</span>
           </Button>
           <select
             value={selectedMonth}
@@ -2061,13 +2222,13 @@ const Salaries = () => {
             <p className="text-sm font-semibold text-foreground">إعداد مطلوب للمنصات</p>
             {appsWithoutScheme.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                بدون سكيمة رواتب:
+                بدون سكيمة رواتب:{' '}
                 <span className="font-semibold text-warning mr-1">{appsWithoutScheme.join(' · ')}</span>
               </p>
             )}
             {appsWithoutPricingRulesDeduped.length > 0 && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                بدون Pricing Rules:
+                بدون Pricing Rules:{' '}
                 <span className="font-semibold text-warning mr-1">{appsWithoutPricingRulesDeduped.join(' · ')}</span>
               </p>
             )}
@@ -2078,7 +2239,8 @@ const Salaries = () => {
             className="gap-1.5 text-xs border-warning/40 text-warning hover:bg-warning/10 flex-shrink-0"
             onClick={() => navigate('/settings/schemes')}
           >
-            <Settings2 size={13} /> فتح الإعداد
+            <Settings2 size={13} />
+            <span>فتح الإعداد</span>
           </Button>
         </div>
       )}
@@ -2171,8 +2333,8 @@ const Salaries = () => {
         <div>
           {loadingData ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={`salary-card-skeleton-${i}`} className="bg-card border border-border/50 rounded-xl p-4 space-y-2 animate-pulse">
+              {SALARY_CARD_SKELETON_KEYS.map((skeletonKey) => (
+                <div key={skeletonKey} className="bg-card border border-border/50 rounded-xl p-4 space-y-2 animate-pulse">
                   <div className="h-4 bg-muted rounded w-3/4" />
                   <div className="h-3 bg-muted rounded w-1/2" />
                   <div className="h-8 bg-muted rounded mt-3" />
@@ -2264,15 +2426,17 @@ const Salaries = () => {
         const dedColCount = 2 + allCustomCols.length + 1;
         return (
       <div className="rounded-xl shadow-card bg-card overflow-hidden">
-        {loadingData ? (
+        {loadingData && (
           <div className="h-48 flex items-center justify-center text-muted-foreground">
             جارٍ تحميل بيانات الرواتب...
           </div>
-        ) : rows.length === 0 ? (
+        )}
+        {!loadingData && rows.length === 0 && (
           <div className="h-48 flex items-center justify-center text-muted-foreground">
             لا يوجد موظفون نشطون أو بيانات لهذا الشهر
           </div>
-        ) : (
+        )}
+        {!loadingData && rows.length > 0 && (
           <div className="overflow-x-auto">
             <table className="text-sm border-collapse" style={{ minWidth: 1800 }}>
               <thead className="sticky top-0 z-30">
@@ -2392,52 +2556,20 @@ const Salaries = () => {
                         const orders = r.platformOrders[p] || 0;
                         const salary = r.platformSalaries[p] || 0;
                         const scheme = empPlatformScheme?.[r.employeeId]?.[p];
-                        const target = scheme?.target_orders;
-                        const hitTarget = target && orders >= target;
-                        const rowBg = orders === 0 ? undefined : hitTarget ? 'rgba(34,197,94,0.08)' : pc?.cellBg;
-                        // Check if employee has no scheme assigned (null = registered but no scheme)
-                        const noScheme = orders > 0 && scheme === null;
                         return (
-                          // Single cell: orders + salary below in small text
-                      <td key={`${p}-col`} className={`${tdClass} text-center border-l border-border/20`}
-                            style={{ background: noScheme ? 'rgba(234,179,8,0.1)' : rowBg }}
-                            onDoubleClick={() => setEditingCell({ rowId: r.id, platform: p })}>
-                            {editingCell?.rowId === r.id && editingCell?.platform === p ? (
-                              <input
-                                autoFocus
-                                type="number"
-                                defaultValue={orders}
-                                className="w-16 text-center border rounded px-1 py-0.5 text-xs bg-background"
-                                style={{ borderColor: pc?.focusBorder }}
-                                onBlur={e => { updatePlatformOrders(r.id, p, Number(e.target.value)); setEditingCell(null); }}
-                                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditingCell(null); }}
-                              />
-                            ) : (
-                              <SalaryBreakdown orders={orders} scheme={scheme || null} salary={salary}>
-                                <div className="flex flex-col items-center leading-tight">
-                                  <span
-                                    className={`font-semibold text-xs ${orders === 0 ? 'text-muted-foreground/30' : 'text-foreground'}`}
-                                  >
-                                    {orders === 0 ? '—' : orders}
-                                  </span>
-                                   {orders > 0 && (
-                                     noScheme ? (
-                                       <span
-                                         className="text-[10px] text-warning/90 font-medium"
-                                         title="بدون سكيمة رواتب لهذه المنصة — راجع شريط التنبيه أعلى الصفحة"
-                                       >
-                                         —
-                                       </span>
-                                     ) : (
-                                      <span className="text-[10px] text-foreground font-medium">
-                                        {salary.toLocaleString()} ر.س
-                                      </span>
-                                    )
-                                  )}
-                                </div>
-                              </SalaryBreakdown>
-                            )}
-                          </td>
+                          <PlatformOrderCell
+                            key={`${p}-col`}
+                            rowId={r.id}
+                            platformName={p}
+                            tdClass={tdClass}
+                            pc={pc}
+                            orders={orders}
+                            salary={salary}
+                            scheme={scheme}
+                            editingCell={editingCell}
+                            setEditingCell={setEditingCell}
+                            updatePlatformOrders={updatePlatformOrders}
+                          />
                         );
                       })}
                       <td className={`${tdClass} text-center font-bold text-foreground border-l border-border/20 bg-primary/[0.04]`}>
@@ -2453,13 +2585,13 @@ const Salaries = () => {
                       </td>
                       <td className={tdClass}><EditableCell value={r.violations} onChange={v => updateRow(r.id, { violations: v })} className="text-foreground" /></td>
                       {allCustomCols.map(col => (
-                        <td key={col.fullKey} className={tdClass}>
-                          <EditableCell
-                            value={r.customDeductions?.[col.fullKey] || 0}
-                            onChange={v => updateRow(r.id, { customDeductions: { ...r.customDeductions, [col.fullKey]: v } })}
-                            className="text-foreground"
-                          />
-                        </td>
+                        <CustomDeductionCell
+                          key={col.fullKey}
+                          row={r}
+                          fullKey={col.fullKey}
+                          tdClass={tdClass}
+                          updateRow={updateRow}
+                        />
                       ))}
                       <td className={`${tdClass} font-bold text-foreground border-l border-border/20 bg-destructive/[0.06]`}>
                         {c.totalDeductions > 0 ? c.totalDeductions.toLocaleString() : <span className="text-muted-foreground/30">—</span>}
@@ -2796,12 +2928,12 @@ const Salaries = () => {
 
 export default Salaries;
 
-function SalariesFastList(props: {
+function SalariesFastList(props: Readonly<{
   monthYear: string;
   branch: BranchKey;
   search: string;
-  approved: 'all' | 'approved' | 'pending';
-  onApprovedChange: (v: 'all' | 'approved' | 'pending') => void;
+  approved: FastApprovedFilter;
+  onApprovedChange: (v: FastApprovedFilter) => void;
   onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
   page: number;
   pageSize: number;
@@ -2810,7 +2942,7 @@ function SalariesFastList(props: {
   onSalaryTemplate: () => void;
   onSalaryImport: (file: File) => void | Promise<void>;
   salaryActionLoading: boolean;
-}) {
+}>) {
   const { toast } = useToast();
   const {
     monthYear,
@@ -2851,7 +2983,7 @@ function SalariesFastList(props: {
     created_at: string;
     employees?: { id: string; name: string; national_id: string | null; city: string | null } | null;
   };
-  const paged = data as unknown as { data?: Row[]; count?: number } | undefined;
+  const paged = data as { data?: Row[]; count?: number } | undefined;
   const rows = paged?.data || [];
   const total = paged?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -2868,7 +3000,7 @@ function SalariesFastList(props: {
   const exportExcel = async () => {
     setExporting(true);
     try {
-      const branchKey = branch !== 'all' ? (branch as Exclude<BranchKey, 'all'>) : undefined;
+      const branchKey: Exclude<BranchKey, 'all'> | undefined = branch === 'all' ? undefined : branch;
       const q = search?.trim() || undefined;
 
       const res = await salaryService.exportMonth({
@@ -2910,6 +3042,31 @@ function SalariesFastList(props: {
       setExporting(false);
     }
   };
+
+  let tableRowsNode: React.ReactNode;
+  if (isLoading) {
+    tableRowsNode = SALARY_TABLE_SKELETON_KEYS.map((skeletonKey) => (
+      <tr key={skeletonKey}>
+        <td className="px-4 py-3 text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
+      </tr>
+    ));
+  } else if (rows.length === 0) {
+    tableRowsNode = <tr><td colSpan={5} className="py-10 text-center text-muted-foreground">لا توجد نتائج</td></tr>;
+  } else {
+    tableRowsNode = rows.map((r) => (
+      <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+        <td className="px-4 py-3 font-semibold">{r.employees?.name ?? '—'}</td>
+        <td className="px-4 py-3 text-center">{toCityArabicLabel(r.employees?.city)}</td>
+        <td className="px-4 py-3 text-center font-bold">{Number(r.net_salary || 0).toLocaleString()}</td>
+        <td className="px-4 py-3 text-center">{r.is_approved ? 'نعم' : 'لا'}</td>
+        <td className="px-4 py-3 text-center font-mono text-xs">{(r.created_at || '').slice(0, 10)}</td>
+      </tr>
+    ));
+  }
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -2984,29 +3141,7 @@ function SalariesFastList(props: {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {isLoading ? (
-                Array.from({ length: 12 }).map((_, i) => (
-                  <tr key={`salary-table-skeleton-${i}`}>
-                    <td className="px-4 py-3 text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                    <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-                  </tr>
-                ))
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={5} className="py-10 text-center text-muted-foreground">لا توجد نتائج</td></tr>
-              ) : (
-                rows.map((r) => (
-                  <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 font-semibold">{r.employees?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-center">{r.employees?.city === 'makkah' ? 'مكة' : r.employees?.city === 'jeddah' ? 'جدة' : '—'}</td>
-                    <td className="px-4 py-3 text-center font-bold">{Number(r.net_salary || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-center">{r.is_approved ? 'نعم' : 'لا'}</td>
-                    <td className="px-4 py-3 text-center font-mono text-xs">{(r.created_at || '').slice(0, 10)}</td>
-                  </tr>
-                ))
-              )}
+              {tableRowsNode}
             </tbody>
           </table>
         </div>

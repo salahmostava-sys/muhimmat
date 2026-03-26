@@ -2223,6 +2223,7 @@ const Salaries = () => {
           row={payslipRow}
           selectedMonth={selectedMonth}
           companyName={projectName}
+          months={months}
           onClose={() => setPayslipRow(null)}
           onApprove={() => { approveRow(payslipRow.id); setPayslipRow(null); }}
         />

@@ -19,7 +19,8 @@ export const employeeService = {
       .from('employees')
       .select('*')
       .order('name', { ascending: true });
-    return { data, error };
+    throwIfError(error, 'employeeService.getAll');
+    return { data, error: null };
   },
 
   /**
@@ -66,7 +67,8 @@ export const employeeService = {
     }
 
     const { data, error, count } = await query;
-    return { data: data || [], error, count: count ?? 0 };
+    throwIfError(error, 'employeeService.getPaged');
+    return { data: data || [], error: null, count: count ?? 0 };
   },
 
   /** Export helper for large datasets (chunked). */
@@ -86,7 +88,6 @@ export const employeeService = {
     const all: unknown[] = [];
     for (let page = 1; page <= Math.ceil(maxRows / chunkSize); page++) {
       const res = await employeeService.getPaged({ page, pageSize: chunkSize, filters });
-      if (res.error) return { data: all, error: res.error };
       all.push(...(res.data || []));
       if ((res.data || []).length < chunkSize) break;
     }
@@ -98,7 +99,8 @@ export const employeeService = {
       .from('employees')
       .update({ city })
       .eq('id', employeeId);
-    return { error };
+    throwIfError(error, 'employeeService.updateCity');
+    return { error: null };
   },
 
   async getById(employeeId: string) {
@@ -107,7 +109,8 @@ export const employeeService = {
       .select('*')
       .eq('id', employeeId)
       .single();
-    return { data, error };
+    throwIfError(error, 'employeeService.getById');
+    return { data, error: null };
   },
 
   async findByEmployeeCode(employeeCode: string) {
@@ -117,7 +120,7 @@ export const employeeService = {
       .eq('employee_code', employeeCode)
       .maybeSingle();
     throwIfError(error, 'employeeService.findByEmployeeCode');
-    return { data, error };
+    return { data, error: null };
   },
 
   async findByNationalId(nationalId: string) {
@@ -127,7 +130,7 @@ export const employeeService = {
       .eq('national_id', nationalId)
       .maybeSingle();
     throwIfError(error, 'employeeService.findByNationalId');
-    return { data, error };
+    return { data, error: null };
   },
 
   async deleteById(employeeId: string) {
@@ -135,7 +138,8 @@ export const employeeService = {
       .from('employees')
       .delete()
       .eq('id', employeeId);
-    return { error };
+    throwIfError(error, 'employeeService.deleteById');
+    return { error: null };
   },
 
   async getActiveForSalaryContext() {
@@ -144,7 +148,8 @@ export const employeeService = {
       .select('id, name, job_title, national_id, salary_type, base_salary, iban, city, preferred_language, phone, sponsorship_status')
       .eq('status', 'active')
       .order('name');
-    return { data, error };
+    throwIfError(error, 'employeeService.getActiveForSalaryContext');
+    return { data, error: null };
   },
 
   async getActiveSalarySchemes() {
@@ -154,7 +159,7 @@ export const employeeService = {
       .eq('status', 'active')
       .order('name');
     throwIfError(error, 'employeeService.getActiveSalarySchemes');
-    return { data: (data || []) as SalarySchemeOption[], error };
+    return { data: (data || []) as SalarySchemeOption[], error: null };
   },
 
   async getActiveApps() {
@@ -164,7 +169,7 @@ export const employeeService = {
       .eq('is_active', true)
       .order('name');
     throwIfError(error, 'employeeService.getActiveApps');
-    return { data: (data || []) as EmployeeAppOption[], error };
+    return { data: (data || []) as EmployeeAppOption[], error: null };
   },
 
   async getEmployeeAssignedAppNames(employeeId: string) {
@@ -178,7 +183,7 @@ export const employeeService = {
       .map((row: { apps?: { name?: string | null } | null }) => row.apps?.name)
       .filter((name): name is string => Boolean(name));
 
-    return { data: appNames, error };
+    return { data: appNames, error: null };
   },
 
   async createEmployee(payload: Record<string, unknown>) {
@@ -188,7 +193,7 @@ export const employeeService = {
       .select()
       .single();
     throwIfError(error, 'employeeService.createEmployee');
-    return { data, error };
+    return { data, error: null };
   },
 
   async updateEmployee(employeeId: string, payload: Record<string, unknown>) {
@@ -197,7 +202,7 @@ export const employeeService = {
       .update(payload)
       .eq('id', employeeId);
     throwIfError(error, 'employeeService.updateEmployee');
-    return { error };
+    return { error: null };
   },
 
   async uploadEmployeeDocument(storagePath: string, file: File) {
@@ -205,7 +210,7 @@ export const employeeService = {
       .from('employee-documents')
       .upload(storagePath, file, { upsert: true });
     throwIfError(error, 'employeeService.uploadEmployeeDocument');
-    return { data, error };
+    return { data, error: null };
   },
 
   async updateEmployeeDocumentPaths(employeeId: string, updates: Record<string, string>) {
@@ -214,7 +219,7 @@ export const employeeService = {
       .update(updates)
       .eq('id', employeeId);
     throwIfError(error, 'employeeService.updateEmployeeDocumentPaths');
-    return { error };
+    return { error: null };
   },
 
   async replaceEmployeeApps(employeeId: string, appIds: string[]) {
@@ -244,7 +249,7 @@ export const employeeService = {
       .from('employee_apps')
       .upsert({ employee_id: employeeId, app_id: appId, status: 'active' }, { onConflict: 'employee_id,app_id' });
     throwIfError(error, 'employeeService.upsertEmployeeApp');
-    return { error };
+    return { error: null };
   },
 };
 

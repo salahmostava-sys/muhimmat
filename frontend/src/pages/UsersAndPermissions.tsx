@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { usePermissions, DEFAULT_PERMISSIONS, type AppRole, type PagePermission } from '@/hooks/usePermissions';
 import { PERMISSION_PAGE_ENTRIES } from '@/constants/permissionPages';
+import { defaultQueryRetry } from '@/lib/query';
 
 type ProfileRow = {
   id: string;
@@ -91,7 +92,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
         role: roleMap[p.id] || 'viewer',
       })) as UserRow[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
   const [savingId, setSavingId] = useState<string | null>(null);

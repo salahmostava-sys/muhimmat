@@ -76,25 +76,32 @@ const MaintenanceFormModal = ({ open, onClose, onSaved, editLog, vehicles }: {
   const handleSave = async () => {
     if (!form.vehicle_id) return toast({ title: 'يرجى اختيار المركبة', variant: 'destructive' });
     setSaving(true);
-    const payload = {
-      vehicle_id: form.vehicle_id,
-      type: form.type,
-      date: form.date,
-      description: form.description || null,
-      cost: form.cost ? parseFloat(form.cost) : null,
-      paid_by: form.paid_by,
-      status: form.status,
-    };
-    let error;
-    if (editLog) {
-      ({ error } = await vehicleService.updateMaintenanceLog(editLog.id, payload));
-    } else {
-      ({ error } = await vehicleService.createMaintenanceLog(payload));
+    try {
+      const payload = {
+        vehicle_id: form.vehicle_id,
+        type: form.type,
+        date: form.date,
+        description: form.description || null,
+        cost: form.cost ? parseFloat(form.cost) : null,
+        paid_by: form.paid_by,
+        status: form.status,
+      };
+      let error;
+      if (editLog) {
+        ({ error } = await vehicleService.updateMaintenanceLog(editLog.id, payload));
+      } else {
+        ({ error } = await vehicleService.createMaintenanceLog(payload));
+      }
+      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      toast({ title: editLog ? 'تم تحديث سجل الصيانة' : 'تم تسجيل الصيانة بنجاح' });
+      onSaved(); onClose();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-    toast({ title: editLog ? 'تم تحديث سجل الصيانة' : 'تم تسجيل الصيانة بنجاح' });
-    onSaved(); onClose();
   };
 
   return (
@@ -243,12 +250,19 @@ const MaintenanceLogs = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
-    const { error } = await vehicleService.deleteMaintenanceLog(deleteTarget.id);
-    setDeleting(false);
-    setDeleteTarget(null);
-    if (error) { toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' }); return; }
-    toast({ title: 'تم حذف سجل الصيانة' });
-    void refetchMaintenanceData();
+    try {
+      const { error } = await vehicleService.deleteMaintenanceLog(deleteTarget.id);
+      setDeleteTarget(null);
+      if (error) { toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' }); return; }
+      toast({ title: 'تم حذف سجل الصيانة' });
+      void refetchMaintenanceData();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleExport = () => {

@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import { throwIfError } from '@/services/serviceError';
 
 interface SchemePayload {
   name: string;
@@ -21,35 +22,65 @@ interface TierInsertPayload {
 }
 
 export const salarySchemeService = {
-  getSchemes: async () =>
-    supabase.from('salary_schemes').select('*').order('created_at', { ascending: false }),
+  getSchemes: async () => {
+    const { data, error } = await supabase.from('salary_schemes').select('*').order('created_at', { ascending: false });
+    throwIfError(error, 'salarySchemeService.getSchemes');
+    return { data, error: null };
+  },
 
-  getTiers: async () =>
-    supabase.from('salary_scheme_tiers').select('*').order('tier_order'),
+  getTiers: async () => {
+    const { data, error } = await supabase.from('salary_scheme_tiers').select('*').order('tier_order');
+    throwIfError(error, 'salarySchemeService.getTiers');
+    return { data, error: null };
+  },
 
-  getSnapshots: async () =>
-    supabase.from('scheme_month_snapshots').select('scheme_id, month_year'),
+  getSnapshots: async () => {
+    const { data, error } = await supabase.from('scheme_month_snapshots').select('scheme_id, month_year');
+    throwIfError(error, 'salarySchemeService.getSnapshots');
+    return { data, error: null };
+  },
 
-  updateScheme: async (schemeId: string, payload: SchemePayload) =>
-    supabase.from('salary_schemes').update(payload).eq('id', schemeId),
+  updateScheme: async (schemeId: string, payload: SchemePayload) => {
+    const { data, error } = await supabase.from('salary_schemes').update(payload).eq('id', schemeId);
+    throwIfError(error, 'salarySchemeService.updateScheme');
+    return { data, error: null };
+  },
 
-  createScheme: async (payload: SchemePayload) =>
-    supabase.from('salary_schemes').insert(payload).select('id').single(),
+  createScheme: async (payload: SchemePayload) => {
+    const { data, error } = await supabase.from('salary_schemes').insert(payload).select('id').single();
+    throwIfError(error, 'salarySchemeService.createScheme');
+    return { data, error: null };
+  },
 
-  deleteSchemeTiers: async (schemeId: string) =>
-    supabase.from('salary_scheme_tiers').delete().eq('scheme_id', schemeId),
+  deleteSchemeTiers: async (schemeId: string) => {
+    const { error } = await supabase.from('salary_scheme_tiers').delete().eq('scheme_id', schemeId);
+    throwIfError(error, 'salarySchemeService.deleteSchemeTiers');
+    return { error: null };
+  },
 
-  insertSchemeTiers: async (payload: TierInsertPayload[]) =>
-    supabase.from('salary_scheme_tiers').insert(payload),
+  insertSchemeTiers: async (payload: TierInsertPayload[]) => {
+    const { data, error } = await supabase.from('salary_scheme_tiers').insert(payload);
+    throwIfError(error, 'salarySchemeService.insertSchemeTiers');
+    return { data, error: null };
+  },
 
-  updateSchemeStatus: async (schemeId: string, status: 'active' | 'archived') =>
-    supabase.from('salary_schemes').update({ status }).eq('id', schemeId),
+  updateSchemeStatus: async (schemeId: string, status: 'active' | 'archived') => {
+    const { data, error } = await supabase.from('salary_schemes').update({ status }).eq('id', schemeId);
+    throwIfError(error, 'salarySchemeService.updateSchemeStatus');
+    return { data, error: null };
+  },
 
-  upsertSnapshot: async (schemeId: string, monthYear: string, snapshot: Json) =>
-    supabase
+  upsertSnapshot: async (schemeId: string, monthYear: string, snapshot: Json) => {
+    const { data, error } = await supabase
       .from('scheme_month_snapshots')
-      .upsert({ scheme_id: schemeId, month_year: monthYear, snapshot }, { onConflict: 'scheme_id,month_year' }),
+      .upsert({ scheme_id: schemeId, month_year: monthYear, snapshot }, { onConflict: 'scheme_id,month_year' });
+    throwIfError(error, 'salarySchemeService.upsertSnapshot');
+    return { data, error: null };
+  },
 
-  deleteSnapshot: async (schemeId: string, monthYear: string) =>
-    supabase.from('scheme_month_snapshots').delete().eq('scheme_id', schemeId).eq('month_year', monthYear),
+  deleteSnapshot: async (schemeId: string, monthYear: string) => {
+    const { error } = await supabase.from('scheme_month_snapshots').delete().eq('scheme_id', schemeId).eq('month_year', monthYear);
+    throwIfError(error, 'salarySchemeService.deleteSnapshot');
+    return { error: null };
+  },
 };

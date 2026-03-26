@@ -79,19 +79,26 @@ const AssignmentFormModal = ({
     if (!form.vehicle_id || !form.employee_id)
       return toast({ title: 'يرجى اختيار المركبة والمندوب', variant: 'destructive' });
     setSaving(true);
-    const startAt = new Date(form.start_at);
-    const { error } = await vehicleService.createAssignment({
-      vehicle_id: form.vehicle_id,
-      employee_id: form.employee_id,
-      start_date: format(startAt, 'yyyy-MM-dd'),
-      start_at: startAt.toISOString(),
-      notes: form.notes || null,
-      reason: form.reason || null,
-    });
-    setSaving(false);
-    if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-    toast({ title: '✅ تم تسجيل التسليم بنجاح' });
-    onSaved(); onClose();
+    try {
+      const startAt = new Date(form.start_at);
+      const { error } = await vehicleService.createAssignment({
+        vehicle_id: form.vehicle_id,
+        employee_id: form.employee_id,
+        start_date: format(startAt, 'yyyy-MM-dd'),
+        start_at: startAt.toISOString(),
+        notes: form.notes || null,
+        reason: form.reason || null,
+      });
+      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      toast({ title: '✅ تم تسجيل التسليم بنجاح' });
+      onSaved(); onClose();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -196,15 +203,22 @@ const ReturnModal = ({
   const handleSave = async () => {
     if (!assignment) return;
     setSaving(true);
-    const rt = new Date(returnedAt);
-    const { error } = await vehicleService.updateAssignment(assignment.id, {
-      returned_at: rt.toISOString(),
-      end_date: format(rt, 'yyyy-MM-dd'),
-    });
-    setSaving(false);
-    if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-    toast({ title: '✅ تم تسجيل الإعادة بنجاح' });
-    onSaved(); onClose();
+    try {
+      const rt = new Date(returnedAt);
+      const { error } = await vehicleService.updateAssignment(assignment.id, {
+        returned_at: rt.toISOString(),
+        end_date: format(rt, 'yyyy-MM-dd'),
+      });
+      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      toast({ title: '✅ تم تسجيل الإعادة بنجاح' });
+      onSaved(); onClose();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

@@ -21,7 +21,7 @@ export const auditService = {
       meta: payload.meta ?? {},
     });
     throwIfError(error, 'auditService.logAdminAction');
-    return { error };
+    return { error: null };
   },
 };
 

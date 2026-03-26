@@ -10,7 +10,7 @@ export const profileService = {
       .eq('id', userId)
       .single();
     throwIfError(error, 'profileService.getProfile');
-    return { data, error };
+    return { data, error: null };
   },
 
   getProfileName: async (userId: string) => {
@@ -20,7 +20,7 @@ export const profileService = {
       .eq('id', userId)
       .maybeSingle();
     throwIfError(error, 'profileService.getProfileName');
-    return { data, error };
+    return { data, error: null };
   },
 
   uploadAvatar: async (userId: string, file: File) => {
@@ -30,7 +30,7 @@ export const profileService = {
       .from('avatars')
       .upload(path, file, { upsert: true });
     throwIfError(error, 'profileService.uploadAvatar');
-    return { data, error };
+    return { data, error: null };
   },
 
   getAvatarPublicUrl: (path: string) => {
@@ -44,12 +44,12 @@ export const profileService = {
       .update(payload)
       .eq('id', userId);
     throwIfError(error, 'profileService.updateProfile');
-    return { error };
+    return { error: null };
   },
 
   updatePassword: async (password: string) => {
     const { error } = await authService.updatePassword(password);
     throwIfError(error, 'profileService.updatePassword');
-    return { error };
+    return { error: null };
   },
 };

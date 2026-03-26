@@ -1,5 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { validateUploadFile } from '@/lib/validation';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 export const settingsHubService = {
   getAuditLogs: async (from: number, to: number, filterAction: string, filterTable: string, search: string) => {
@@ -50,9 +52,9 @@ export const settingsHubService = {
   updateTradeRegister: async (recordId: string, payload: Record<string, unknown>) =>
     supabase.from('trade_registers').update(payload).eq('id', recordId),
 
-  createTradeRegister: async (payload: Record<string, unknown>) =>
+  createTradeRegister: async (payload: TablesInsert<'trade_registers'>) =>
     supabase.from('trade_registers').insert(payload).select().single(),
 
-  exportTableRows: async (table: string) =>
-    supabase.from(table as keyof Database['public']['Tables']).select('*'),
+  exportTableRows: async (table: keyof Database['public']['Tables']) =>
+    supabase.from(table).select('*'),
 };

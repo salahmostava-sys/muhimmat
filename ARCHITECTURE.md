@@ -32,13 +32,11 @@ This project is a **Vite + React SPA** that talks to **Supabase** directly from 
 - `ProtectedRoute`: blocks unauthenticated users
 - `PageGuard`: blocks pages/actions based on permissions
 
-### Backend (Express) status
+### Backend status
 
-The `backend/` Express app is **optional** right now.
-- It contains routes/controllers scaffolding, but it’s **not the primary runtime path**.
-- The frontend currently reads/writes data **directly to Supabase** via the service layer.
-
-See `backend/documentation.md` for the current backend status.
+Supabase is the **only backend runtime** for this project.
+- Frontend reads/writes simple CRUD directly via Supabase JS.
+- Sensitive server-side logic runs in **Supabase Edge Functions** and SQL RPCs.
 
 ### Deployment notes (Vercel + SPA routing)
 

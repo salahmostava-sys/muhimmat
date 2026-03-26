@@ -90,8 +90,13 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => {
     if (!user?.id) return;
     profileService.getProfileName(user.id)
       .then(({ data }) => { if (data?.name) setProfileName(data.name); })
+<<<<<<< hbe-sonar-hardening
       .catch((error: unknown) => {
         console.error('[AppLayout] getProfileName failed', error);
+=======
+      .catch((e: unknown) => {
+        console.error('[AppLayout] getProfileName failed', e);
+>>>>>>> main
       });
   }, [user?.id]);
 

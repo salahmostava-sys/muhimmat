@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { employeeService } from '@/services/employeeService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
@@ -21,8 +22,10 @@ export function useEmployeesPaged(params: {
   pageSize: number;
   filters: EmployeesPagedFilters;
 }) {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const { page, pageSize, filters } = params;
   const branch = filters.branch === 'all' ? undefined : filters.branch;
   const status = filters.status && filters.status !== 'all' ? filters.status : undefined;

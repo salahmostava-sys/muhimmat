@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';
 import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Employee {
@@ -215,6 +216,8 @@ function groupOrdersByMonth(orders: DailyOrder[]): MonthlyOrders[] {
 }
 
 const EmployeeProfile = ({ employee, onBack }: Props) => {
+  const { user, session, authLoading } = useAuth();
+  const enabled = !!session && !!user && !authLoading;
   const [activeTab, setActiveTab] = useState('basic');
   const [advances, setAdvances] = useState<Advance[]>([]);
   const [salaries, setSalaries] = useState<SalaryRecord[]>([]);
@@ -234,6 +237,11 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
 
   // Fetch related data when tabs accessed
   useEffect(() => {
+    if (!enabled) {
+      if (!authLoading) setLoading(false);
+      return;
+    }
+
     setLoading(true);
     void (async () => {
       try {
@@ -277,7 +285,7 @@ const EmployeeProfile = ({ employee, onBack }: Props) => {
         setLoading(false);
       }
     })();
-  }, [employee.id]);
+  }, [employee.id, enabled, authLoading]);
 
   return (
     <div className="space-y-5">

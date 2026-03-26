@@ -13,6 +13,7 @@ import { appService } from '@/services/appService';
 import { salarySchemeService } from '@/services/salarySchemeService';
 import { cn } from '@/lib/utils';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 type TierType = 'total_multiplier' | 'fixed_amount' | 'base_plus_incremental';
 
@@ -145,7 +146,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
         snapshotsMap,
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
   const [snapshotLoading, setSnapshotLoading] = useState<string | null>(null);

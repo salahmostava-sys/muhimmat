@@ -101,7 +101,7 @@ const DEFAULT_PERMISSIONS: Record<AppRole, Record<string, PagePermission>> = {
 };
 
 export const usePermissions = (pageKey: string) => {
-  const { user, role } = useAuth();
+  const { user, role, session, loading: authLoading } = useAuth();
 
   const fallbackPermissions = useMemo<PagePermission>(() => {
     if (!role) return { can_view: false, can_edit: false, can_delete: false };
@@ -111,7 +111,7 @@ export const usePermissions = (pageKey: string) => {
 
   const query = useQuery({
     queryKey: ['permissions', user?.id ?? null, role ?? null, pageKey] as const,
-    enabled: !!user && !!role,
+    enabled: !!session && !!user && !authLoading && !!role,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_permissions')

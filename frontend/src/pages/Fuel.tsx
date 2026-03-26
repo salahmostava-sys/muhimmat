@@ -21,6 +21,7 @@ import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/tab
 import { useFuelDailyPaged } from '@/hooks/useFuelDailyPaged';
 import { auditService } from '@/services/auditService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DailyRow = {
@@ -419,18 +420,25 @@ const ImportModal = ({
     const toSave = rows.filter(r => r.matched_employee || r.manual_employee_id);
     if (!toSave.length) return toast({ title: 'لا توجد سجلات للاستيراد', variant: 'destructive' });
     setSaving(true);
-    const payload = toSave.map(r => ({
-      employee_id: r.manual_employee_id || r.matched_employee?.id || '',
-      month_year: monthYear,
-      km_total: r.km_total,
-      fuel_cost: r.fuel_cost,
-      notes: r.notes || null,
-    }));
-    const { error } = await fuelService.saveMonthlyMileageImport(payload, replaceExisting);
-    setSaving(false);
-    if (error) return toast({ title: 'خطأ في الاستيراد', description: error.message, variant: 'destructive' });
-    toast({ title: `تم استيراد ${payload.length} سجل بنجاح` });
-    onImported();
+    try {
+      const payload = toSave.map(r => ({
+        employee_id: r.manual_employee_id || r.matched_employee?.id || '',
+        month_year: monthYear,
+        km_total: r.km_total,
+        fuel_cost: r.fuel_cost,
+        notes: r.notes || null,
+      }));
+      const { error } = await fuelService.saveMonthlyMileageImport(payload, replaceExisting);
+      if (error) return toast({ title: 'خطأ في الاستيراد', description: error.message, variant: 'destructive' });
+      toast({ title: `تم استيراد ${payload.length} سجل بنجاح` });
+      onImported();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الاستيراد', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -643,7 +651,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
         links: (linkRes.data || []) as { employee_id: string; app_id: string }[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 
@@ -673,7 +681,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       if (error) throw error;
       return (data || []) as { employee_id: string; orders_count: number }[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 30_000,
   });
 
@@ -749,14 +757,20 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
 
   const handleDeleteDaily = async (id: string) => {
     if (!confirm('هل تريد حذف هذا السجل؟')) return;
-    const { error } = await fuelService.deleteDailyMileage(id);
-    if (error) {
-      toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
-      return;
+    try {
+      const { error } = await fuelService.deleteDailyMileage(id);
+      if (error) {
+        toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'تم الحذف' });
+      fetchDaily();
+      fetchMonthly();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     }
-    toast({ title: 'تم الحذف' });
-    fetchDaily();
-    fetchMonthly();
   };
 
   const submitNewEntry = async () => {
@@ -770,18 +784,25 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       return toast({ title: 'المندوب غير مسجّل على هذه المنصة', variant: 'destructive' });
     }
     setSavingEntry(true);
-    const { error } = await saveVehicleMileageDaily({
-      employee_id: newEntry.employee_id,
-      date: newEntry.date,
-      km_total: km,
-      fuel_cost: fuel,
-      notes: newEntry.notes.trim() || null,
-    });
-    setSavingEntry(false);
-    if (error) return toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
-    toast({ title: 'تم الحفظ بنجاح' });
-    setNewEntry(ne => ({ ...ne, km_total: '', fuel_cost: '', notes: '' }));
-    refresh();
+    try {
+      const { error } = await saveVehicleMileageDaily({
+        employee_id: newEntry.employee_id,
+        date: newEntry.date,
+        km_total: km,
+        fuel_cost: fuel,
+        notes: newEntry.notes.trim() || null,
+      });
+      if (error) return toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
+      toast({ title: 'تم الحفظ بنجاح' });
+      setNewEntry(ne => ({ ...ne, km_total: '', fuel_cost: '', notes: '' }));
+      refresh();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
+    } finally {
+      setSavingEntry(false);
+    }
   };
 
   const saveEditedDaily = async (row: DailyRow) => {
@@ -793,24 +814,31 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       return;
     }
     setSavingEntry(true);
-    const { error } = await saveVehicleMileageDaily(
-      {
-        employee_id: row.employee_id,
-        date: row.date,
-        km_total: km,
-        fuel_cost: fuel,
-        notes: editingDaily.notes.trim() || null,
-      },
-      row.id
-    );
-    setSavingEntry(false);
-    if (error) {
-      toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
-      return;
+    try {
+      const { error } = await saveVehicleMileageDaily(
+        {
+          employee_id: row.employee_id,
+          date: row.date,
+          km_total: km,
+          fuel_cost: fuel,
+          notes: editingDaily.notes.trim() || null,
+        },
+        row.id
+      );
+      if (error) {
+        toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'تم تحديث السجل' });
+      setEditingDaily(null);
+      refresh();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
+    } finally {
+      setSavingEntry(false);
     }
-    toast({ title: 'تم تحديث السجل' });
-    setEditingDaily(null);
-    refresh();
   };
 
   const filteredMonthly = monthlyRows.filter(r =>

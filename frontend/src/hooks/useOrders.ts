@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { orderService } from '@/services/orderService';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 
 export const ordersQueryKey = (userId: string) => ['orders', userId] as const;
 
 export const useOrders = () => {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const q = useQuery({
     queryKey: ordersQueryKey(uid),
     queryFn: async () => {

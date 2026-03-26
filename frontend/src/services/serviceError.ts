@@ -10,5 +10,6 @@ export class ServiceError extends Error {
 
 export const throwIfError = (error: { message?: string } | null, context: string): void => {
   if (!error) return;
+  console.error(error);
   throw new ServiceError(error.message || `Service failure: ${context}`, error);
 };

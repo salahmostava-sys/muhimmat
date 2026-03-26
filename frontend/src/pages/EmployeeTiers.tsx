@@ -15,6 +15,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 import { employeeTierService } from '@/services/employeeTierService';
 import { cn } from '@/lib/utils';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 /* ─── Types ─── */
 type Employee = { id: string; name: string; sponsorship_status: string | null; };
@@ -187,7 +188,7 @@ const EmployeeTiers = () => {
         })),
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
   const [search, setSearch]     = useState('');

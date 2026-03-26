@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { escapeHtml } from '@/lib/security';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@/lib/query';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type AdvanceStatus = 'active' | 'completed' | 'paused';
@@ -111,24 +112,31 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
     if (!Number.isFinite(amt) || amt <= 0)
       return toast({ title: 'أدخل مبلغاً صحيحاً', variant: 'destructive' });
     setSaving(true);
-    const payload: AdvancePayload = {
-      employee_id: employeeId, amount: amt,
-      monthly_amount: amt, total_installments: projectedInstallments,
-      disbursement_date: form.disbursement_date, first_deduction_month: form.first_deduction_month,
-      note: form.note || null, status: 'active',
-    };
-    const { data: adv, error } = await advanceService.create(payload);
-    if (error || !adv) { setSaving(false); return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' }); }
-    const installments = buildInstallmentsPayload(
-      adv.id,
-      form.first_deduction_month,
-      parseFloat(form.amount),
-      projectedInstallments
-    );
-    if (installments.length > 0) await advanceService.createInstallments(installments);
-    setSaving(false);
-    toast({ title: '✅ تم إضافة السلفة' });
-    onSaved();
+    try {
+      const payload: AdvancePayload = {
+        employee_id: employeeId, amount: amt,
+        monthly_amount: amt, total_installments: projectedInstallments,
+        disbursement_date: form.disbursement_date, first_deduction_month: form.first_deduction_month,
+        note: form.note || null, status: 'active',
+      };
+      const { data: adv, error } = await advanceService.create(payload);
+      if (error || !adv) return toast({ title: 'حدث خطأ', description: error?.message, variant: 'destructive' });
+      const installments = buildInstallmentsPayload(
+        adv.id,
+        form.first_deduction_month,
+        parseFloat(form.amount),
+        projectedInstallments
+      );
+      if (installments.length > 0) await advanceService.createInstallments(installments);
+      toast({ title: '✅ تم إضافة السلفة' });
+      onSaved();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -179,11 +187,18 @@ const WriteOffDialog = ({ employeeName, remaining, advanceIds, onClose, onDone }
 
   const handleWriteOff = async () => {
     setSaving(true);
-    const { error } = await advanceService.writeOffMany(advanceIds, reason || 'ديون معدومة');
-    setSaving(false);
-    if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-    toast({ title: `✅ تم إعدام ديون ${employeeName}` });
-    onDone(); onClose();
+    try {
+      const { error } = await advanceService.writeOffMany(advanceIds, reason || 'ديون معدومة');
+      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      toast({ title: `✅ تم إعدام ديون ${employeeName}` });
+      onDone(); onClose();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -227,11 +242,18 @@ const RestoreWriteOffDialog = ({ employeeName, advanceIds, onClose, onDone }: Re
 
   const handleRestore = async () => {
     setSaving(true);
-    const { error } = await advanceService.restoreWrittenOffMany(advanceIds);
-    setSaving(false);
-    if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-    toast({ title: `✅ تم استرداد ديون ${employeeName}` });
-    onDone(); onClose();
+    try {
+      const { error } = await advanceService.restoreWrittenOffMany(advanceIds);
+      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      toast({ title: `✅ تم استرداد ديون ${employeeName}` });
+      onDone(); onClose();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -282,33 +304,40 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
 
   const handleSave = async () => {
     setSaving(true);
-    const payload: Partial<AdvancePayload> = {
-      amount: parseFloat(form.amount),
-      disbursement_date: form.disbursement_date,
-      monthly_amount: monthly,
-      total_installments: projectedInstallments,
-      first_deduction_month: form.first_deduction_month,
-      status: form.status,
-      note: form.note || null,
-    };
-    const { error } = await advanceService.update(advance.id, payload);
-    if (error) { setSaving(false); return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' }); }
-    await advanceService.deletePendingInstallments(advance.id);
-    const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');
-    const paidCount = paidInstallments.length;
-    const paidAmount = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
-    const remaining_count = Math.max(projectedInstallments - paidCount, 0);
-    const remainingAmount = Math.max((parseFloat(form.amount) || 0) - paidAmount, 0);
-    const installments = buildInstallmentsPayload(
-      advance.id,
-      form.first_deduction_month,
-      remainingAmount,
-      remaining_count
-    );
-    if (installments.length > 0) await advanceService.createInstallments(installments);
-    setSaving(false);
-    toast({ title: 'تم تحديث السلفة ✅' });
-    onSaved(); onClose();
+    try {
+      const payload: Partial<AdvancePayload> = {
+        amount: parseFloat(form.amount),
+        disbursement_date: form.disbursement_date,
+        monthly_amount: monthly,
+        total_installments: projectedInstallments,
+        first_deduction_month: form.first_deduction_month,
+        status: form.status,
+        note: form.note || null,
+      };
+      const { error } = await advanceService.update(advance.id, payload);
+      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      await advanceService.deletePendingInstallments(advance.id);
+      const paidInstallments = (advance.advance_installments || []).filter(i => i.status === 'deducted');
+      const paidCount = paidInstallments.length;
+      const paidAmount = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
+      const remaining_count = Math.max(projectedInstallments - paidCount, 0);
+      const remainingAmount = Math.max((parseFloat(form.amount) || 0) - paidAmount, 0);
+      const installments = buildInstallmentsPayload(
+        advance.id,
+        form.first_deduction_month,
+        remainingAmount,
+        remaining_count
+      );
+      if (installments.length > 0) await advanceService.createInstallments(installments);
+      toast({ title: 'تم تحديث السلفة ✅' });
+      onSaved(); onClose();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -484,34 +513,54 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
   const handleDeleteAdvance = async () => {
     if (!deleteAdvanceId) return;
     setDeletingAdvance(true);
-    const { error } = await advanceService.delete(deleteAdvanceId);
-    setDeletingAdvance(false);
-    if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
-    toast({ title: '✅ تم حذف السلفة نهائياً' });
-    setDeleteAdvanceId(null);
-    onRefresh();
+    try {
+      const { error } = await advanceService.delete(deleteAdvanceId);
+      if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      toast({ title: '✅ تم حذف السلفة نهائياً' });
+      setDeleteAdvanceId(null);
+      onRefresh();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
+    } finally {
+      setDeletingAdvance(false);
+    }
   };
 
   const handleDeleteInstallment = async () => {
     if (!deleteInstallmentId) return;
     setDeletingInstallment(true);
-    const { error } = await advanceService.deleteInstallment(deleteInstallmentId);
-    setDeletingInstallment(false);
-    if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
-    toast({ title: '✅ تم حذف الصف' });
-    setDeleteInstallmentId(null);
-    onRefresh();
+    try {
+      const { error } = await advanceService.deleteInstallment(deleteInstallmentId);
+      if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      toast({ title: '✅ تم حذف الصف' });
+      setDeleteInstallmentId(null);
+      onRefresh();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
+    } finally {
+      setDeletingInstallment(false);
+    }
   };
 
   const startEditNote = (inst: any) => { setEditingNoteId(inst.id); setNoteValue(inst.notes || ''); };
   const saveNote = async (instId: string) => {
     setSavingNote(true);
-    const { error } = await advanceService.updateInstallmentNote(instId, noteValue || null);
-    setSavingNote(false);
-    if (error) return toast({ title: 'خطأ', variant: 'destructive' });
-    setEditingNoteId(null);
-    onRefresh();
-    toast({ title: '✅ تم حفظ الملاحظة' });
+    try {
+      const { error } = await advanceService.updateInstallmentNote(instId, noteValue || null);
+      if (error) return toast({ title: 'خطأ', variant: 'destructive' });
+      setEditingNoteId(null);
+      onRefresh();
+      toast({ title: '✅ تم حفظ الملاحظة' });
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'خطأ', variant: 'destructive' });
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   return (
@@ -750,7 +799,7 @@ const Advances = () => {
         employees: (empRes.data || []) as { id: string; name: string; sponsorship_status?: string | null }[],
       };
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
   const [search, setSearch] = useState('');
@@ -774,14 +823,21 @@ const Advances = () => {
   const handleDeleteEmployeeAllAdvances = async () => {
     if (!deleteEmployeeAdvancesId) return;
     setDeletingEmployeeAdvances(true);
-    const empAdvIds = advances.filter(a => a.employee_id === deleteEmployeeAdvancesId).map(a => a.id);
-    if (empAdvIds.length > 0) {
-      await advanceService.deleteMany(empAdvIds);
+    try {
+      const empAdvIds = advances.filter(a => a.employee_id === deleteEmployeeAdvancesId).map(a => a.id);
+      if (empAdvIds.length > 0) {
+        await advanceService.deleteMany(empAdvIds);
+      }
+      toast({ title: '✅ تم حذف جميع سلف المندوب' });
+      setDeleteEmployeeAdvancesId(null);
+      fetchAll();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
+    } finally {
+      setDeletingEmployeeAdvances(false);
     }
-    setDeletingEmployeeAdvances(false);
-    toast({ title: '✅ تم حذف جميع سلف المندوب' });
-    setDeleteEmployeeAdvancesId(null);
-    fetchAll();
   };
 
   const handleImportAdvances = (e: React.ChangeEvent<HTMLInputElement>) => {

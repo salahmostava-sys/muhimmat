@@ -15,20 +15,29 @@ export const extractStoragePath = (value: string | null | undefined): string | n
 
 export const useSignedUrl = (bucket: string, path: string | null | undefined) => {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [hookError, setHookError] = useState<Error | null>(null);
+
+  if (hookError) {
+    throw hookError;
+  }
 
   useEffect(() => {
     let isMounted = true;
     const run = async () => {
       if (!path) {
         setSignedUrl(null);
+        setHookError(null);
         return;
       }
       const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
       if (!isMounted) return;
       if (error) {
+        console.error(error);
         setSignedUrl(null);
+        setHookError(error);
         return;
       }
+      setHookError(null);
       setSignedUrl(data.signedUrl);
     };
     run();

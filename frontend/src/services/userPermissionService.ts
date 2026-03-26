@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { throwIfError } from '@/services/serviceError';
 
 export type PagePermissionRow = {
   permission_key: string;
@@ -8,25 +9,34 @@ export type PagePermissionRow = {
 };
 
 export const userPermissionService = {
-  getProfiles: async () =>
-    supabase.from('profiles').select('id, name, is_active').order('name'),
+  getProfiles: async () => {
+    const { data, error } = await supabase.from('profiles').select('id, name, is_active').order('name');
+    throwIfError(error, 'userPermissionService.getProfiles');
+    return { data, error: null };
+  },
 
-  getUserRoles: async () =>
-    supabase.from('user_roles').select('id, user_id, role'),
+  getUserRoles: async () => {
+    const { data, error } = await supabase.from('user_roles').select('id, user_id, role');
+    throwIfError(error, 'userPermissionService.getUserRoles');
+    return { data, error: null };
+  },
 
-  getUserPermissions: async (userId: string) =>
-    supabase
+  getUserPermissions: async (userId: string) => {
+    const { data, error } = await supabase
       .from('user_permissions')
       .select('permission_key, can_view, can_edit, can_delete')
-      .eq('user_id', userId),
+      .eq('user_id', userId);
+    throwIfError(error, 'userPermissionService.getUserPermissions');
+    return { data, error: null };
+  },
 
   /** Upsert override; pass null to remove row when same as role default (caller handles delete). */
   upsertPermission: async (
     userId: string,
     permissionKey: string,
     perms: { can_view: boolean; can_edit: boolean; can_delete: boolean }
-  ) =>
-    supabase.from('user_permissions').upsert(
+  ) => {
+    const { data, error } = await supabase.from('user_permissions').upsert(
       {
         user_id: userId,
         permission_key: permissionKey,
@@ -35,10 +45,16 @@ export const userPermissionService = {
         can_delete: perms.can_delete,
       },
       { onConflict: 'user_id,permission_key' }
-    ),
+    );
+    throwIfError(error, 'userPermissionService.upsertPermission');
+    return { data, error: null };
+  },
 
-  deletePermission: async (userId: string, permissionKey: string) =>
-    supabase.from('user_permissions').delete().eq('user_id', userId).eq('permission_key', permissionKey),
+  deletePermission: async (userId: string, permissionKey: string) => {
+    const { error } = await supabase.from('user_permissions').delete().eq('user_id', userId).eq('permission_key', permissionKey);
+    throwIfError(error, 'userPermissionService.deletePermission');
+    return { error: null };
+  },
 
   upsertRole: async (userId: string, role: string) => {
     const { data: existing, error: existingError } = await supabase
@@ -46,12 +62,14 @@ export const userPermissionService = {
       .select('id')
       .eq('user_id', userId)
       .maybeSingle();
-    if (existingError) {
-      return { error: existingError };
-    }
+    throwIfError(existingError, 'userPermissionService.upsertRole.select');
     if (existing?.id) {
-      return supabase.from('user_roles').update({ role }).eq('id', existing.id);
+      const { data, error } = await supabase.from('user_roles').update({ role }).eq('id', existing.id);
+      throwIfError(error, 'userPermissionService.upsertRole.update');
+      return { data, error: null };
     }
-    return supabase.from('user_roles').insert({ user_id: userId, role });
+    const { data, error } = await supabase.from('user_roles').insert({ user_id: userId, role });
+    throwIfError(error, 'userPermissionService.upsertRole.insert');
+    return { data, error: null };
   },
 };

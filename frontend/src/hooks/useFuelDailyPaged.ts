@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { fuelService } from '@/services/fuelService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
@@ -23,8 +24,10 @@ export function useFuelDailyPaged(params: {
   pageSize: number;
   filters: FuelDailyPagedFilters;
 }) {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const { monthStart, monthEnd, page, pageSize, filters } = params;
   const employeeId = filters.driverId?.trim() || undefined;
   const branch = filters.branch === 'all' ? undefined : filters.branch;

@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { throwIfError } from '@/services/serviceError';
 
 type EmployeeSearchRow = {
   id: string;
@@ -32,11 +33,13 @@ export const searchService = {
         .ilike('plate_number', term)
         .limit(3),
     ]);
+    throwIfError(employeesRes.error, 'searchService.searchEmployeesAndVehicles.employees');
+    throwIfError(vehiclesRes.error, 'searchService.searchEmployeesAndVehicles.vehicles');
     return {
       employees: (employeesRes.data || []) as EmployeeSearchRow[],
       vehicles: (vehiclesRes.data || []) as VehicleSearchRow[],
-      employeeError: employeesRes.error,
-      vehicleError: vehiclesRes.error,
+      employeeError: null,
+      vehicleError: null,
     };
   },
 };

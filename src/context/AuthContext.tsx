@@ -31,8 +31,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await authService.signOut();
     try {
       await authService.revokeSession(userId);
-    } catch {
-      // silent fail — local session already cleared
+    } catch (e) {
+      console.error('[AuthProvider] revokeSession failed', e);
     }
     setUser(null);
     setSession(null);
@@ -106,7 +106,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const now = Date.now();
       if (now - lastRefreshAt < minMs) return;
       lastRefreshAt = now;
-      void authService.refreshSession().catch(() => {
+      void authService.refreshSession().catch((e) => {
+        console.error('[AuthProvider] refreshSession failed', e);
         /* يُعاد المحاولة عبر onAuthStateChange */
       });
     };

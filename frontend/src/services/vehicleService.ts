@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { throwIfError } from '@/services/serviceError';
 
 export interface VehiclePayload {
   plate_number: string;
@@ -44,7 +45,8 @@ export const vehicleService = {
       .from('vehicles')
       .select('*')
       .order('plate_number');
-    return { data, error };
+    throwIfError(error, 'vehicleService.getAll');
+    return { data, error: null };
   },
 
   getAllWithCurrentRider: async () => {
@@ -67,7 +69,9 @@ export const vehicleService = {
       current_rider: assignMap[v.id] ?? null,
     }));
 
-    return { data, error: vehiclesRes.error || assignmentsRes.error };
+    throwIfError(vehiclesRes.error, 'vehicleService.getAllWithCurrentRider.vehicles');
+    throwIfError(assignmentsRes.error, 'vehicleService.getAllWithCurrentRider.assignments');
+    return { data, error: null };
   },
 
   getById: async (id: string) => {
@@ -76,7 +80,8 @@ export const vehicleService = {
       .select('*')
       .eq('id', id)
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.getById');
+    return { data, error: null };
   },
 
   create: async (payload: VehiclePayload) => {
@@ -85,7 +90,8 @@ export const vehicleService = {
       .insert(payload as Record<string, unknown>)
       .select()
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.create');
+    return { data, error: null };
   },
 
   update: async (id: string, payload: Partial<VehiclePayload>) => {
@@ -95,7 +101,8 @@ export const vehicleService = {
       .eq('id', id)
       .select()
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.update');
+    return { data, error: null };
   },
 
   upsert: async (payload: Partial<VehiclePayload> & { plate_number: string }) => {
@@ -104,12 +111,14 @@ export const vehicleService = {
       .upsert(payload as Record<string, unknown>, { onConflict: 'plate_number' })
       .select()
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.upsert');
+    return { data, error: null };
   },
 
   delete: async (id: string) => {
     const { error } = await supabase.from('vehicles').delete().eq('id', id);
-    return { error };
+    throwIfError(error, 'vehicleService.delete');
+    return { error: null };
   },
 
   getActiveCount: async () => {
@@ -117,7 +126,8 @@ export const vehicleService = {
       .from('vehicles')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
-    return { count: count ?? 0, error };
+    throwIfError(error, 'vehicleService.getActiveCount');
+    return { count: count ?? 0, error: null };
   },
 
   getMaintenanceLogs: async () => {
@@ -125,7 +135,8 @@ export const vehicleService = {
       .from('maintenance_logs')
       .select('*, vehicles(id, plate_number, brand)')
       .order('date', { ascending: false });
-    return { data, error };
+    throwIfError(error, 'vehicleService.getMaintenanceLogs');
+    return { data, error: null };
   },
 
   createMaintenanceLog: async (payload: MaintenanceLogPayload) => {
@@ -134,7 +145,8 @@ export const vehicleService = {
       .insert(payload as Record<string, unknown>)
       .select()
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.createMaintenanceLog');
+    return { data, error: null };
   },
 
   updateMaintenanceLog: async (id: string, payload: Partial<MaintenanceLogPayload>) => {
@@ -144,12 +156,14 @@ export const vehicleService = {
       .eq('id', id)
       .select()
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.updateMaintenanceLog');
+    return { data, error: null };
   },
 
   deleteMaintenanceLog: async (id: string) => {
     const { error } = await supabase.from('maintenance_logs').delete().eq('id', id);
-    return { error };
+    throwIfError(error, 'vehicleService.deleteMaintenanceLog');
+    return { error: null };
   },
 
   getAssignments: async () => {
@@ -157,7 +171,8 @@ export const vehicleService = {
       .from('vehicle_assignments')
       .select('*, vehicles(plate_number, brand), employees(name)')
       .order('start_date', { ascending: false });
-    return { data, error };
+    throwIfError(error, 'vehicleService.getAssignments');
+    return { data, error: null };
   },
 
   getAssignmentsWithRelations: async (limit = 200) => {
@@ -166,7 +181,8 @@ export const vehicleService = {
       .select('*, vehicles(plate_number, type), employees(name)')
       .order('created_at', { ascending: false })
       .limit(limit);
-    return { data, error };
+    throwIfError(error, 'vehicleService.getAssignmentsWithRelations');
+    return { data, error: null };
   },
 
   getActiveAssignments: async () => {
@@ -174,7 +190,8 @@ export const vehicleService = {
       .from('vehicle_assignments')
       .select('vehicle_id')
       .is('returned_at', null);
-    return { data, error };
+    throwIfError(error, 'vehicleService.getActiveAssignments');
+    return { data, error: null };
   },
 
   getActiveEmployees: async () => {
@@ -183,7 +200,8 @@ export const vehicleService = {
       .select('id, name')
       .eq('status', 'active')
       .order('name');
-    return { data, error };
+    throwIfError(error, 'vehicleService.getActiveEmployees');
+    return { data, error: null };
   },
 
   createAssignment: async (payload: VehicleAssignmentPayload) => {
@@ -192,7 +210,8 @@ export const vehicleService = {
       .insert(payload)
       .select()
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.createAssignment');
+    return { data, error: null };
   },
 
   updateAssignment: async (id: string, payload: Partial<VehicleAssignmentPayload>) => {
@@ -202,7 +221,8 @@ export const vehicleService = {
       .eq('id', id)
       .select()
       .single();
-    return { data, error };
+    throwIfError(error, 'vehicleService.updateAssignment');
+    return { data, error: null };
   },
 
   closeActiveAssignment: async (vehicleId: string, endDate: string) => {
@@ -211,7 +231,8 @@ export const vehicleService = {
       .update({ end_date: endDate })
       .eq('vehicle_id', vehicleId)
       .is('end_date', null);
-    return { error };
+    throwIfError(error, 'vehicleService.closeActiveAssignment');
+    return { error: null };
   },
 
   getForSelect: async () => {
@@ -219,6 +240,7 @@ export const vehicleService = {
       .from('vehicles')
       .select('id, plate_number, brand')
       .order('plate_number');
-    return { data, error };
+    throwIfError(error, 'vehicleService.getForSelect');
+    return { data, error: null };
   },
 };

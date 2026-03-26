@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { throwIfError } from '@/services/serviceError';
 
 export const driverService = {
   async update(id: string, payload: Record<string, unknown>) {
@@ -6,7 +7,8 @@ export const driverService = {
       .from('employees')
       .update(payload)
       .eq('id', id);
-    return { error };
+    throwIfError(error, 'driverService.update');
+    return { error: null };
   },
 
   async delete(id: string) {
@@ -14,7 +16,8 @@ export const driverService = {
       .from('employees')
       .delete()
       .eq('id', id);
-    return { error };
+    throwIfError(error, 'driverService.delete');
+    return { error: null };
   },
 };
 

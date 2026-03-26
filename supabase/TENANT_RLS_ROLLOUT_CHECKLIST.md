@@ -29,7 +29,7 @@
 
 ## Immediate Post-Deployment Validation (SQL)
 
-- Run `backend/supabase/tenant_rls_smoke_tests.sql`.
+- Run `supabase/tenant_rls_smoke_tests.sql`.
 - Ensure all "should_be_zero" counters are `0`.
 - Ensure integrity mismatch counters are `0`.
 - Ensure helper functions exist.

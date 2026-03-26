@@ -19,31 +19,36 @@ type ProfileActiveRow = {
 export const authService = {
   signIn: async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    return { data, error };
+    throwIfError(error, 'authService.signIn');
+    return { data, error: null };
   },
 
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
-    return { error };
+    throwIfError(error, 'authService.signOut');
+    return { error: null };
   },
 
   getSession: async () => {
     const { data, error } = await supabase.auth.getSession();
-    return { session: data.session, error };
+    throwIfError(error, 'authService.getSession');
+    return { session: data.session, error: null };
   },
 
   getCurrentUser: async () => {
     const { data, error } = await supabase.auth.getUser();
-    return { user: data.user, error };
+    throwIfError(error, 'authService.getCurrentUser');
+    return { user: data.user, error: null };
   },
 
   fetchUserRole: async (userId: string): Promise<AppRole | null> => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .limit(1)
       .maybeSingle();
+    throwIfError(error, 'authService.fetchUserRole');
     return (data?.role as AppRole) ?? null;
   },
 
@@ -53,34 +58,38 @@ export const authService = {
       .select('is_active')
       .eq('id', userId)
       .maybeSingle<ProfileActiveRow>();
-    if (error) return true;
+    throwIfError(error, 'authService.fetchIsActive');
     return data?.is_active !== false;
   },
 
   fetchProfile: async (userId: string): Promise<UserProfile | null> => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('id, name, email, avatar_url, is_active')
       .eq('id', userId)
       .maybeSingle();
+    throwIfError(error, 'authService.fetchProfile');
     return data as UserProfile | null;
   },
 
   updatePassword: async (newPassword: string) => {
     const { data, error } = await supabase.auth.updateUser({ password: newPassword });
-    return { data, error };
+    throwIfError(error, 'authService.updatePassword');
+    return { data, error: null };
   },
 
   sendPasswordReset: async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${globalThis.location.origin}/reset-password`,
     });
-    return { data, error };
+    throwIfError(error, 'authService.sendPasswordReset');
+    return { data, error: null };
   },
 
   refreshSession: async () => {
     const { data, error } = await supabase.auth.refreshSession();
-    return { data, error };
+    throwIfError(error, 'authService.refreshSession');
+    return { data, error: null };
   },
 
   onAuthStateChange: (callback: (event: AuthChangeEvent, session: Session | null) => void) => {
@@ -116,6 +125,6 @@ export const authService = {
       body: { userId, action: 'revoke_session' },
     });
     throwIfError(error, 'authService.revokeSession');
-    return { error };
+    return { error: null };
   },
 };

@@ -129,27 +129,34 @@ const VehicleFormModal = ({
   const handleSave = async () => {
     if (!form.plate_number.trim()) return toast({ title: 'يرجى إدخال رقم اللوحة', variant: 'destructive' });
     setSaving(true);
-    const payload = {
-      plate_number: form.plate_number.trim(),
-      plate_number_en: form.plate_number_en.trim() || null,
-      type: form.type,
-      brand: form.brand || null, model: form.model || null,
-      year: form.year ? parseInt(form.year) : null, status: form.status,
-      has_fuel_chip: form.has_fuel_chip,
-      insurance_expiry: form.insurance_expiry || null,
-      registration_expiry: form.registration_expiry || null,
-      authorization_expiry: form.authorization_expiry || null,
-      chassis_number: form.chassis_number.trim() || null,
-      serial_number: form.serial_number.trim() || null,
-      notes: form.notes || null,
-    };
-    const { error } = editVehicle
-      ? await vehicleService.update(editVehicle.id, payload)
-      : await vehicleService.create(payload);
-    setSaving(false);
-    if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
-    toast({ title: editVehicle ? 'تم تحديث المركبة' : 'تم إضافة المركبة بنجاح' });
-    onSaved(); onClose();
+    try {
+      const payload = {
+        plate_number: form.plate_number.trim(),
+        plate_number_en: form.plate_number_en.trim() || null,
+        type: form.type,
+        brand: form.brand || null, model: form.model || null,
+        year: form.year ? parseInt(form.year) : null, status: form.status,
+        has_fuel_chip: form.has_fuel_chip,
+        insurance_expiry: form.insurance_expiry || null,
+        registration_expiry: form.registration_expiry || null,
+        authorization_expiry: form.authorization_expiry || null,
+        chassis_number: form.chassis_number.trim() || null,
+        serial_number: form.serial_number.trim() || null,
+        notes: form.notes || null,
+      };
+      const { error } = editVehicle
+        ? await vehicleService.update(editVehicle.id, payload)
+        : await vehicleService.create(payload);
+      if (error) return toast({ title: 'حدث خطأ', description: error.message, variant: 'destructive' });
+      toast({ title: editVehicle ? 'تم تحديث المركبة' : 'تم إضافة المركبة بنجاح' });
+      onSaved(); onClose();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -461,10 +468,16 @@ const Motorcycles = () => {
 
   const handleDelete = async (v: Vehicle) => {
     if (!confirm(`هل تريد حذف المركبة ${v.plate_number}؟`)) return;
-    const { error } = await vehicleService.delete(v.id);
-    if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
-    toast({ title: 'تم حذف المركبة' });
-    void refetchVehicles();
+    try {
+      const { error } = await vehicleService.delete(v.id);
+      if (error) return toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
+      toast({ title: 'تم حذف المركبة' });
+      void refetchVehicles();
+    } catch (e) {
+      console.error(e);
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
+    }
   };
 
   return (

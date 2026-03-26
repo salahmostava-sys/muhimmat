@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { orderService } from '@/services/orderService';
 import type { BranchKey } from '@/components/table/GlobalTableFilters';
+import { useAuth } from '@/context/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
 
 export type OrdersPagedFilters = {
-  driverId?: string | 'all';
-  platformAppId?: string | 'all';
+  driverId?: string;
+  platformAppId?: string;
   branch?: BranchKey;
   search?: string;
 };
@@ -18,12 +19,14 @@ export function useOrdersMonthPaged(params: {
   pageSize: number;
   filters: OrdersPagedFilters;
 }) {
-  const { enabled, userId } = useAuthQueryGate();
-  const uid = authQueryUserId(userId);
+  const { user, session, authLoading } = useAuth();
+  const { userId } = useAuthQueryGate();
+  const uid = authQueryUserId(user?.id ?? userId);
+  const enabled = !!session && !!user && !authLoading;
   const { monthYear, page, pageSize, filters } = params;
   const driverId = filters.driverId && filters.driverId !== 'all' ? filters.driverId : undefined;
   const appId = filters.platformAppId && filters.platformAppId !== 'all' ? filters.platformAppId : undefined;
-  const branch = filters.branch && filters.branch !== 'all' ? (filters.branch as 'makkah' | 'jeddah') : undefined;
+  const branch = filters.branch && filters.branch !== 'all' ? filters.branch : undefined;
   const search = filters.search?.trim() ? filters.search.trim() : undefined;
 
   const q = useQuery({

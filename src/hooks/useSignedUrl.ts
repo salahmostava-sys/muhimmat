@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
 
 export const extractStoragePath = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -14,9 +15,12 @@ export const extractStoragePath = (value: string | null | undefined): string | n
 };
 
 export const useSignedUrl = (bucket: string, path: string | null | undefined) => {
+  const { user, session, loading: authLoading } = useAuth();
+  const uid = user?.id ?? '__none__';
+  const authEnabled = !!session && !!user && !authLoading;
   const query = useQuery({
-    queryKey: ['signed-url', bucket, path ?? null] as const,
-    enabled: !!path,
+    queryKey: ['signed-url', uid, bucket, path ?? null] as const,
+    enabled: authEnabled && !!path,
     queryFn: async () => {
       const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path!, 300);
       if (error) throw new Error(error.message || 'تعذر إنشاء رابط مؤقت');

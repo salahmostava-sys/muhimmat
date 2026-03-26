@@ -64,8 +64,8 @@ const UserProfileModal = ({ onClose }: Props) => {
       .then(({ data }) => {
         if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
       })
-      .catch((error: unknown) => {
-        console.error('[UserProfileModal] load profile failed', error);
+      .catch((e: unknown) => {
+        console.error('[UserProfileModal] getProfile failed', e);
       });
   }, [user]);
 

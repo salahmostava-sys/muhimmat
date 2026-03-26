@@ -14,6 +14,7 @@ import { ar } from 'date-fns/locale';
 import { violationService } from '@/services/violationService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
 import { sortArrowOrNeutral } from '@/lib/sortTableIndicators';
+import { defaultQueryRetry } from '@/lib/query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleSuggestion = {
@@ -141,7 +142,7 @@ const ViolationResolver = () => {
         linked_advance_id: v.linked_advance_id ?? null,
       })) as ViolationRecord[];
     },
-    retry: 2,
+    retry: defaultQueryRetry,
     staleTime: 60_000,
   });
 
