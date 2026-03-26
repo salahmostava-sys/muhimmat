@@ -61,8 +61,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return true;
         }
 
-        const { error } = await authService.refreshSession();
-        if (error) return false;
+        // No stored session/token: avoid refreshSession() to prevent AuthSessionMissingError spam.
+        if (!current) return false;
+        await authService.refreshSession();
 
         const { session: after } = await authService.getSession();
         if (after?.user) {
