@@ -519,13 +519,13 @@ const ImportEmployeesModal = ({ onClose, onSuccess }: Props) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {displayRows.map((emp, i) => {
+                    {displayRows.map((emp) => {
                       const st = rowCategoryLabel(emp);
                       const hasError = emp._errors.length > 0;
                       const hasWarning = emp._warnings.length > 0;
                       return (
                         <tr
-                          key={i}
+                          key={`preview-row-${emp._rowIndex}-${emp.national_id || emp.employee_code || emp.name}`}
                           className={`border-b border-border/50 ${hasError ? 'bg-destructive/5' : hasWarning ? 'bg-warning/5' : 'hover:bg-muted/20'}`}
                         >
                           <td className="px-3 py-2 text-muted-foreground">{emp._rowIndex}</td>

@@ -80,9 +80,9 @@ export const OrdersSummaryTable = ({
       <tbody>
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <tr key={i} className="border-b border-border/30">
+            <tr key={`skeleton-row-${i}`} className="border-b border-border/30">
               {Array.from({ length: apps.length + 4 }).map((__, j) => (
-                <td key={j} className="p-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>
+                <td key={`skeleton-cell-${i}-${j}`} className="p-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>
               ))}
             </tr>
           ))
