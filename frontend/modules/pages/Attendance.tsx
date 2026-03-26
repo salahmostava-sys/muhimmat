@@ -1,14 +1,14 @@
 import { useState, useRef } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
+import { Button } from '@shared/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import { ClipboardCheck, CalendarDays, FolderOpen, Upload, BarChart2, Archive } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import DailyAttendance from '@/components/attendance/DailyAttendance';
-import MonthlyRecord from '@/components/attendance/MonthlyRecord';
-import AttendanceStats from '@/components/attendance/AttendanceStats';
-import ArchiveAttendance from '@/components/attendance/ArchiveAttendance';
-import { useLanguage } from '@/context/LanguageContext';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import DailyAttendance from '@shared/components/attendance/DailyAttendance';
+import MonthlyRecord from '@shared/components/attendance/MonthlyRecord';
+import AttendanceStats from '@shared/components/attendance/AttendanceStats';
+import ArchiveAttendance from '@shared/components/attendance/ArchiveAttendance';
+import { useLanguage } from '@app/providers/LanguageContext';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from '@e965/xlsx';
 

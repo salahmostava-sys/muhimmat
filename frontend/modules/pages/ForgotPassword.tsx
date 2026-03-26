@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Input } from '@shared/components/ui/input';
 import { authService } from '@services/authService';
-import { authGradientBtn, authBtnStyle } from '@/lib/authStyles';
+import { authGradientBtn, authBtnStyle } from '@shared/lib/authStyles';
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');

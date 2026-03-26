@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { appService } from '@services/appService';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 
 export const appsDataQueryKey = (userId: string) => ['apps', userId, 'list-with-counts'] as const;
 

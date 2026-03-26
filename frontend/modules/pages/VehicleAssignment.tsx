@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, Plus, RotateCcw, ClipboardList, CheckCircle, Clock, FolderOpen, AlertCircle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Input } from '@shared/components/ui/input';
+import { Button } from '@shared/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { vehicleService } from '@services/vehicleService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@shared/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
-import { usePermissions } from '@/hooks/usePermissions';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useVehicleAssignmentData } from '@/hooks/useVehicleAssignmentData';
+import { usePermissions } from '@shared/hooks/usePermissions';
+import { Skeleton } from '@shared/components/ui/skeleton';
+import { useVehicleAssignmentData } from '@shared/hooks/useVehicleAssignmentData';
 
 type Vehicle = {
   id: string;

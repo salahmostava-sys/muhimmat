@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@services/supabase/client';
 import { throwIfError } from '@services/serviceError';
 
 export const externalDeductionService = {

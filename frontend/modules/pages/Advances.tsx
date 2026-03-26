@@ -2,20 +2,20 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Plus, CreditCard, FolderOpen, Upload, Edit2, FileText, Printer, AlertTriangle, Check, X, RotateCcw, UserPlus, Trash2 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import { Input } from '@shared/components/ui/input';
+import { Button } from '@shared/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import { advanceService } from '@services/advanceService';
 import type { AdvancePayload } from '@services/advanceService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@shared/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
-import { usePermissions } from '@/hooks/usePermissions';
-import { escapeHtml } from '@/lib/security';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { defaultQueryRetry } from '@/lib/query';
+import { usePermissions } from '@shared/hooks/usePermissions';
+import { escapeHtml } from '@shared/lib/security';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type AdvanceStatus = 'active' | 'completed' | 'paused';

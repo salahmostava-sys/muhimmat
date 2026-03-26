@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { Download, FileSpreadsheet, Upload, Printer, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@shared/components/ui/button';
+import { cn } from '@shared/lib/utils';
+import { useToast } from '@shared/hooks/use-toast';
 
 export const TABLE_ACTIONS_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
 

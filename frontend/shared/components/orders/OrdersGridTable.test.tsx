@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersGridTable } from './OrdersGridTable';
 
-vi.mock('@/hooks/useAppColors', () => ({
+vi.mock('@shared/hooks/useAppColors', () => ({
   getAppColor: () => ({
     bg: '#11111122',
     text: '#111111',

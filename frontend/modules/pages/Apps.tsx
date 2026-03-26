@@ -9,15 +9,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { invalidateAppColorsCache } from '@/hooks/useAppColors';
-import { useAppsData } from '@/hooks/useAppsData';
-import { usePermissions } from '@/hooks/usePermissions';
+} from '@shared/components/ui/alert-dialog';
+import { Input } from '@shared/components/ui/input';
+import { Button } from '@shared/components/ui/button';
+import { Switch } from '@shared/components/ui/switch';
+import { Label } from '@shared/components/ui/label';
+import { useToast } from '@shared/hooks/use-toast';
+import { invalidateAppColorsCache } from '@shared/hooks/useAppColors';
+import { useAppsData } from '@shared/hooks/useAppsData';
+import { usePermissions } from '@shared/hooks/usePermissions';
 import { appService } from '@services/appService';
 
 interface CustomColumn {
@@ -101,7 +101,7 @@ const AppModal = ({ app, onClose, onSaved }: AppModalProps) => {
       brand_color: form.brand_color,
       text_color: form.text_color,
       is_active: form.is_active,
-      custom_columns: customColumns as unknown as import('@/integrations/supabase/types').Json,
+      custom_columns: customColumns as unknown as import('@services/supabase/types').Json,
     };
 
     let error;

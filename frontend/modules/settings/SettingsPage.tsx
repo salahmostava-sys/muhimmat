@@ -1,1 +1,1 @@
-export { default } from "../../src/pages/SettingsHub";
+export { default } from "@modules/pages/SettingsHub";

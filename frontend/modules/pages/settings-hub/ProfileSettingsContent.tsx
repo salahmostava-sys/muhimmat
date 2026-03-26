@@ -1,14 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Camera, Eye, EyeOff, Check, AlertCircle, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
-import { useLanguage } from '@/context/LanguageContext';
-import { cn } from '@/lib/utils';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { useToast } from '@shared/hooks/use-toast';
+import { useAuth } from '@app/providers/AuthContext';
+import { useLanguage } from '@app/providers/LanguageContext';
+import { cn } from '@shared/lib/utils';
 import { settingsHubService } from '@services/settingsHubService';
-import { validateUploadFile } from '@/lib/validation';
+import { validateUploadFile } from '@shared/lib/validation';
 
 const getStrength = (pw: string) => {
   if (!pw) return 0;

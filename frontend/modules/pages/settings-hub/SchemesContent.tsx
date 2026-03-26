@@ -1,4 +1,4 @@
-import SalarySchemes from '@/pages/SalarySchemes';
+import SalarySchemes from '@modules/pages/SalarySchemes';
 
 const SchemesContent = () => {
   return <SalarySchemes embedded />;

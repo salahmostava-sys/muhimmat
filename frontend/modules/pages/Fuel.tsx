@@ -5,23 +5,23 @@ import {
   Fuel, TrendingUp, DollarSign, Package,
   X, Check, Activity, Calendar, BarChart3, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { useToast } from '@shared/hooks/use-toast';
 import { fuelService } from '@services/fuelService';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions } from '@shared/hooks/usePermissions';
 import * as XLSX from '@e965/xlsx';
 import { format, endOfMonth } from 'date-fns';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
-import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
-import { useFuelDailyPaged } from '@/hooks/useFuelDailyPaged';
+import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
+import { useFuelDailyPaged } from '@shared/hooks/useFuelDailyPaged';
 import { auditService } from '@services/auditService';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { defaultQueryRetry } from '@/lib/query';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DailyRow = {

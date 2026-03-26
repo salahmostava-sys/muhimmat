@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { X, Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
+import { Button } from '@shared/components/ui/button';
+import { getAppColor, type AppColorData } from '@shared/hooks/useAppColors';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ColorBadge } from '@/components/ui/ColorBadge';
+import { ColorBadge } from '@shared/components/ui/ColorBadge';
 
 type App = { id: string; name: string };
 type DailyData = Record<string, number>;

@@ -1,4 +1,4 @@
-import UsersAndPermissions from '@/pages/UsersAndPermissions';
+import UsersAndPermissions from '@modules/pages/UsersAndPermissions';
 
 const UsersContent = () => {
   return <UsersAndPermissions embedded />;

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
-import { server } from '@/test/msw/server';
+import { server } from '@shared/test/msw/server';
 import { sendWhatsAppMessage } from './whatsapp';
 
 const API_BASE = 'https://graph.facebook.com/v19.0';

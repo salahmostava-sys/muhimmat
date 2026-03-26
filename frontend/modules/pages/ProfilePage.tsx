@@ -1,5 +1,5 @@
 import { User } from 'lucide-react';
-import ProfileSettingsContent from '@/pages/settings-hub/ProfileSettingsContent';
+import ProfileSettingsContent from '@modules/pages/settings-hub/ProfileSettingsContent';
 
 /** صفحة مستقلة: أي مستخدم مسجّل (له دور) يصل إليها دون صلاحية «الإعدادات». */
 const ProfilePage = () => {

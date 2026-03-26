@@ -1,20 +1,20 @@
 import { ReactNode, useEffect, useState } from 'react';
 import AppSidebar from './AppSidebar';
-import { useLanguage } from '@/context/LanguageContext';
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
-import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { useMobileSidebar, MobileSidebarProvider } from '@/context/MobileSidebarContext';
+import { useLanguage } from '@app/providers/LanguageContext';
+import { useAuth } from '@app/providers/AuthContext';
+import { useTheme } from '@app/providers/ThemeContext';
+import { useSystemSettings } from '@app/providers/SystemSettingsContext';
+import { useMobileSidebar, MobileSidebarProvider } from '@app/providers/MobileSidebarContext';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@shared/components/ui/dropdown-menu';
 import { Sun, Moon, Menu, ChevronLeft, ChevronRight, LogOut, Settings, User, ChevronDown } from 'lucide-react';
-import NotificationCenter from '@/components/NotificationCenter';
-import GlobalSearch from '@/components/GlobalSearch';
-import { cn } from '@/lib/utils';
+import NotificationCenter from '@shared/components/NotificationCenter';
+import GlobalSearch from '@shared/components/GlobalSearch';
+import { cn } from '@shared/lib/utils';
 import { profileService } from '@services/profileService';
 
 interface AppLayoutProps {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@services/supabase/client';
+import { useAuth } from '@app/providers/AuthContext';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCheck, FileWarning, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
-import { useLanguage } from '@/context/LanguageContext';
-import { useAlertsData } from '@/hooks/useAlertsData';
-import { cn } from '@/lib/utils';
+import { useLanguage } from '@app/providers/LanguageContext';
+import { useAlertsData } from '@shared/hooks/useAlertsData';
+import { cn } from '@shared/lib/utils';
 import { Link } from 'react-router-dom';
 import type { Alert } from '@shared/lib/alertsBuilder';
 

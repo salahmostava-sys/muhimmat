@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Bell, Search, CheckCircle, Clock, Download, Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_PAGE } from '@/hooks/useRealtimePostgresChanges';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId } from '@/hooks/useAuthQueryGate';
+import { Input } from '@shared/components/ui/input';
+import { Button } from '@shared/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import { Textarea } from '@shared/components/ui/textarea';
+import { Label } from '@shared/components/ui/label';
+import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_PAGE } from '@shared/hooks/useRealtimePostgresChanges';
+import { useToast } from '@shared/hooks/use-toast';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId } from '@shared/hooks/useAuthQueryGate';
 import { alertsService } from '@services/alertsService';
-import { useAlertsData } from '@/hooks/useAlertsData';
+import { useAlertsData } from '@shared/hooks/useAlertsData';
 import type { Alert } from '@shared/lib/alertsBuilder';
-import { escapeHtml } from '@/lib/security';
+import { escapeHtml } from '@shared/lib/security';
 import { format } from 'date-fns';
 
 // Static label map — not data (only residency, insurance, authorization, probation, platform_account)

@@ -1,1 +1,1 @@
-export { default } from "../../src/pages/Login";
+export { default } from "@modules/pages/Login";

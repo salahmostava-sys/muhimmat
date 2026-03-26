@@ -1,20 +1,20 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, AlertTriangle, XCircle, FileWarning, CheckCircle, RefreshCw, CheckCircle2, Pencil, Trash2, CreditCard } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { usePermissions } from '@/hooks/usePermissions';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
+import { Textarea } from '@shared/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { useToast } from '@shared/hooks/use-toast';
+import { usePermissions } from '@shared/hooks/usePermissions';
 import { format, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { violationService } from '@services/violationService';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { sortArrowOrNeutral } from '@/lib/sortTableIndicators';
-import { defaultQueryRetry } from '@/lib/query';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { sortArrowOrNeutral } from '@shared/lib/sortTableIndicators';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleSuggestion = {

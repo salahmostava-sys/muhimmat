@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@shared/components/ui/button';
 
 type LoadingProps = Readonly<{
   className?: string;

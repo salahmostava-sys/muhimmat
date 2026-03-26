@@ -4,18 +4,18 @@ import {
   Plus, Trash2, Search, Loader2, AlertTriangle, CheckCircle2,
   Calendar, Layers, ChevronUp, ChevronDown, ChevronsUpDown, Check, X,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useToast } from '@/hooks/use-toast';
-import { usePermissions } from '@/hooks/usePermissions';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@shared/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@shared/components/ui/popover';
+import { useToast } from '@shared/hooks/use-toast';
+import { usePermissions } from '@shared/hooks/usePermissions';
 import { differenceInDays, parseISO } from 'date-fns';
 import { employeeTierService } from '@services/employeeTierService';
-import { cn } from '@/lib/utils';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { defaultQueryRetry } from '@/lib/query';
+import { cn } from '@shared/lib/utils';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 /* ─── Types ─── */
 type Employee = { id: string; name: string; sponsorship_status: string | null; };

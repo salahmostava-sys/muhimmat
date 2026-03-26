@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, ReactNode } from 'react';
-import i18n from '@/i18n';
+import i18n from '@app/i18n';
 
 type Lang = 'ar';
 

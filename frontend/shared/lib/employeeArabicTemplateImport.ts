@@ -1,5 +1,5 @@
 import * as XLSX from '@e965/xlsx';
-import { parseExcelDate } from '@/lib/excelDateParse';
+import { parseExcelDate } from '@shared/lib/excelDateParse';
 import { employeeService } from '@services/employeeService';
 
 /** Must match `handleTemplate` row order in Employees.tsx */

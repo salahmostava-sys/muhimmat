@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useLanguage } from "@/context/LanguageContext";
+import { supabase } from "@services/supabase/client";
+import { useLanguage } from "@app/providers/LanguageContext";
 import { ChevronLeft, Archive } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useMonthlyActiveEmployeeIds } from "@/hooks/useMonthlyActiveEmployeeIds";
-import { filterVisibleEmployeesInMonth } from "@/lib/employeeVisibility";
+import { Skeleton } from "@shared/components/ui/skeleton";
+import { useMonthlyActiveEmployeeIds } from "@shared/hooks/useMonthlyActiveEmployeeIds";
+import { filterVisibleEmployeesInMonth } from "@shared/lib/employeeVisibility";
 
 const MONTHS_AR = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",

@@ -1,1 +1,1 @@
-export { default } from "../../src/pages/Alerts";
+export { default } from "@modules/pages/Alerts";

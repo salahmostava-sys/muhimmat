@@ -1,21 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Check, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { useToast } from '@shared/hooks/use-toast';
 import { differenceInDays, parseISO } from 'date-fns';
 import { employeeService, type EmployeeAppOption } from '@services/employeeService';
-import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
-import { validateUploadFile } from '@/lib/validation';
+import { useSignedUrl, extractStoragePath } from '@shared/hooks/useSignedUrl';
+import { validateUploadFile } from '@shared/lib/validation';
 import { auditService } from '@services/auditService';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { getErrorMessage } from '@/lib/query';
-import { cn } from '@/lib/utils';
+import { getErrorMessage } from '@shared/lib/query';
+import { cn } from '@shared/lib/utils';
 
 
 interface EmployeeData {

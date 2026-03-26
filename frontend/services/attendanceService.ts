@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@services/supabase/client';
 
 const throwIfSupabaseError = (error: unknown) => {
   if (!error) return;

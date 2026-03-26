@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@services/supabase/client';
 import { format, endOfMonth } from 'date-fns';
 import { throwIfError } from '@services/serviceError';
 

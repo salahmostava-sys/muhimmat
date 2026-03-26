@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import type { ReactNode } from 'react';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { server } from './msw/server';
 
@@ -6,7 +7,7 @@ import { server } from './msw/server';
  * PHASE 1 — Stabilize tests without real VITE_SUPABASE_* or live Auth.
  * Hooks under test import useAuthQueryGate; many services import supabase client.
  */
-vi.mock('@/integrations/supabase/client', () => {
+vi.mock('@services/supabase/client', () => {
   const buildChain = () => {
     const chain = {
       select: vi.fn().mockReturnThis(),
@@ -45,10 +46,25 @@ vi.mock('@/integrations/supabase/client', () => {
   };
 });
 
-vi.mock('@/hooks/useAuthQueryGate', () => ({
+vi.mock('@app/providers/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
+  useAuth: () => ({
+    user: { id: 'test-user-id' },
+    session: { access_token: 'mock' },
+    role: 'admin',
+    loading: false,
+    authLoading: false,
+    recoverSessionSilently: async () => true,
+    signIn: async () => ({ error: null }),
+    signOut: async () => {},
+  }),
+}));
+
+vi.mock('@shared/hooks/useAuthQueryGate', () => ({
   authQueryUserId: (uid: string | null | undefined) => uid ?? '__none__',
   useAuthQueryGate: () => ({
     enabled: true,
+    authReady: true,
     userId: 'test-user-id',
     authLoading: false,
   }),

@@ -4,40 +4,40 @@ import {
   Loader2, Columns, Filter, X, CalendarDays,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@shared/components/ui/input';
+import { Button } from '@shared/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+} from '@shared/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
+import { Label } from '@shared/components/ui/label';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from '@shared/components/ui/alert-dialog';
 import { differenceInDays, parseISO, format } from 'date-fns';
-import EmployeeProfile from '@/components/employees/EmployeeProfile';
-import AddEmployeeModal from '@/components/employees/AddEmployeeModal';
-import { DataTableActions } from '@/components/table/DataTableActions';
+import EmployeeProfile from '@shared/components/employees/EmployeeProfile';
+import AddEmployeeModal from '@shared/components/employees/AddEmployeeModal';
+import { DataTableActions } from '@shared/components/table/DataTableActions';
 import {
   EMPLOYEE_TEMPLATE_AR_HEADERS,
   parseEmployeeArabicWorkbook,
   upsertEmployeeArabicRows,
-} from '@/lib/employeeArabicTemplateImport';
-import { printHtmlTable } from '@/lib/printTable';
+} from '@shared/lib/employeeArabicTemplateImport';
+import { printHtmlTable } from '@shared/lib/printTable';
 import { driverService } from '@services/driverService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@shared/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
-import { Skeleton } from '@/components/ui/skeleton';
-import { usePermissions } from '@/hooks/usePermissions';
-import { useEmployees } from '@/hooks/useEmployees';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { filterVisibleEmployeesInMonth, isEmployeeVisibleInMonth } from '@/lib/employeeVisibility';
-import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
-import type { BranchKey } from '@/components/table/GlobalTableFilters';
-import { useEmployeesPaged } from '@/hooks/useEmployeesPaged';
+import { Skeleton } from '@shared/components/ui/skeleton';
+import { usePermissions } from '@shared/hooks/usePermissions';
+import { useEmployees } from '@shared/hooks/useEmployees';
+import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth, isEmployeeVisibleInMonth } from '@shared/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
+import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
+import { useEmployeesPaged } from '@shared/hooks/useEmployeesPaged';
 import { employeeService } from '@services/employeeService';
 import { auditService } from '@services/auditService';
 import {
@@ -51,7 +51,7 @@ import {
   ColFilterPopover,
   SkeletonRow,
   TextFilterInput,
-} from '@/pages/employees/EmployeesViewParts';
+} from '@modules/pages/employees/EmployeesViewParts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Employee = {

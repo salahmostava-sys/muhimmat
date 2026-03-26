@@ -1,8 +1,8 @@
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '@app/providers/AuthContext';
 import { ReactNode, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import Loading from '@/components/Loading';
+import { Button } from '@shared/components/ui/button';
+import Loading from '@shared/components/Loading';
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { session, role, loading, signOut, recoverSessionSilently } = useAuth();

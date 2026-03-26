@@ -8,19 +8,29 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: [path.resolve(__dirname, "./vitest.setup.ts")],
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: [
+      "app/**/*.{test,spec}.{ts,tsx}",
+      "modules/**/*.{test,spec}.{ts,tsx}",
+      "shared/**/*.{test,spec}.{ts,tsx}",
+      "services/**/*.{test,spec}.{ts,tsx}",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "json-summary"],
       reportsDirectory: "./coverage",
-      include: ["src/**/*.{ts,tsx}"],
+      include: [
+        "app/**/*.{ts,tsx}",
+        "modules/**/*.{ts,tsx}",
+        "shared/**/*.{ts,tsx}",
+        "services/**/*.{ts,tsx}",
+      ],
       exclude: [
-        "src/**/*.test.{ts,tsx}",
-        "src/**/*.spec.{ts,tsx}",
-        "src/test/**",
-        "src/integrations/supabase/types.ts",
-        "src/main.tsx",
-        "src/vite-env.d.ts",
+        "**/*.test.{ts,tsx}",
+        "**/*.spec.{ts,tsx}",
+        "shared/test/**",
+        "services/supabase/types.ts",
+        "app/main.tsx",
+        "app/vite-env.d.ts",
       ],
       thresholds: {
         lines: 2,
@@ -32,8 +42,10 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@app": path.resolve(__dirname, "./app"),
       "@services": path.resolve(__dirname, "./services"),
+      "@modules": path.resolve(__dirname, "./modules"),
+      "@shared": path.resolve(__dirname, "./shared"),
     },
   },
 });

@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { format, addDays } from 'date-fns';
-import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
+import { useSystemSettings } from '@app/providers/SystemSettingsContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
 import { alertsService } from '@services/alertsService';
 import { buildAlertsFromResponses, type EmployeeAlertRow } from '@shared/lib/alertsBuilder';
-import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
-import { defaultQueryRetry } from '@/lib/query';
+import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 const FETCH_ALERTS_TIMEOUT_MS = 45_000;
 

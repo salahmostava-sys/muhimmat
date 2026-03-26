@@ -1,20 +1,20 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage } from '@app/providers/LanguageContext';
 import {
   Download, Search, RefreshCw, X, Activity,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { Badge } from '@shared/components/ui/badge';
+import { Skeleton } from '@shared/components/ui/skeleton';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { settingsHubService } from '@services/settingsHubService';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { defaultQueryRetry } from '@/lib/query';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 interface AuditLog {
   id: string;

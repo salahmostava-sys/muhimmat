@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Settings, Plus, Pencil, Trash2, Check, X, Pin, Loader2, Lock, Link2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { Switch } from '@shared/components/ui/switch';
+import { useToast } from '@shared/hooks/use-toast';
 import { format } from 'date-fns';
 import { appService } from '@services/appService';
 import { salarySchemeService } from '@services/salarySchemeService';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { defaultQueryRetry } from '@/lib/query';
+import { cn } from '@shared/lib/utils';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 type TierType = 'total_multiplier' | 'fixed_amount' | 'base_plus_incremental';
 
@@ -309,7 +309,7 @@ const SalarySchemes = ({ embedded = false }: SalarySchemesProps) => {
         const { error } = await salarySchemeService.upsertSnapshot(
           schemeId,
           m,
-          schemeTiers as unknown as import('@/integrations/supabase/types').Json
+          schemeTiers as unknown as import('@services/supabase/types').Json
         );
         if (error) throw error;
       }

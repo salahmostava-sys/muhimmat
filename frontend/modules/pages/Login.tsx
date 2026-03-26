@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@app/providers/AuthContext';
+import { useTheme } from '@app/providers/ThemeContext';
+import { Input } from '@shared/components/ui/input';
+import { Checkbox } from '@shared/components/ui/checkbox';
 import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
 import { dashboardService } from '@services/dashboardService';
-import { loadRememberedEmail, persistRememberedEmail } from '@/lib/loginRememberStorage';
+import { loadRememberedEmail, persistRememberedEmail } from '@shared/lib/loginRememberStorage';
 import './login.css';
 
 interface SystemSettings {

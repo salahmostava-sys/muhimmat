@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@/hooks/useRealtimePostgresChanges';
+import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@shared/hooks/useRealtimePostgresChanges';
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
 import { alertsService } from '@services/alertsService';
 import { differenceInDays, parseISO, format } from 'date-fns';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
+import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
 
 const typeLabels: Record<string, string> = {
   residency: 'إقامة',

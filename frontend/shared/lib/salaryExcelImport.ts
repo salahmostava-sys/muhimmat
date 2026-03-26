@@ -4,7 +4,7 @@ import {
   isValidSalaryMonthYear,
   monthYearFromParts,
   parseSalaryAmount,
-} from '@/lib/salaryValidation';
+} from '@shared/lib/salaryValidation';
 
 /** Single-row template headers (Arabic) — must match `parseSalaryImportWorkbook` mapping. */
 export const SALARY_IMPORT_TEMPLATE_HEADERS = [

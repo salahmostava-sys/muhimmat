@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import AttendanceStats from './AttendanceStats';
 import attendanceService from '@services/attendanceService';
 
-vi.mock('@/context/LanguageContext', () => ({
+vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: () => ({ isRTL: true }),
 }));
 

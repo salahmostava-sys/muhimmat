@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, forwardRef, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
+import { cn } from '@shared/lib/utils';
 import {
   Users, UserCheck, Bell, Package, Bike, Smartphone,
   TrendingUp, ArrowUpRight, ArrowDownRight, Award,
@@ -9,7 +9,7 @@ import {
   Target, Clock, ChevronUp, ChevronDown, DollarSign,
   Minus, Settings2,
 } from 'lucide-react';
-import AlertsList from '@/components/AlertsList';
+import AlertsList from '@shared/components/AlertsList';
 import { dashboardService } from '@services/dashboardService';
 import {
   format, formatDistanceToNow,
@@ -20,11 +20,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Line, Legend,
 } from 'recharts';
-import { useRealtimePostgresChanges, REALTIME_TABLES_DASHBOARD } from '@/hooks/useRealtimePostgresChanges';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { isEmployeeVisibleInMonth } from '@/lib/employeeVisibility';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
+import { useRealtimePostgresChanges, REALTIME_TABLES_DASHBOARD } from '@shared/hooks/useRealtimePostgresChanges';
+import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
+import { isEmployeeVisibleInMonth } from '@shared/lib/employeeVisibility';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 
 const SKELETON_KEYS_2 = ['sk-1', 'sk-2'] as const;
 const SKELETON_KEYS_4 = ['sk-1', 'sk-2', 'sk-3', 'sk-4'] as const;

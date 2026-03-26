@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Building2, Save, Upload, X, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { useLanguage } from '@/context/LanguageContext';
-import { useSystemSettings } from '@/context/SystemSettingsContext';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { useToast } from '@shared/hooks/use-toast';
+import { useLanguage } from '@app/providers/LanguageContext';
+import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { settingsHubService } from '@services/settingsHubService';
-import { validateUploadFile } from '@/lib/validation';
-import { getErrorMessage } from '@/lib/query';
+import { validateUploadFile } from '@shared/lib/validation';
+import { getErrorMessage } from '@shared/lib/query';
 
 const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) => (
   <div className="flex items-center gap-3 pb-4 mb-5" style={{ borderBottom: '1px solid var(--ds-surface-container)' }}>

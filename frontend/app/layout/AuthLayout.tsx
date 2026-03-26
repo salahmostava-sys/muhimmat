@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage } from '@app/providers/LanguageContext';
 
 interface AuthLayoutProps {
   children: ReactNode;

@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import "../src/index.css";
-import { ErrorBoundary } from "../src/components/ErrorBoundary";
+import "./styles/index.css";
+import { ErrorBoundary } from "@shared/components/ErrorBoundary";
 
 const CHUNK_RELOAD_KEY = "__chunk_reload_once__";
 

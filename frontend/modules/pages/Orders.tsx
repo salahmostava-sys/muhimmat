@@ -1,27 +1,27 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
+import { Button } from '@shared/components/ui/button';
 import { Search, Save, Package, Upload, FolderOpen, Loader2, Target, TrendingUp } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import { Input } from '@shared/components/ui/input';
+import { Progress } from '@shared/components/ui/progress';
 import { orderService } from '@services/orderService';
-import { useToast } from '@/hooks/use-toast';
-import { useAppColors, getAppColor } from '@/hooks/useAppColors';
-import { usePermissions } from '@/hooks/usePermissions';
-import { OrdersGridTable } from '@/components/orders/OrdersGridTable';
-import { OrdersCellPopover, type OrdersPopoverState } from '@/components/orders/OrdersCellPopover';
-import { OrdersMonthNavigator } from '@/components/orders/OrdersMonthNavigator';
-import { OrdersSummaryTable } from '@/components/orders/OrdersSummaryTable';
-import { cn } from '@/lib/utils';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
-import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterState } from '@/components/table/GlobalTableFilters';
-import { useOrdersMonthPaged } from '@/hooks/useOrdersPaged';
-import { toast as sonnerToast } from '@/components/ui/sonner';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { defaultQueryRetry } from '@/lib/query';
+import { useToast } from '@shared/hooks/use-toast';
+import { useAppColors, getAppColor } from '@shared/hooks/useAppColors';
+import { usePermissions } from '@shared/hooks/usePermissions';
+import { OrdersGridTable } from '@shared/components/orders/OrdersGridTable';
+import { OrdersCellPopover, type OrdersPopoverState } from '@shared/components/orders/OrdersCellPopover';
+import { OrdersMonthNavigator } from '@shared/components/orders/OrdersMonthNavigator';
+import { OrdersSummaryTable } from '@shared/components/orders/OrdersSummaryTable';
+import { cn } from '@shared/lib/utils';
+import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters, type GlobalTableFilterState } from '@shared/components/table/GlobalTableFilters';
+import { useOrdersMonthPaged } from '@shared/hooks/useOrdersPaged';
+import { toast as sonnerToast } from '@shared/components/ui/sonner';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 
 // ─── Types ──────────────────────────────────────────────────────────

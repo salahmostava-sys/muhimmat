@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
-import type { Json } from '@/integrations/supabase/types';
+import { supabase } from '@services/supabase/client';
+import type { Json } from '@services/supabase/types';
 import { throwIfError } from '@services/serviceError';
 
 export interface AppUpsertPayload {

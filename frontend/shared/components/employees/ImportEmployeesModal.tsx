@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { X, Upload, CheckCircle, AlertTriangle, XCircle, Info, Download, Loader2, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@shared/components/ui/button';
+import { Progress } from '@shared/components/ui/progress';
+import { useToast } from '@shared/hooks/use-toast';
 import { employeeService } from '@services/employeeService';
 import * as XLSX from '@e965/xlsx';
-import { getErrorMessage } from '@/lib/query';
+import { getErrorMessage } from '@shared/lib/query';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface ParsedEmployee {

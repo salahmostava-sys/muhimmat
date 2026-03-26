@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, ChevronsUpDown, Check, Loader2, Pencil, X, ChevronDown as FilterIcon } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
-import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@shared/components/ui/popover';
+import { Skeleton } from '@shared/components/ui/skeleton';
+import { Input } from '@shared/components/ui/input';
+import { useSignedUrl, extractStoragePath } from '@shared/hooks/useSignedUrl';
 
 export const CityBadge = ({ city }: { city?: string | null }) => {
   if (!city) return <span className="text-muted-foreground/40">—</span>;

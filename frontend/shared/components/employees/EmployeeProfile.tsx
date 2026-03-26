@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, User, FileText, Wallet, CreditCard, Clock, Package, DollarSign, ExternalLink, Loader2, ChevronDown, ChevronUp, TrendingUp } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@shared/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
 import { differenceInDays, parseISO } from 'date-fns';
-import { useSignedUrl, extractStoragePath } from '@/hooks/useSignedUrl';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
+import { useSignedUrl, extractStoragePath } from '@shared/hooks/useSignedUrl';
+import { supabase } from '@services/supabase/client';
+import { useAuth } from '@app/providers/AuthContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Employee {

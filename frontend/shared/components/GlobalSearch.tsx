@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Users, Car, CreditCard, Loader2 } from 'lucide-react';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage } from '@app/providers/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { searchService } from '@services/searchService';
-import { cn } from '@/lib/utils';
+import { cn } from '@shared/lib/utils';
 
 interface SearchResult {
   id: string;

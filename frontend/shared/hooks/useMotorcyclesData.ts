@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { vehicleService } from '@services/vehicleService';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 
 export const motorcyclesDataQueryKey = (userId: string) => ['motorcycles', userId, 'list'] as const;
 

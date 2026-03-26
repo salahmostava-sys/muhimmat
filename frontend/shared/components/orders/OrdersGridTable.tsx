@@ -1,8 +1,8 @@
 import React from 'react';
 import { Loader2, ChevronDown, ChevronUp } from 'lucide-react';
-import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
-import { ColorBadge } from '@/components/ui/ColorBadge';
-import { ColorDot } from '@/components/ui/ColorDot';
+import { getAppColor, type AppColorData } from '@shared/hooks/useAppColors';
+import { ColorBadge } from '@shared/components/ui/ColorBadge';
+import { ColorDot } from '@shared/components/ui/ColorDot';
 
 type Employee = { id: string; name: string };
 type App = { id: string; name: string };

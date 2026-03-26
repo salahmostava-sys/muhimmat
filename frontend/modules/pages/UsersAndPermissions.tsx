@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Shield, RefreshCw, Save, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@shared/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { Checkbox } from '@shared/components/ui/checkbox';
+import { Alert, AlertDescription, AlertTitle } from '@shared/components/ui/alert';
+import { useToast } from '@shared/hooks/use-toast';
 import { userPermissionService } from '@services/userPermissionService';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { usePermissions, DEFAULT_PERMISSIONS, type AppRole, type PagePermission } from '@/hooks/usePermissions';
-import { PERMISSION_PAGE_ENTRIES } from '@/constants/permissionPages';
-import { defaultQueryRetry } from '@/lib/query';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { usePermissions, DEFAULT_PERMISSIONS, type AppRole, type PagePermission } from '@shared/hooks/usePermissions';
+import { PERMISSION_PAGE_ENTRIES } from '@shared/constants/permissionPages';
+import { defaultQueryRetry } from '@shared/lib/query';
 
 type ProfileRow = {
   id: string;

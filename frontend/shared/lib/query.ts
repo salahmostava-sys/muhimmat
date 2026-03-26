@@ -1,4 +1,4 @@
-import { toast } from '@/components/ui/sonner';
+import { toast } from '@shared/components/ui/sonner';
 
 /**
  * Default React Query `retry` — do not retry on auth failures; cap other retries (Sonar / TanStack v5).

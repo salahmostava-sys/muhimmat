@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
+import { supabase } from '@services/supabase/client';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 
 export type MonthlyActiveEmployeeIdsResult = {
   monthKey: string; // YYYY-MM

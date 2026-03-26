@@ -7,10 +7,10 @@ import {
   Layers, ChevronsLeft, ChevronsRight, ShieldCheck,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLanguage } from '@/context/LanguageContext';
-import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { useMobileSidebar } from '@/context/MobileSidebarContext';
-import { cn } from '@/lib/utils';
+import { useLanguage } from '@app/providers/LanguageContext';
+import { useSystemSettings } from '@app/providers/SystemSettingsContext';
+import { useMobileSidebar } from '@app/providers/MobileSidebarContext';
+import { cn } from '@shared/lib/utils';
 
 function setHoverStylesIf(
   el: HTMLElement,

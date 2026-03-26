@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useLanguage } from '@/context/LanguageContext';
+import { useLanguage } from '@app/providers/LanguageContext';
 import {
   Settings2, Users, Wallet, History,
   ChevronLeft, ChevronRight, Building2, User,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@shared/lib/utils';
 import GeneralSettingsContent from './settings-hub/GeneralSettingsContent';
 import UsersContent from './settings-hub/UsersContent';
 import SchemesContent from './settings-hub/SchemesContent';

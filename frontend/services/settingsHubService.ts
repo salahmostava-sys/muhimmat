@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
-import { validateUploadFile } from '@/lib/validation';
+import { supabase } from '@services/supabase/client';
+import { validateUploadFile } from '@shared/lib/validation';
 import { authService } from '@services/authService';
 import { throwIfError } from '@services/serviceError';
 

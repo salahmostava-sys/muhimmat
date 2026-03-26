@@ -1,4 +1,4 @@
-import ProjectSettings from '@/components/settings/ProjectSettings';
+import ProjectSettings from '@shared/components/settings/ProjectSettings';
 import CompanySettingsContent from './CompanySettingsContent';
 
 export default function GeneralSettingsContent() {

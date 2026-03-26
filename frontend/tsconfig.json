@@ -5,11 +5,17 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "paths": {
-      "@/*": [
-        "./src/*"
+      "@app/*": [
+        "./app/*"
       ],
       "@services/*": [
         "./services/*"
+      ],
+      "@modules/*": [
+        "./modules/*"
+      ],
+      "@shared/*": [
+        "./shared/*"
       ]
     },
     "skipLibCheck": true,

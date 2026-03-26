@@ -4,34 +4,34 @@ import {
   Plus, Edit, Search, UserPlus, Loader2, X,
   ShieldCheck, History,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { Textarea } from '@shared/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+} from '@shared/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { usePermissions } from '@/hooks/usePermissions';
-import { useSystemSettings } from '@/context/SystemSettingsContext';
+} from '@shared/components/ui/select';
+import { useToast } from '@shared/hooks/use-toast';
+import { usePermissions } from '@shared/hooks/usePermissions';
+import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { format, differenceInDays, parseISO } from 'date-fns';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
-import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
-import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
-import { usePlatformAccountsPaged } from '@/hooks/usePlatformAccountsPaged';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
+import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
+import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
+import { usePlatformAccountsPaged } from '@shared/hooks/usePlatformAccountsPaged';
+import { Skeleton } from '@shared/components/ui/skeleton';
 import { auditService } from '@services/auditService';
 import * as XLSX from '@e965/xlsx';
-import type { BranchKey } from '@/components/table/GlobalTableFilters';
-import { ColorBadge } from '@/components/ui/ColorBadge';
-import { sortArrowGlyph } from '@/lib/sortTableIndicators';
-import { defaultQueryRetry } from '@/lib/query';
+import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
+import { ColorBadge } from '@shared/components/ui/ColorBadge';
+import { sortArrowGlyph } from '@shared/lib/sortTableIndicators';
+import { defaultQueryRetry } from '@shared/lib/query';
 import {
   platformAccountService,
   type PlatformApp as App,

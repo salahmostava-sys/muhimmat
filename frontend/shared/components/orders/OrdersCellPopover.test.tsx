@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { OrdersCellPopover, type OrdersPopoverState } from './OrdersCellPopover';
 
-vi.mock('@/hooks/useAppColors', () => ({
+vi.mock('@shared/hooks/useAppColors', () => ({
   getAppColor: () => ({ bg: '#00000011', text: '#111111' }),
 }));
 

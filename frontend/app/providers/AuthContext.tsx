@@ -3,7 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { authService } from '@services/authService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { onAuthFailure } from '@/lib/auth/authFailureBus';
+import { onAuthFailure } from '@shared/lib/auth/authFailureBus';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 

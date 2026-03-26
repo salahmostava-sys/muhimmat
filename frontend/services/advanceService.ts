@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@services/supabase/client';
 
 export interface AdvancePayload {
   employee_id: string;

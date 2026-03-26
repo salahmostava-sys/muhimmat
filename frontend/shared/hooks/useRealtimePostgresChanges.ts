@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@services/supabase/client';
 
 /** Tables backing Dashboard KPIs + analytics (invalidate on change; read-heavy). */
 export const REALTIME_TABLES_DASHBOARD = [

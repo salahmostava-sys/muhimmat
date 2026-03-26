@@ -1,4 +1,4 @@
-import { cn } from '@/lib/utils';
+import { cn } from '@shared/lib/utils';
 
 export function ColorDot(props: { color?: string | null; className?: string }) {
   const { color, className } = props;

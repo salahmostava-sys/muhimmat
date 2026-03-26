@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { orderService } from '@services/orderService';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 
 export const ordersQueryKey = (userId: string) => ['orders', userId] as const;
 

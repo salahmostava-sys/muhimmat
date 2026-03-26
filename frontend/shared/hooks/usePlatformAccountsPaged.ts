@@ -1,10 +1,10 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { platformAccountService } from '@services/platformAccountService';
-import type { BranchKey } from '@/components/table/GlobalTableFilters';
-import { useAuth } from '@/context/AuthContext';
-import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
-import { useQueryErrorToast } from '@/hooks/useQueryErrorToast';
-import { safeRetry, withQueryTimeout } from '@/lib/reactQuerySafety';
+import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
+import { useAuth } from '@app/providers/AuthContext';
+import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
+import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
+import { safeRetry, withQueryTimeout } from '@shared/lib/reactQuerySafety';
 
 export type PlatformAccountsPagedFilters = {
   driverId?: string;

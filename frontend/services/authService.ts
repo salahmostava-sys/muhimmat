@@ -1,4 +1,4 @@
-import { supabase } from "../src/integrations/supabase/client";
+import { supabase } from "./supabase/client";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { throwIfError } from "./serviceError";
 

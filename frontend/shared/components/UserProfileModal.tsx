@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Camera, Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { useToast } from '@shared/hooks/use-toast';
+import { useAuth } from '@app/providers/AuthContext';
 import { profileService } from '@services/profileService';
 import { useTranslation } from 'react-i18next';
-import { cn } from '@/lib/utils';
-import { validateUploadFile } from '@/lib/validation';
-import { getErrorMessage } from '@/lib/query';
+import { cn } from '@shared/lib/utils';
+import { validateUploadFile } from '@shared/lib/validation';
+import { getErrorMessage } from '@shared/lib/query';
 
 // ─── Password strength ────────────────────────────────────────────────────────
 const getStrength = (pw: string) => {

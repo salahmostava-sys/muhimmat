@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { getErrorMessage, toastQueryError } from '@/lib/query';
+import { getErrorMessage, toastQueryError } from '@shared/lib/query';
 
 /**
  * React Query v5 removed `onError` on `useQuery`. Use this for user-visible load failures.

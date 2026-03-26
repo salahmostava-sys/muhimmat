@@ -1,5 +1,5 @@
-import { getAppColor, type AppColorData } from '@/hooks/useAppColors';
-import { ColorBadge } from '@/components/ui/ColorBadge';
+import { getAppColor, type AppColorData } from '@shared/hooks/useAppColors';
+import { ColorBadge } from '@shared/components/ui/ColorBadge';
 
 type Employee = { id: string; name: string };
 type App = { id: string; name: string };

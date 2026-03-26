@@ -1,5 +1,5 @@
-import { supabase } from '@/integrations/supabase/client';
-import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@/lib/salaryValidation';
+import { supabase } from '@services/supabase/client';
+import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryValidation';
 
 const throwIfSupabaseError = (error: unknown) => {
   if (!error) return;

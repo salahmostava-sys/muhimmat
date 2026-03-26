@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLanguage } from '@/context/LanguageContext';
-import { useTheme } from '@/context/ThemeContext';
-import { useSystemSettings } from '@/context/SystemSettingsContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@app/providers/LanguageContext';
+import { useTheme } from '@app/providers/ThemeContext';
+import { useSystemSettings } from '@app/providers/SystemSettingsContext';
+import { Button } from '@shared/components/ui/button';
+import { Input } from '@shared/components/ui/input';
+import { Label } from '@shared/components/ui/label';
+import { useToast } from '@shared/hooks/use-toast';
 import { Loader2, Save, Globe, Palette, Building2, Upload, X, Download, Database, CheckCircle, Bell } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@shared/lib/utils';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
-import { usePermissions } from '@/hooks/usePermissions';
-import { useAuth } from '@/context/AuthContext';
-import { validateUploadFile } from '@/lib/validation';
+import { usePermissions } from '@shared/hooks/usePermissions';
+import { useAuth } from '@app/providers/AuthContext';
+import { validateUploadFile } from '@shared/lib/validation';
 import { settingsHubService } from '@services/settingsHubService';
 
 export default function ProjectSettings() {

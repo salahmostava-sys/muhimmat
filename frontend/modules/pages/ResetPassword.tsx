@@ -1,9 +1,9 @@
 import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Loader2, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Input } from '@shared/components/ui/input';
 import { authService } from '@services/authService';
-import { authGradientBtn, authBtnStyle } from '@/lib/authStyles';
+import { authGradientBtn, authBtnStyle } from '@shared/lib/authStyles';
 
 function calcStrength(pw: string): 0 | 1 | 2 | 3 {
   if (!pw) return 0;

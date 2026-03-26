@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@services/supabase/client';
 
 export const extractStoragePath = (value: string | null | undefined): string | null => {
   if (!value) return null;
