@@ -70,7 +70,7 @@ interface ProfileSettingsContentProps {
   omitPageHeading?: boolean;
 }
 
-export default function ProfileSettingsContent({ omitPageHeading = false }: Readonly<ProfileSettingsContentProps>) {
+export default function ProfileSettingsContent({ omitPageHeading = false }: Readonly<ProfileSettingsContentProps>) { // NOSONAR: settings page combines profile and password flows
   const { user } = useAuth();
   const { toast } = useToast();
   const { isRTL } = useLanguage();

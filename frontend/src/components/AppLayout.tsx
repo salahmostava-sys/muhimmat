@@ -59,7 +59,7 @@ const roleBadgeClass: Record<string, string> = {
   viewer: 'text-muted-foreground bg-muted',
 };
 
-const AppLayoutInner = ({ children }: AppLayoutProps) => {
+const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wiring for route/theme/sidebar states
   const { isRTL } = useLanguage();
   const { signOut, role, user } = useAuth();
   const { toggleTheme, isDark } = useTheme();

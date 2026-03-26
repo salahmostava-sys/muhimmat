@@ -18,7 +18,6 @@ import { format, endOfMonth } from 'date-fns';
 import { useMonthlyActiveEmployeeIds } from '@/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@/lib/employeeVisibility';
 import { GlobalTableFilters, createDefaultGlobalFilters } from '@/components/table/GlobalTableFilters';
-import type { BranchKey } from '@/components/table/GlobalTableFilters';
 import { useFuelDailyPaged } from '@/hooks/useFuelDailyPaged';
 import { auditService } from '@/services/auditService';
 import { authQueryUserId, useAuthQueryGate } from '@/hooks/useAuthQueryGate';
@@ -47,7 +46,9 @@ type MonthlyRow = {
 
 type Employee = { id: string; name: string; personal_photo_url?: string | null };
 type AppRow = { id: string; name: string };
-type DailyMileageResponseRow = DailyRow & { employees?: Employee };
+type DailyMileageResponseRow = DailyRow & { employees?: { name: string; personal_photo_url?: string | null } };
+type ImportStep = 1 | 2 | 3;
+type FuelBranch = 'makkah' | 'jeddah';
 
 type ImportRow = {
   row_key: string;
@@ -58,6 +59,7 @@ type ImportRow = {
   matched_employee?: Employee | null;
   manual_employee_id?: string;
 };
+const MONTHLY_SKELETON_ROWS = ['m1', 'm2', 'm3', 'm4', 'm5'];
 
 const toCellString = (value: unknown): string => {
   if (typeof value === 'string') return value;
@@ -82,7 +84,7 @@ const MONTHS = [
 ];
 
 const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-const IMPORT_STEPS: Array<1 | 2 | 3> = [1, 2, 3];
+const IMPORT_STEPS: ImportStep[] = [1, 2, 3];
 
 const costPerKmColor = (v: number | null) => {
   if (v === null || v === 0) return 'text-muted-foreground';
@@ -120,7 +122,7 @@ const ImportModal = ({
 }) => {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<ImportStep>(1);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawData, setRawData] = useState<Record<string, unknown>[]>([]);
   const [mapping, setMapping] = useState({ name: '', km: '', fuel: '__none__', notes: '__none__' });
@@ -128,20 +130,17 @@ const ImportModal = ({
   const [saving, setSaving] = useState(false);
   const [replaceExisting, setReplaceExisting] = useState(true);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const wb = XLSX.read(ev.target?.result, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws, { defval: '' }) as Record<string, unknown>[];
-      if (!data.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
-      setHeaders(Object.keys(data[0]));
-      setRawData(data);
-      setStep(2);
-    };
-    reader.readAsBinaryString(file);
+    const fileBuffer = await file.arrayBuffer();
+    const wb = XLSX.read(fileBuffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    if (!data.length) return toast({ title: 'الملف فارغ', variant: 'destructive' });
+    setHeaders(Object.keys(data[0]));
+    setRawData(data);
+    setStep(2);
   };
 
   const buildPreview = () => {
@@ -155,7 +154,7 @@ const ImportModal = ({
           : 0;
       const notes = mapping.notes && mapping.notes !== '__none__' ? toCellString(r[mapping.notes]) : '';
       const exact = employees.find(e => e.name === raw_name);
-      const partial = !exact ? employees.find(e => e.name.includes(raw_name) || raw_name.includes(e.name)) : null;
+      const partial = exact ? null : employees.find(e => e.name.includes(raw_name) || raw_name.includes(e.name));
       return {
         row_key: `${idx}-${raw_name || 'unknown'}-${km_total}-${fuel_cost}`,
         raw_name,
@@ -170,13 +169,25 @@ const ImportModal = ({
   };
 
   const matched = rows.filter(r => r.matched_employee || r.manual_employee_id).length;
+  const importStepLabel = (s: ImportStep) => {
+    if (s === 1) return 'رفع الملف';
+    if (s === 2) return 'ربط الأعمدة';
+    return 'معاينة وتأكيد';
+  };
+  const handleManualEmployeeSelect = (rowKey: string, employeeId: string) => {
+    setRows((currentRows) =>
+      currentRows.map((currentRow) =>
+        currentRow.row_key === rowKey ? { ...currentRow, manual_employee_id: employeeId } : currentRow
+      )
+    );
+  };
 
   const doImport = async () => {
     const toSave = rows.filter(r => r.matched_employee || r.manual_employee_id);
     if (!toSave.length) return toast({ title: 'لا توجد سجلات للاستيراد', variant: 'destructive' });
     setSaving(true);
     const payload = toSave.map(r => ({
-      employee_id: r.manual_employee_id || r.matched_employee!.id,
+      employee_id: r.manual_employee_id || r.matched_employee?.id || '',
       month_year: monthYear,
       km_total: r.km_total,
       fuel_cost: r.fuel_cost,
@@ -200,25 +211,23 @@ const ImportModal = ({
           {IMPORT_STEPS.map(s => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step >= s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>{s}</div>
-              <span className="text-xs text-muted-foreground">{s === 1 ? 'رفع الملف' : s === 2 ? 'ربط الأعمدة' : 'معاينة وتأكيد'}</span>
+              <span className="text-xs text-muted-foreground">{importStepLabel(s)}</span>
               {s < 3 && <div className="w-8 h-px bg-border mx-1" />}
             </div>
           ))}
         </div>
         <div className="flex-1 overflow-y-auto p-6">
           {step === 1 && (
-            <div
-              className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            <button
+              type="button"
+              className="w-full border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:border-primary/50 transition-colors"
               onClick={() => fileRef.current?.click()}
-              onKeyDown={e => e.key === 'Enter' && fileRef.current?.click()}
-              role="button"
-              tabIndex={0}
             >
               <div className="text-4xl mb-3">📂</div>
               <p className="font-medium text-foreground">اضغط لرفع ملف Excel أو CSV</p>
               <p className="text-sm text-muted-foreground mt-1">ملف GPS يحتوي على أسماء المناديب والكيلومترات</p>
               <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleFile} />
-            </div>
+            </button>
           )}
           {step === 2 && (
             <div className="space-y-4">
@@ -254,8 +263,8 @@ const ImportModal = ({
                 <span className="badge-success">{matched} متطابق</span>
                 <span className="badge-warning">{rows.length - matched} يحتاج مراجعة</span>
                 <label className="flex items-center gap-1.5 ms-auto text-muted-foreground cursor-pointer">
-                  <input type="checkbox" checked={replaceExisting} onChange={e => setReplaceExisting(e.target.checked)} />
-                  استبدال البيانات الموجودة
+                  <input type="checkbox" className="align-middle" checked={replaceExisting} onChange={e => setReplaceExisting(e.target.checked)} />
+                  <span>استبدال البيانات الموجودة</span>
                 </label>
               </div>
               <div className="border border-border rounded-xl overflow-hidden">
@@ -277,11 +286,11 @@ const ImportModal = ({
                           <td className="px-3 py-2 font-medium">{row.raw_name}</td>
                           <td className="px-3 py-2">
                             {isMatched ? (
-                              <span className="text-success text-xs flex items-center gap-1"><Check size={11} /> {emp!.name}</span>
+                              <span className="text-success text-xs flex items-center gap-1"><Check size={11} /> {emp?.name}</span>
                             ) : (
                               <Select
                                 value={row.manual_employee_id || ''}
-                                onValueChange={v => setRows(rs => rs.map((r) => (r.row_key === row.row_key ? { ...r, manual_employee_id: v } : r)))}
+                                onValueChange={(v) => handleManualEmployeeSelect(row.row_key, v)}
                               >
                                 <SelectTrigger className="h-7 text-xs border-warning/50"><SelectValue placeholder="اختر يدوياً..." /></SelectTrigger>
                                 <SelectContent className="max-h-48">
@@ -314,7 +323,7 @@ const ImportModal = ({
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-const FuelPage = () => {
+const FuelPage = () => { // NOSONAR: UI container with many independent handlers
   const { toast } = useToast();
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
@@ -326,7 +335,7 @@ const FuelPage = () => {
   const [selectedYear, setSelectedYear] = useState(format(now, 'yyyy'));
   const [search, setSearch] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<string>('_all_');
-  const [platformTab, setPlatformTab] = useState<'all' | string>('all');
+  const [platformTab, setPlatformTab] = useState('all');
 
   const [monthlyRows, setMonthlyRows] = useState<MonthlyRow[]>([]);
   const [dailyRows, setDailyRows] = useState<DailyRow[]>([]);
@@ -527,7 +536,10 @@ const FuelPage = () => {
       const { data, error } = await fuelService.getDailyMileageByMonth(ms, me);
       if (error) throw error;
 
-      let mapped = ((data || []) as unknown as DailyMileageResponseRow[]).map((r) => ({ ...r, employee: r.employees as Employee | undefined }));
+      let mapped: DailyRow[] = ((data || []) as DailyMileageResponseRow[]).map((r) => ({
+        ...r,
+        employee: r.employees ? { id: r.employee_id, ...r.employees } : undefined,
+      }));
       if (selectedEmployee && selectedEmployee !== '_all_') {
         mapped = mapped.filter((r) => r.employee_id === selectedEmployee);
       } else if (employeeIdsOnPlatform) {
@@ -538,7 +550,7 @@ const FuelPage = () => {
         }
         mapped = mapped.filter((r) => ids.includes(r.employee_id));
       }
-      setDailyRows(mapped as DailyRow[]);
+      setDailyRows(mapped);
     } catch (err) {
       console.error('[Fuel] fetchDaily failed', err);
       const message = err instanceof Error ? err.message : 'تعذر جلب البيانات اليومية';
@@ -670,6 +682,218 @@ const FuelPage = () => {
   const riderMonthKm = (empId: string) => dailyForRider(empId).reduce((s, r) => s + (Number(r.km_total) || 0), 0);
   const riderMonthFuel = (empId: string) => dailyForRider(empId).reduce((s, r) => s + (Number(r.fuel_cost) || 0), 0);
   const riderMonthOrders = (empId: string) => monthOrdersMap[empId] || 0;
+  const updateEditingDaily = (field: 'km_total' | 'fuel_cost' | 'notes', value: string) => {
+    setEditingDaily((current) => {
+      if (!current) return null;
+      return { ...current, [field]: value };
+    });
+  };
+  let monthlyBodyRows: React.ReactNode;
+  if (loading) {
+    monthlyBodyRows = MONTHLY_SKELETON_ROWS.map((rowKey) => (
+      <tr key={`fuel-monthly-skeleton-row-${rowKey}`} className="border-b border-border/30">
+        {Array.from({ length: 9 }).map((_, j) => (
+          <td key={`fuel-monthly-skeleton-cell-${rowKey}-${j}`} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
+        ))}
+      </tr>
+    ));
+  } else if (filteredMonthly.length === 0) {
+    monthlyBodyRows = (
+      <tr>
+        <td colSpan={9} className="text-center py-16">
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <span className="text-4xl">⛽</span>
+            <p className="font-medium">لا توجد بيانات لهذا الشهر</p>
+            <p className="text-xs">أضف إدخالات يومية من عرض يومي أو غيّر المنصة/البحث</p>
+          </div>
+        </td>
+      </tr>
+    );
+  } else {
+    monthlyBodyRows = (
+      <>
+        {filteredMonthly.map(row => {
+          const costPerKm = row.km_total > 0 ? row.fuel_cost / row.km_total : null;
+          const fuelPerOrder = row.orders_count > 0 ? row.fuel_cost / row.orders_count : null;
+          return (
+            <tr key={row.employee_id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  {row.personal_photo_url && (
+                    <img src={row.personal_photo_url} className="w-8 h-8 rounded-full object-cover" alt="" />
+                  )}
+                  <span className="font-medium text-foreground">{row.employee_name}</span>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-center">
+                <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{row.daily_count} يوم</span>
+              </td>
+              <td className="px-4 py-3 text-center font-medium text-primary">{row.km_total.toLocaleString()} كم</td>
+              <td className="px-4 py-3 text-center font-medium text-warning">{row.fuel_cost.toLocaleString()} ر.س</td>
+              <td className={`px-4 py-3 text-center ${costPerKmColor(costPerKm)}`}>
+                {costPerKm === null ? '—' : `${costPerKm.toFixed(3)} ر.س/كم`}
+              </td>
+              <td className="px-4 py-3 text-center">
+                {row.vehicle ? (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-xs font-semibold text-foreground">
+                      {row.vehicle.type === 'motorcycle' ? '🏍️' : '🚗'} {row.vehicle.plate_number}
+                    </span>
+                    {(row.vehicle.brand || row.vehicle.model) && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {[row.vehicle.brand, row.vehicle.model].filter(Boolean).join(' ')}
+                      </span>
+                    )}
+                  </div>
+                ) : <span className="text-muted-foreground/40 text-xs">—</span>}
+              </td>
+              <td className="px-4 py-3 text-center">
+                {row.orders_count > 0
+                  ? <span className="font-semibold text-foreground">{row.orders_count.toLocaleString()}</span>
+                  : <span className="text-muted-foreground/40">—</span>}
+              </td>
+              <td className="px-4 py-3 text-center">
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-xs text-muted-foreground">{fuelPerOrder === null ? '—' : `${fuelPerOrder.toFixed(2)} ر.س`}</span>
+                  {fuelPerOrderBadge(fuelPerOrder)}
+                </div>
+              </td>
+              <td className="px-4 py-3 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedEmployee(row.employee_id);
+                    setView('daily');
+                    setExpandedRider(row.employee_id);
+                  }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  الأيام ←
+                </button>
+              </td>
+            </tr>
+          );
+        })}
+        <tr className="border-t-2 border-border bg-muted/20 font-semibold text-sm">
+          <td className="px-4 py-3 text-foreground">الإجمالي ({filteredMonthly.length} مندوب)</td>
+          <td className="px-4 py-3 text-center text-muted-foreground">—</td>
+          <td className="px-4 py-3 text-center text-primary">{totalKm.toLocaleString()} كم</td>
+          <td className="px-4 py-3 text-center text-warning">{totalFuel.toLocaleString()} ر.س</td>
+          <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
+            {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
+          </td>
+          <td className="px-4 py-3 text-center text-muted-foreground">—</td>
+          <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
+          <td className="px-4 py-3 text-center text-muted-foreground">
+            {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}
+          </td>
+          <td />
+        </tr>
+      </>
+    );
+  }
+  let dailyRiderRows: React.ReactNode;
+  if (loading) {
+    dailyRiderRows = <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">جاري التحميل...</td></tr>;
+  } else if (ridersForTab.length === 0) {
+    dailyRiderRows = <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا يوجد مناديب على هذه المنصة</td></tr>;
+  } else {
+    dailyRiderRows = ridersForTab.map(emp => {
+      const open = expandedRider === emp.id;
+      const days = dailyForRider(emp.id);
+      return (
+        <React.Fragment key={emp.id}>
+          <tr className="border-b border-border/30 hover:bg-muted/10">
+            <td className="px-2 py-2 text-center">
+              <button
+                type="button"
+                className="p-1 rounded hover:bg-muted"
+                onClick={() => setExpandedRider(open ? null : emp.id)}
+                aria-expanded={open}
+              >
+                {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </button>
+            </td>
+            <td className="px-4 py-2">
+              <div className="flex items-center gap-2">
+                {emp.personal_photo_url && <img src={emp.personal_photo_url} className="w-8 h-8 rounded-full object-cover" alt="" />}
+                <span className="font-medium">{emp.name}</span>
+              </div>
+            </td>
+            <td className="px-4 py-2 text-center">
+              {riderMonthOrders(emp.id) > 0
+                ? <span className="font-semibold text-foreground">{riderMonthOrders(emp.id).toLocaleString()}</span>
+                : <span className="text-muted-foreground/40">—</span>}
+            </td>
+            <td className="px-4 py-2 text-center font-medium text-primary">{riderMonthKm(emp.id).toLocaleString()}</td>
+            <td className="px-4 py-2 text-center text-warning">{riderMonthFuel(emp.id).toLocaleString()} ر.س</td>
+          </tr>
+          {open && (
+            <tr className="bg-muted/10">
+              <td colSpan={5} className="p-0">
+                <div className="p-3 space-y-2">
+                  {days.length === 0 ? (
+                    <p className="text-xs text-muted-foreground px-2">لا سجلات يومية لهذا الشهر</p>
+                  ) : (
+                    <table className="w-full text-xs border border-border/40 rounded-lg overflow-hidden">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-2 py-1.5 text-start">التاريخ</th>
+                          <th className="px-2 py-1.5 text-center">كم</th>
+                          <th className="px-2 py-1.5 text-center">بنزين</th>
+                          <th className="px-2 py-1.5 text-start">ملاحظات</th>
+                          <th className="px-2 py-1.5 text-center w-24">إجراء</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {days.map(dr => (
+                          <tr key={dr.id} className="border-t border-border/30">
+                            <td className="px-2 py-1.5 font-mono">{dr.date}</td>
+                            <td className="px-2 py-1.5 text-center">
+                              {editingDaily?.id === dr.id ? (
+                                <Input className="h-7 text-xs" type="number" value={editingDaily.km_total} onChange={e => updateEditingDaily('km_total', e.target.value)} />
+                              ) : (dr.km_total || '—')}
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              {editingDaily?.id === dr.id ? (
+                                <Input className="h-7 text-xs" type="number" value={editingDaily.fuel_cost} onChange={e => updateEditingDaily('fuel_cost', e.target.value)} />
+                              ) : (dr.fuel_cost || '—')}
+                            </td>
+                            <td className="px-2 py-1.5">
+                              {editingDaily?.id === dr.id ? (
+                                <Input className="h-7 text-xs" value={editingDaily.notes} onChange={e => updateEditingDaily('notes', e.target.value)} />
+                              ) : (dr.notes || '—')}
+                            </td>
+                            <td className="px-2 py-1.5 text-center">
+                              {permissions.can_edit && (
+                                <div className="flex gap-1 justify-center">
+                                  {editingDaily?.id === dr.id ? (
+                                    <>
+                                      <Button type="button" size="sm" className="h-7 text-[10px] px-2" disabled={savingEntry} onClick={() => saveEditedDaily(dr)}>حفظ</Button>
+                                      <Button type="button" size="sm" variant="outline" className="h-7 text-[10px] px-2" onClick={() => setEditingDaily(null)}>إلغاء</Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button type="button" className="p-1 rounded hover:bg-muted" onClick={() => setEditingDaily({ id: dr.id, km_total: String(dr.km_total), fuel_cost: String(dr.fuel_cost), notes: dr.notes || '' })}><Edit2 size={13} /></button>
+                                      <button type="button" className="p-1 rounded hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteDaily(dr.id)}><Trash2 size={13} /></button>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </td>
+            </tr>
+          )}
+        </React.Fragment>
+      );
+    });
+  }
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -798,105 +1022,7 @@ const FuelPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={`fuel-monthly-skeleton-row-${i}`} className="border-b border-border/30">
-                        {Array.from({ length: 9 }).map((_, j) => (
-                          <td key={`fuel-monthly-skeleton-cell-${i}-${j}`} className="px-4 py-3"><div className="h-4 bg-muted/60 rounded animate-pulse" /></td>
-                        ))}
-                      </tr>
-                    ))
-                  ) : filteredMonthly.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-16">
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <span className="text-4xl">⛽</span>
-                          <p className="font-medium">لا توجد بيانات لهذا الشهر</p>
-                          <p className="text-xs">أضف إدخالات يومية من عرض يومي أو غيّر المنصة/البحث</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    <>
-                      {filteredMonthly.map(row => {
-                        const costPerKm = row.km_total > 0 ? row.fuel_cost / row.km_total : null;
-                        const fuelPerOrder = row.orders_count > 0 ? row.fuel_cost / row.orders_count : null;
-                        return (
-                          <tr key={row.employee_id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                {row.personal_photo_url && (
-                                  <img src={row.personal_photo_url} className="w-8 h-8 rounded-full object-cover" alt="" />
-                                )}
-                                <span className="font-medium text-foreground">{row.employee_name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{row.daily_count} يوم</span>
-                            </td>
-                            <td className="px-4 py-3 text-center font-medium text-primary">{row.km_total.toLocaleString()} كم</td>
-                        <td className="px-4 py-3 text-center font-medium text-warning">{row.fuel_cost.toLocaleString()} ر.س</td>
-                            <td className={`px-4 py-3 text-center ${costPerKmColor(costPerKm)}`}>
-                              {costPerKm !== null ? `${costPerKm.toFixed(3)} ر.س/كم` : '—'}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {row.vehicle ? (
-                                <div className="flex flex-col items-center gap-0.5">
-                                  <span className="text-xs font-semibold text-foreground">
-                                    {row.vehicle.type === 'motorcycle' ? '🏍️' : '🚗'} {row.vehicle.plate_number}
-                                  </span>
-                                  {(row.vehicle.brand || row.vehicle.model) && (
-                                    <span className="text-[10px] text-muted-foreground">
-                                      {[row.vehicle.brand, row.vehicle.model].filter(Boolean).join(' ')}
-                                    </span>
-                                  )}
-                                </div>
-                              ) : <span className="text-muted-foreground/40 text-xs">—</span>}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              {row.orders_count > 0
-                                ? <span className="font-semibold text-foreground">{row.orders_count.toLocaleString()}</span>
-                                : <span className="text-muted-foreground/40">—</span>}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <div className="flex flex-col items-center gap-0.5">
-                                <span className="text-xs text-muted-foreground">{fuelPerOrder !== null ? `${fuelPerOrder.toFixed(2)} ر.س` : '—'}</span>
-                                {fuelPerOrderBadge(fuelPerOrder)}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedEmployee(row.employee_id);
-                                  setView('daily');
-                                  setExpandedRider(row.employee_id);
-                                }}
-                                className="text-xs text-primary hover:underline"
-                              >
-                                الأيام ←
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      <tr className="border-t-2 border-border bg-muted/20 font-semibold text-sm">
-                        <td className="px-4 py-3 text-foreground">الإجمالي ({filteredMonthly.length} مندوب)</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">—</td>
-                        <td className="px-4 py-3 text-center text-primary">{totalKm.toLocaleString()} كم</td>
-                        <td className="px-4 py-3 text-center text-warning">{totalFuel.toLocaleString()} ر.س</td>
-                        <td className={`px-4 py-3 text-center ${costPerKmColor(avgCostPerKm)}`}>
-                          {avgCostPerKm > 0 ? `${avgCostPerKm.toFixed(3)} ر.س/كم` : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">—</td>
-                        <td className="px-4 py-3 text-center">{totalOrders.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-center text-muted-foreground">
-                          {totalOrders > 0 ? `${(totalFuel / totalOrders).toFixed(2)} ر.س` : '—'}
-                        </td>
-                        <td />
-                      </tr>
-                    </>
-                  )}
+                  {monthlyBodyRows}
                 </tbody>
               </table>
             </div>
@@ -974,107 +1100,7 @@ const FuelPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">جاري التحميل...</td></tr>
-                  ) : ridersForTab.length === 0 ? (
-                    <tr><td colSpan={5} className="py-12 text-center text-muted-foreground">لا يوجد مناديب على هذه المنصة</td></tr>
-                  ) : (
-                    ridersForTab.map(emp => {
-                      const open = expandedRider === emp.id;
-                      const days = dailyForRider(emp.id);
-                      return (
-                        <React.Fragment key={emp.id}>
-                          <tr className="border-b border-border/30 hover:bg-muted/10">
-                            <td className="px-2 py-2 text-center">
-                              <button
-                                type="button"
-                                className="p-1 rounded hover:bg-muted"
-                                onClick={() => setExpandedRider(open ? null : emp.id)}
-                                aria-expanded={open}
-                              >
-                                {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                              </button>
-                            </td>
-                            <td className="px-4 py-2">
-                              <div className="flex items-center gap-2">
-                                {emp.personal_photo_url && <img src={emp.personal_photo_url} className="w-8 h-8 rounded-full object-cover" alt="" />}
-                                <span className="font-medium">{emp.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-2 text-center">
-                              {riderMonthOrders(emp.id) > 0
-                                ? <span className="font-semibold text-foreground">{riderMonthOrders(emp.id).toLocaleString()}</span>
-                                : <span className="text-muted-foreground/40">—</span>}
-                            </td>
-                            <td className="px-4 py-2 text-center font-medium text-primary">{riderMonthKm(emp.id).toLocaleString()}</td>
-                            <td className="px-4 py-2 text-center text-warning">{riderMonthFuel(emp.id).toLocaleString()} ر.س</td>
-                          </tr>
-                          {open && (
-                            <tr className="bg-muted/10">
-                              <td colSpan={5} className="p-0">
-                                <div className="p-3 space-y-2">
-                                  {days.length === 0 ? (
-                                    <p className="text-xs text-muted-foreground px-2">لا سجلات يومية لهذا الشهر</p>
-                                  ) : (
-                                    <table className="w-full text-xs border border-border/40 rounded-lg overflow-hidden">
-                                      <thead className="bg-muted/50">
-                                        <tr>
-                                          <th className="px-2 py-1.5 text-start">التاريخ</th>
-                                          <th className="px-2 py-1.5 text-center">كم</th>
-                                          <th className="px-2 py-1.5 text-center">بنزين</th>
-                                          <th className="px-2 py-1.5 text-start">ملاحظات</th>
-                                          <th className="px-2 py-1.5 text-center w-24">إجراء</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {days.map(dr => (
-                                          <tr key={dr.id} className="border-t border-border/30">
-                                            <td className="px-2 py-1.5 font-mono">{dr.date}</td>
-                                            <td className="px-2 py-1.5 text-center">
-                                              {editingDaily?.id === dr.id ? (
-                                                <Input className="h-7 text-xs" type="number" value={editingDaily.km_total} onChange={e => setEditingDaily(ed => ed ? { ...ed, km_total: e.target.value } : null)} />
-                                              ) : (dr.km_total || '—')}
-                                            </td>
-                                            <td className="px-2 py-1.5 text-center">
-                                              {editingDaily?.id === dr.id ? (
-                                                <Input className="h-7 text-xs" type="number" value={editingDaily.fuel_cost} onChange={e => setEditingDaily(ed => ed ? { ...ed, fuel_cost: e.target.value } : null)} />
-                                              ) : (dr.fuel_cost || '—')}
-                                            </td>
-                                            <td className="px-2 py-1.5">
-                                              {editingDaily?.id === dr.id ? (
-                                                <Input className="h-7 text-xs" value={editingDaily.notes} onChange={e => setEditingDaily(ed => ed ? { ...ed, notes: e.target.value } : null)} />
-                                              ) : (dr.notes || '—')}
-                                            </td>
-                                            <td className="px-2 py-1.5 text-center">
-                                              {permissions.can_edit && (
-                                                <div className="flex gap-1 justify-center">
-                                                  {editingDaily?.id === dr.id ? (
-                                                    <>
-                                                      <Button type="button" size="sm" className="h-7 text-[10px] px-2" disabled={savingEntry} onClick={() => saveEditedDaily(dr)}>حفظ</Button>
-                                                      <Button type="button" size="sm" variant="outline" className="h-7 text-[10px] px-2" onClick={() => setEditingDaily(null)}>إلغاء</Button>
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <button type="button" className="p-1 rounded hover:bg-muted" onClick={() => setEditingDaily({ id: dr.id, km_total: String(dr.km_total), fuel_cost: String(dr.fuel_cost), notes: dr.notes || '' })}><Edit2 size={13} /></button>
-                                                      <button type="button" className="p-1 rounded hover:bg-destructive/10 text-destructive" onClick={() => handleDeleteDaily(dr.id)}><Trash2 size={13} /></button>
-                                                    </>
-                                                  )}
-                                                </div>
-                                              )}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })
-                  )}
+                  {dailyRiderRows}
                 </tbody>
                 {permissions.can_edit && (
                   <tfoot>
@@ -1186,7 +1212,7 @@ function FuelDailyFastList(props: FuelDailyFastListProps) {
     setExporting(true);
     try {
       const employeeId = isAllDrivers ? undefined : String(filters.driverId);
-      const branch: Exclude<BranchKey, 'all'> | undefined = isAllBranches ? undefined : filters.branch;
+      const branch: FuelBranch | undefined = isAllBranches ? undefined : (filters.branch as FuelBranch);
       const search = filters.search?.trim() || undefined;
 
       const res = await fuelService.exportDailyMileage({

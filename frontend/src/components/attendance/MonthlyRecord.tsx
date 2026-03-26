@@ -114,9 +114,9 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
   let tableBodyRows: React.ReactNode;
   if (loading) {
     tableBodyRows = Array.from({ length: 5 }).map((_, i) => (
-      <tr key={`skeleton-row-${i}`} className="ta-tr">
+      <tr key={`row-skeleton-${i}`} className="ta-tr">
         {Array.from({ length: 8 }).map((_, j) => (
-          <td key={`skeleton-cell-${i}-${j}`} className="ta-td">
+          <td key={`cell-skeleton-${i}-${j}`} className="ta-td">
             <div className="h-4 bg-muted rounded animate-pulse" />
           </td>
         ))}

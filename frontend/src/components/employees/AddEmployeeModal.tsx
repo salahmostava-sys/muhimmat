@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { getErrorMessage } from '@/lib/query';
+import { cn } from '@/lib/utils';
 
 
 interface EmployeeData {
@@ -88,6 +89,17 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
   };
 
   const hasContent = file || existingStoragePath;
+  let previewNode: React.ReactNode = null;
+  if (file) {
+    const isImageFile = file.type.startsWith('image/');
+    previewNode = isImageFile
+      ? <img src={URL.createObjectURL(file)} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
+      : <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-2xl">📄</div>;
+  } else if (signedUrl) {
+    previewNode = <img src={signedUrl} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />;
+  } else if (existingStoragePath) {
+    previewNode = <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-xl">📄</div>;
+  }
 
   return (
     <div className="flex-1 min-w-[130px]">
@@ -101,15 +113,7 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
         <input ref={ref} type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={e => e.target.files?.[0] && onFile(e.target.files[0])} />
         {hasContent ? (
           <div className="space-y-1">
-            {file ? (
-              file.type.startsWith('image/')
-                ? <img src={URL.createObjectURL(file)} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
-                : <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-2xl">📄</div>
-            ) : signedUrl ? (
-              <img src={signedUrl} className="w-16 h-16 object-cover rounded-lg mx-auto" alt="" />
-            ) : existingStoragePath ? (
-              <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center mx-auto text-xl">📄</div>
-            ) : null}
+            {previewNode}
             <p className="text-xs text-foreground truncate max-w-[120px] mx-auto">{file ? file.name : 'مرفوع مسبقاً 🔒'}</p>
             <button type="button" onClick={e => { e.stopPropagation(); onRemove(); }} className="text-xs text-destructive hover:underline flex items-center gap-1 mx-auto">
               <Trash2 size={10} /> حذف
@@ -411,17 +415,25 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
 
         {/* Steps indicator */}
         <div className="flex items-center gap-0 px-6 pt-4 pb-2 shrink-0">
-          {STEPS.map((s, i) => (
-            <div key={s} className="flex items-center flex-1 last:flex-none">
-              <div className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${i < step ? 'bg-success text-success-foreground' : i === step ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-                  {i < step ? <Check size={12} /> : i + 1}
+          {STEPS.map((s, i) => {
+            const isDone = i < step;
+            const isCurrent = i === step;
+            let stateClass = 'bg-muted text-muted-foreground';
+            if (isDone) stateClass = 'bg-success text-success-foreground';
+            else if (isCurrent) stateClass = 'bg-primary text-primary-foreground';
+
+            return (
+              <div key={s} className="flex items-center flex-1 last:flex-none">
+                <div className="flex items-center gap-2">
+                  <div className={cn('w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors', stateClass)}>
+                    {isDone ? <Check size={12} /> : i + 1}
+                  </div>
+                  <span className={`text-xs hidden sm:block ${isCurrent ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{s}</span>
                 </div>
-                <span className={`text-xs hidden sm:block ${i === step ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>{s}</span>
+                {i < STEPS.length - 1 && <div className={`flex-1 h-px mx-2 ${isDone ? 'bg-success' : 'bg-border'}`} />}
               </div>
-              {i < STEPS.length - 1 && <div className={`flex-1 h-px mx-2 ${i < step ? 'bg-success' : 'bg-border'}`} />}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Content */}
