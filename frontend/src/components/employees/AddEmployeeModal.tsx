@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { X, Check, Trash2, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
+import { X, Check, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -103,9 +103,16 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
 
   return (
     <div className="flex-1 min-w-[130px]">
-      <div
+      <button
+        type="button"
         className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${drag ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}
         onClick={() => ref.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            ref.current?.click();
+          }
+        }}
         onDragOver={e => { e.preventDefault(); setDrag(true); }}
         onDragLeave={() => setDrag(false)}
         onDrop={handleDrop}
@@ -127,7 +134,7 @@ const UploadArea = ({ label, icon, file, existingStoragePath, onFile, onRemove }
             <p className="text-[10px] text-muted-foreground">JPG, PNG, PDF — 5MB</p>
           </>
         )}
-      </div>
+      </button>
     </div>
   );
 };
@@ -298,92 +305,94 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
   };
   const back = () => setStep(s => Math.max(s - 1, 0));
 
+  const buildEmployeePayload = (v: EmployeeFormValues) => ({
+    name: v.name,
+    employee_code: v.employee_code || null,
+    job_title: v.job_title || null,
+    phone: v.phone || null,
+    email: v.email || null,
+    national_id: v.national_id || null,
+    nationality: v.nationality || null,
+    bank_account_number: v.bank_account_number || null,
+    city: v.city || null,
+    join_date: v.join_date || null,
+    birth_date: v.birth_date || null,
+    residency_expiry: v.residency_expiry || null,
+    health_insurance_expiry: v.health_insurance_expiry || null,
+    probation_end_date: v.probation_end_date || null,
+    license_status: v.license_status,
+    sponsorship_status: v.sponsorship_status,
+    salary_type: v.salary_type,
+    base_salary: v.salary_type === 'shift' ? Number(v.base_salary || 0) : 0,
+    preferred_language: v.preferred_language,
+  });
+
+  const upsertEmployeeAndAudit = async (payload: ReturnType<typeof buildEmployeePayload>) => {
+    if (isEdit && editEmployee) {
+      await employeeService.updateEmployee(editEmployee.id, payload);
+      await auditService.logAdminAction({
+        action: 'employees.update',
+        table_name: 'employees',
+        record_id: editEmployee.id,
+        meta: { fields: Object.keys(payload) },
+      });
+      return editEmployee.id;
+    }
+
+    const createPayload = { ...payload, status: 'active' };
+    const { data: emp } = await employeeService.createEmployee(createPayload);
+    await auditService.logAdminAction({
+      action: 'employees.create',
+      table_name: 'employees',
+      record_id: emp.id,
+      meta: { name: createPayload.name, city: createPayload.city ?? null },
+    });
+    return emp.id;
+  };
+
+  const uploadEmployeeFiles = async (empId: string) => {
+    const uploads = [
+      { file: files.personal, path: `${empId}/personal_photo`, field: 'personal_photo_url' },
+      { file: files.id, path: `${empId}/id_photo`, field: 'id_photo_url' },
+      { file: files.license, path: `${empId}/license_photo`, field: 'license_photo_url' },
+    ];
+    const updates: Record<string, string> = {};
+    for (const u of uploads) {
+      if (!u.file) continue;
+      const validation = validateUploadFile(u.file, {
+        allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+      });
+      if (!validation.valid) {
+        const msg = 'error' in validation ? validation.error : 'ملف غير صالح';
+        throw new Error(msg);
+      }
+      const ext = u.file.name.split('.').pop();
+      const storagePath = `${u.path}.${ext}`;
+      const { data: upData } = await employeeService.uploadEmployeeDocument(storagePath, u.file);
+      if (upData) updates[u.field] = upData.path;
+    }
+    if (Object.keys(updates).length > 0) {
+      await employeeService.updateEmployeeDocumentPaths(empId, updates);
+    }
+  };
+
+  const syncEmployeeApps = async (empId: string, selectedApps: string[]) => {
+    const appIds = selectedApps
+      .map((appName) => availableApps.find((a) => a.name === appName)?.id)
+      .filter((id): id is string => Boolean(id));
+    await employeeService.replaceEmployeeApps(empId, appIds);
+  };
+
   const save = async () => {
     const ok = await validateStep(step);
     if (!ok) return;
     setSaving(true);
     try {
       const v = getValues();
-      const payload: any = {
-        name: v.name,
-        employee_code: v.employee_code || null,
-        job_title: v.job_title || null,
-        phone: v.phone || null,
-        email: v.email || null,
-        national_id: v.national_id || null,
-        nationality: v.nationality || null,
-        bank_account_number: v.bank_account_number || null,
-        city: v.city || null,
-        join_date: v.join_date || null,
-        birth_date: v.birth_date || null,
-        residency_expiry: v.residency_expiry || null,
-        health_insurance_expiry: v.health_insurance_expiry || null,
-        probation_end_date: v.probation_end_date || null,
-        license_status: v.license_status,
-        sponsorship_status: v.sponsorship_status,
-        salary_type: v.salary_type,
-        base_salary: v.salary_type === 'shift' ? Number(v.base_salary || 0) : 0,
-        preferred_language: v.preferred_language,
-      };
-
-      let empId: string;
-
-      if (isEdit && editEmployee) {
-        await employeeService.updateEmployee(editEmployee.id, payload);
-        empId = editEmployee.id;
-        await auditService.logAdminAction({
-          action: 'employees.update',
-          table_name: 'employees',
-          record_id: empId,
-          meta: { fields: Object.keys(payload) },
-        });
-      } else {
-        payload.status = 'active';
-        const { data: emp } = await employeeService.createEmployee(payload);
-        empId = emp.id;
-        await auditService.logAdminAction({
-          action: 'employees.create',
-          table_name: 'employees',
-          record_id: empId,
-          meta: { name: payload.name, city: payload.city ?? null },
-        });
-      }
-
-      // Upload documents — store the storage PATH (not a public URL) so we can
-      // generate short-lived signed URLs on demand later.
-      const uploads = [
-        { file: files.personal, path: `${empId}/personal_photo`, field: 'personal_photo_url' },
-        { file: files.id, path: `${empId}/id_photo`, field: 'id_photo_url' },
-        { file: files.license, path: `${empId}/license_photo`, field: 'license_photo_url' },
-      ];
-      const updates: Record<string, string> = {};
-      for (const u of uploads) {
-        if (u.file) {
-          const validation = validateUploadFile(u.file, {
-            allowedTypes: ['image/jpeg', 'image/png', 'application/pdf'],
-          });
-          if (!validation.valid) {
-            const msg = 'error' in validation ? validation.error : 'ملف غير صالح';
-            throw new Error(msg);
-          }
-          const ext = u.file.name.split('.').pop();
-          const storagePath = `${u.path}.${ext}`;
-          const { data: upData } = await employeeService.uploadEmployeeDocument(storagePath, u.file);
-          if (upData) {
-            // Store the raw storage path — NOT a public URL
-            updates[u.field] = upData.path;
-          }
-        }
-      }
-      if (Object.keys(updates).length > 0) {
-        await employeeService.updateEmployeeDocumentPaths(empId, updates);
-      }
-
-      // Sync employee_apps: delete old, insert new
-      const appIds = (v.selected_apps || [])
-        .map((appName) => availableApps.find((a) => a.name === appName)?.id)
-        .filter((id): id is string => Boolean(id));
-      await employeeService.replaceEmployeeApps(empId, appIds);
+      const payload = buildEmployeePayload(v);
+      const empId = await upsertEmployeeAndAudit(payload);
+      await uploadEmployeeFiles(empId);
+      await syncEmployeeApps(empId, v.selected_apps || []);
 
       toast({
         title: isEdit ? 'تم تحديث بيانات المندوب' : 'تم إضافة المندوب بنجاح',
@@ -399,6 +408,14 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       setSaving(false);
     }
   };
+  const isLastStep = step === STEPS.length - 1;
+  let footerActionContent: React.ReactNode = <>التالي <ChevronRight size={15} /></>;
+  if (saving) {
+    footerActionContent = 'جاري الحفظ...';
+  } else if (isLastStep) {
+    const submitLabel = isEdit ? 'حفظ التعديلات' : 'حفظ المندوب';
+    footerActionContent = <><Check size={15} /> {submitLabel}</>;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -554,7 +571,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
                     {resStatus.valid ? '✅' : '🔴'}
                     <span>
                       حالة الإقامة: {resStatus.valid ? 'صالحة' : 'منتهية'} —
-                      {resStatus.valid ? ` متبقي ${resStatus.days} يوم` : ` منذ ${Math.abs(resStatus.days!)} يوم`}
+                      {resStatus.valid ? ` متبقي ${resStatus.days} يوم` : ` منذ ${Math.abs(resStatus.days)} يوم`}
                     </span>
                   </div>
                 )}
@@ -689,9 +706,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
             {step === 0 ? 'إلغاء' : <><ChevronLeft size={15} /> السابق</>}
           </Button>
           <Button onClick={step === STEPS.length - 1 ? save : next} disabled={saving} className="gap-2">
-            {saving ? 'جاري الحفظ...' : step === STEPS.length - 1
-              ? <><Check size={15} /> {isEdit ? 'حفظ التعديلات' : 'حفظ المندوب'}</>
-              : <>التالي <ChevronRight size={15} /></>}
+            {footerActionContent}
           </Button>
         </div>
       </div>

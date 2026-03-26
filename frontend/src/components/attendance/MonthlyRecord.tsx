@@ -30,6 +30,8 @@ const MONTHS_EN = [
   "November",
   "December",
 ];
+const SKELETON_ROW_IDS = ["r1", "r2", "r3", "r4", "r5"];
+const SKELETON_CELL_IDS = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8"];
 
 type Employee = { id: string; name: string; national_id: string | null; salary_type: string; base_salary: number };
 type AttendanceRow = { employee_id: string; status: string };
@@ -113,10 +115,10 @@ const MonthlyRecord = ({ selectedMonth, selectedYear }: Props) => {
   const stickyAlignClass = isRTL ? "text-right" : "text-left";
   let tableBodyRows: React.ReactNode;
   if (loading) {
-    tableBodyRows = Array.from({ length: 5 }).map((_, i) => (
-      <tr key={`row-skeleton-${i}`} className="ta-tr">
-        {Array.from({ length: 8 }).map((_, j) => (
-          <td key={`cell-skeleton-${i}-${j}`} className="ta-td">
+    tableBodyRows = SKELETON_ROW_IDS.map((rowId) => (
+      <tr key={`row-skeleton-${rowId}`} className="ta-tr">
+        {SKELETON_CELL_IDS.map((cellId) => (
+          <td key={`cell-skeleton-${rowId}-${cellId}`} className="ta-td">
             <div className="h-4 bg-muted rounded animate-pulse" />
           </td>
         ))}
