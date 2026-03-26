@@ -3,6 +3,10 @@ import * as XLSX from '@e965/xlsx';
 /** Parse Excel cell value to ISO date string yyyy-MM-dd */
 export function parseExcelDate(val: unknown): string | null {
   if (val === undefined || val === null || val === '') return null;
+  if (val instanceof Date) {
+    if (Number.isNaN(val.getTime())) return null;
+    return val.toISOString().split('T')[0];
+  }
   if (typeof val === 'number') {
     const date = XLSX.SSF.parse_date_code(val);
     if (date) {
