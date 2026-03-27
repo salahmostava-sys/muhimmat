@@ -64,18 +64,11 @@ const queryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      staleTime: 60_000,
+      staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
-      retry: (failureCount, error: unknown) => {
-        if (error && typeof error === "object" && "status" in error) {
-          const status = (error as { status?: number }).status;
-          if (status === 401 || status === 403) return false;
-        }
-        return failureCount < 2;
-      },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+      retry: 1,
     },
   },
 });
