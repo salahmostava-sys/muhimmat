@@ -24,7 +24,12 @@ export const authService = {
   },
 
   signOut: async (): Promise<void> => {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (!error) return;
+    const message = String((error as { message?: unknown }).message ?? "").toLowerCase();
+    if (message.includes("session") && message.includes("missing")) {
+      return;
+    }
     throwIfError(error, "authService.signOut");
   },
 

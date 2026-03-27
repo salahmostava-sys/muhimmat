@@ -294,8 +294,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = useCallback(async () => {
-    await authService.signOut();
-  }, []);
+    try {
+      await authService.signOut();
+    } catch (e) {
+      console.warn('[Auth] signOut fallback: remote signOut failed, forcing local unauthenticated state', e);
+    } finally {
+      await handleUnauthenticatedState('manual_signout');
+    }
+  }, [handleUnauthenticatedState]);
 
   const busy = loading || refreshing;
   const contextValue = useMemo<AuthContextType>(() => ({
