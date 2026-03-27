@@ -6,6 +6,7 @@ import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@shared/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@shared/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
 import { useToast } from '@shared/hooks/use-toast';
@@ -2583,9 +2584,16 @@ const Salaries = () => {
                             {shortEmployeeName(r.employeeName)}
                           </button>
                           {r.isDirty && (
-                            <span title="تم تعديل البيانات بعد الاعتماد — يرجى إعادة الاعتماد" className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/40 whitespace-nowrap cursor-help">
-                              <AlertTriangle size={9} /> يحتاج إعادة اعتماد
-                            </span>
+                            <TooltipProvider delayDuration={120}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-warning/20 text-warning border border-warning/40 cursor-help">
+                                    <AlertTriangle size={11} />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">يحتاج إعادة الاعتمال</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       </td>

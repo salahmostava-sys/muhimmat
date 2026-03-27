@@ -7,6 +7,8 @@ import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@shared/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@shared/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@shared/components/ui/command';
 import { advanceService } from '@services/advanceService';
 import type { AdvancePayload } from '@services/advanceService';
 import { useToast } from '@shared/hooks/use-toast';
@@ -829,6 +831,7 @@ const Advances = () => {
   const [writeOffEmployee, setWriteOffEmployee] = useState<{ name: string; remaining: number; advanceIds: string[] } | null>(null);
   const [restoreWriteOffEmployee, setRestoreWriteOffEmployee] = useState<{ name: string; advanceIds: string[] } | null>(null);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
+  const [addEmployeePickerOpen, setAddEmployeePickerOpen] = useState(false);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [deleteEmployeeAdvancesId, setDeleteEmployeeAdvancesId] = useState<string | null>(null);
@@ -1344,22 +1347,48 @@ const Advances = () => {
             </DialogHeader>
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">اختر مندوباً من القائمة لإضافة سلفة له مباشرة.</p>
-              <Select onValueChange={(empId) => {
-                const emp = employees.find(e => e.id === empId);
-                if (emp) {
-                  setTransactionsEmployee({ id: emp.id, name: emp.name, nationalId: '', totalDebt: 0, totalPaid: 0, remaining: 0, isWrittenOff: false, allAdvances: [] });
-                }
-                setShowAddEmployee(false);
-              }}>
-                <SelectTrigger><SelectValue placeholder="اختر المندوب..." /></SelectTrigger>
-                <SelectContent>
-                  {employees
-                    .filter(e => !employeeSummaries.some(s => s.employeeId === e.id))
-                    .map(e => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <Popover open={addEmployeePickerOpen} onOpenChange={setAddEmployeePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full justify-between">
+                    اختر المندوب...
+                    <Search size={14} className="text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="ابحث باسم المندوب..." />
+                    <CommandList>
+                      <CommandEmpty>لا يوجد مندوب مطابق</CommandEmpty>
+                      <CommandGroup>
+                        {employees
+                          .filter((e) => !employeeSummaries.some((s) => s.employeeId === e.id))
+                          .map((e) => (
+                            <CommandItem
+                              key={e.id}
+                              value={`${e.name} ${e.id}`}
+                              onSelect={() => {
+                                setTransactionsEmployee({
+                                  id: e.id,
+                                  name: e.name,
+                                  nationalId: '',
+                                  totalDebt: 0,
+                                  totalPaid: 0,
+                                  remaining: 0,
+                                  isWrittenOff: false,
+                                  allAdvances: [],
+                                });
+                                setAddEmployeePickerOpen(false);
+                                setShowAddEmployee(false);
+                              }}
+                            >
+                              {e.name}
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddEmployee(false)}>إلغاء</Button>

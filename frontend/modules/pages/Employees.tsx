@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type ComponentProps } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Eye, Edit, Trash2,
   Loader2, Columns, Filter, X, CalendarDays,
@@ -342,6 +343,7 @@ function sortEmployees(rows: Employee[], sortField: string | null, sortDir: Sort
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const Employees = () => {
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const { permissions } = usePermissions('employees');
   const currentMonth = format(new Date(), 'yyyy-MM');
@@ -387,6 +389,30 @@ const Employees = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const uploadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const syncSystemAfterEmployeeImport = useCallback(async () => {
+    const shouldRefresh = (value: string) =>
+      value.includes('employee')
+      || value.includes('dashboard')
+      || value.includes('order')
+      || value.includes('attendance')
+      || value.includes('advance')
+      || value.includes('salary')
+      || value.includes('fuel')
+      || value.includes('vehicle')
+      || value.includes('platform')
+      || value.includes('alert')
+      || value.includes('tier')
+      || value.includes('app');
+
+    const predicate = (query: { queryKey: readonly unknown[] }) => {
+      const keyText = query.queryKey.map((part) => String(part).toLowerCase()).join(' ');
+      return shouldRefresh(keyText);
+    };
+
+    await queryClient.invalidateQueries({ predicate });
+    await queryClient.refetchQueries({ predicate, type: 'active' });
+  }, [queryClient]);
   const [uploadReport, setUploadReport] = useState<UploadReport | null>(null);
   const [uploadLiveStats, setUploadLiveStats] = useState<UploadLiveStats>({
     processedNames: 0,
@@ -725,6 +751,9 @@ const Employees = () => {
         return;
       }
       await refetchEmployees();
+      if (report.successfulRows > 0) {
+        await syncSystemAfterEmployeeImport();
+      }
       await auditService.logAdminAction({
         action: 'employees.import_arabic_template',
         table_name: 'employees',

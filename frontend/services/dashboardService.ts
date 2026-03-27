@@ -33,7 +33,6 @@ export const dashboardService = {
     const attempts: Array<Record<string, unknown>> = [
       { p_month_year: monthYear, p_today: today },                    // current signature
       { p_monthly_year: monthYear, p_today: today },                  // legacy signature (without company)
-      { p_company_id: null, p_monthly_year: monthYear, p_today: today }, // legacy signature (company_id)
       { p_cip: null, p_monthly_year: monthYear, p_today: today },     // typo/older variant seen in deployments
     ];
 
