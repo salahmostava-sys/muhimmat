@@ -101,6 +101,10 @@ const App = () => (
                       <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
                       <Route path="/forgot-password" element={<AuthLayout><ForgotPassword /></AuthLayout>} />
                       <Route path="/reset-password" element={<AuthLayout><ResetPassword /></AuthLayout>} />
+                      <Route path="/forgot" element={<Navigate to="/forgot-password" replace />} />
+                      <Route path="/forget-password" element={<Navigate to="/forgot-password" replace />} />
+                      <Route path="/reset" element={<Navigate to="/reset-password" replace />} />
+                      <Route path="/resetpass" element={<Navigate to="/reset-password" replace />} />
                       <Route
                         path="/*"
                         element={
@@ -123,6 +127,7 @@ const App = () => (
                                     <Route path="/employee-tiers" element={<PageGuard pageKey="employee_tiers"><EmployeeTiers /></PageGuard>} />
                                     <Route path="/platform-accounts" element={<PageGuard pageKey="platform_accounts"><PlatformAccounts /></PageGuard>} />
                                     <Route path="/profile" element={<ProfilePage />} />
+                                    <Route path="/profile-page" element={<Navigate to="/profile" replace />} />
                                     <Route path="/settings" element={<PageGuard pageKey="settings"><SettingsHub /></PageGuard>} />
                                     <Route path="/settings/general" element={<Navigate to="/settings?tab=general" replace />} />
                                     <Route path="/settings/schemes" element={<Navigate to="/settings?tab=schemes" replace />} />
