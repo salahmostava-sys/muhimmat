@@ -693,9 +693,22 @@ const Employees = () => {
           <h1 className="page-title">الموظفين</h1>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setViewMode('fast')}>
-            <Columns size={14} /> قائمة (سريعة)
-          </Button>
+          {permissions.can_edit && (
+            <Button onClick={() => { setEditEmployee(null); setShowAddModal(true); }} className="gap-2 h-9">
+              <Plus size={15} /> إضافة موظف
+            </Button>
+          )}
+
+          <DataTableActions
+            loading={actionLoading}
+            onExport={runExportDetailed}
+            onDownloadTemplate={runTemplateDownload}
+            onPrint={runPrintDetailed}
+            onImportFile={runImportFile}
+            hideImport={!permissions.can_edit}
+            className="!w-auto !justify-start"
+          />
+
           {/* Hide/show columns */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -724,21 +737,9 @@ const Employees = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <DataTableActions
-            loading={actionLoading}
-            onExport={runExportDetailed}
-            onDownloadTemplate={runTemplateDownload}
-            onPrint={runPrintDetailed}
-            onImportFile={runImportFile}
-            hideImport={!permissions.can_edit}
-            className="!w-auto !justify-start"
-          />
-
-          {permissions.can_edit && (
-            <Button onClick={() => { setEditEmployee(null); setShowAddModal(true); }} className="gap-2 h-9">
-              <Plus size={15} /> إضافة موظف
-            </Button>
-          )}
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setViewMode('fast')}>
+            <Columns size={14} /> قائمة (سريعة)
+          </Button>
         </div>
       </div>
 
