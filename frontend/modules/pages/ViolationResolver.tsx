@@ -92,6 +92,27 @@ function violationApprovalBadgeClasses(status: string): string {
   return 'bg-muted text-muted-foreground border-border/50';
 }
 
+function getViolationSortValue(
+  row: ViolationRecord,
+  field: 'employee_name' | 'violation_details' | 'incident_date' | 'amount' | 'status' | 'advance_status',
+  isConverted: (v: ViolationRecord) => boolean
+): string | number {
+  switch (field) {
+    case 'amount':
+      return row.amount || 0;
+    case 'incident_date':
+      return row.incident_date || '';
+    case 'status':
+      return row.status || '';
+    case 'violation_details':
+      return row.violation_details || '';
+    case 'advance_status':
+      return isConverted(row) ? 1 : 0;
+    default:
+      return row.employee_name || '';
+  }
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const ViolationResolver = () => {
   const { toast } = useToast();
@@ -521,27 +542,8 @@ const ViolationResolver = () => {
   const sortedViolations = useMemo(() => {
     const rows = [...violations];
     rows.sort((a, b) => {
-      let va: string | number = '';
-      let vb: string | number = '';
-      if (vSortField === 'amount') {
-        va = a.amount || 0;
-        vb = b.amount || 0;
-      } else if (vSortField === 'incident_date') {
-        va = a.incident_date || '';
-        vb = b.incident_date || '';
-      } else if (vSortField === 'status') {
-        va = a.status || '';
-        vb = b.status || '';
-      } else if (vSortField === 'violation_details') {
-        va = a.violation_details || '';
-        vb = b.violation_details || '';
-      } else if (vSortField === 'advance_status') {
-        va = isViolationConvertedToAdvance(a) ? 1 : 0;
-        vb = isViolationConvertedToAdvance(b) ? 1 : 0;
-      } else {
-        va = a.employee_name || '';
-        vb = b.employee_name || '';
-      }
+      const va = getViolationSortValue(a, vSortField, isViolationConvertedToAdvance);
+      const vb = getViolationSortValue(b, vSortField, isViolationConvertedToAdvance);
       if (va < vb) return vSortDir === 'asc' ? -1 : 1;
       if (va > vb) return vSortDir === 'asc' ? 1 : -1;
       return 0;
