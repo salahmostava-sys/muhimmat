@@ -30,6 +30,7 @@ export default function ProjectSettings() {
   const [defaultLang, setDefaultLang] = useState('ar');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [iqamaAlertDays, setIqamaAlertDays] = useState(90);
   const [saving, setSaving] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
@@ -40,6 +41,7 @@ export default function ProjectSettings() {
       setNameEn(settings.project_name_en);
       setDefaultLang(settings.default_language);
       setLogoPreview(settings.logo_url);
+      setRemoveLogo(false);
       setIqamaAlertDays(settings.iqama_alert_days ?? 90);
     }
   }, [settings]);
@@ -56,6 +58,7 @@ export default function ProjectSettings() {
     }
     setLogoFile(file);
     setLogoPreview(URL.createObjectURL(file));
+    setRemoveLogo(false);
   };
 
   const handleSave = async () => {
@@ -63,9 +66,12 @@ export default function ProjectSettings() {
     try {
       let logo_url = settings?.logo_url ?? null;
 
-      if (logoFile) {
+      if (removeLogo) {
+        logo_url = null;
+      } else if (logoFile) {
         const ext = logoFile.name.split('.').pop();
-        const path = `${user?.id}/project-logo.${ext}`;
+        const version = Date.now();
+        const path = `${user?.id ?? 'system'}/project-logo-${version}.${ext}`;
         try {
           await settingsHubService.uploadCompanyLogo(path, logoFile);
         } catch (e: unknown) {
@@ -103,6 +109,8 @@ export default function ProjectSettings() {
       }
 
       await refresh();
+      setLogoFile(null);
+      setRemoveLogo(false);
       toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated' });
     } catch (err: unknown) {
       console.error('[ProjectSettings] save failed', err);
@@ -219,7 +227,11 @@ export default function ProjectSettings() {
             <div className="relative">
               <img src={logoPreview} alt="logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
               <button
-                onClick={() => { setLogoPreview(null); setLogoFile(null); }}
+                onClick={() => {
+                  setLogoPreview(null);
+                  setLogoFile(null);
+                  setRemoveLogo(true);
+                }}
                 className="absolute -top-1.5 -end-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
               >
                 <X size={10} />
