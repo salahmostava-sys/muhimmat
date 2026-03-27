@@ -51,7 +51,3 @@ export const useAlerts = () => {
 
   return { ...query, uid, iqamaAlertDays };
 };
-
-// Backward-compatible alias to avoid breaking imports during migration.
-export const useAlertsData = useAlerts;
-

@@ -275,6 +275,8 @@ const ViolationResolver = () => {
   const [activeTab, setActiveTab] = useState<'search' | 'saved'>('search');
   const [vSortField, setVSortField] = useState<ViolationSortFieldKey>('incident_date');
   const [vSortDir, setVSortDir] = useState<'asc' | 'desc'>('desc');
+  const [savedSearch, setSavedSearch] = useState('');
+  const [savedStatusFilter, setSavedStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   const isAdvanceLegacyNote = useCallback(
     (details: string) => /تم التحويل لسلفة|معرّف السلفة:/u.test(details || ''),
@@ -638,6 +640,24 @@ const ViolationResolver = () => {
     return rows;
   }, [isViolationConvertedToAdvance, violations, vSortDir, vSortField]);
 
+  const filteredSortedViolations = useMemo(() => {
+    const query = savedSearch.trim().toLowerCase();
+    return sortedViolations.filter((row) => {
+      if (savedStatusFilter !== 'all' && row.status !== savedStatusFilter) return false;
+      if (!query) return true;
+      return row.employee_name.toLowerCase().includes(query)
+        || row.violation_details.toLowerCase().includes(query);
+    });
+  }, [savedSearch, savedStatusFilter, sortedViolations]);
+
+  const violationStats = useMemo(() => {
+    const total = violations.length;
+    const pending = violations.filter((v) => v.status === 'pending').length;
+    const approved = violations.filter((v) => v.status === 'approved').length;
+    const converted = violations.filter((v) => isViolationConvertedToAdvance(v)).length;
+    return { total, pending, approved, converted };
+  }, [isViolationConvertedToAdvance, violations]);
+
   const toggleVSort = (field: ViolationSortFieldKey) => {
     if (vSortField === field) setVSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
@@ -671,6 +691,13 @@ const ViolationResolver = () => {
       </div>
 
       <div className="max-w-5xl space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="rounded-lg border bg-card p-3 text-sm">إجمالي المخالفات: <span className="font-bold">{violationStats.total}</span></div>
+          <div className="rounded-lg border bg-card p-3 text-sm">قيد المراجعة: <span className="font-bold">{violationStats.pending}</span></div>
+          <div className="rounded-lg border bg-card p-3 text-sm">موافَق: <span className="font-bold">{violationStats.approved}</span></div>
+          <div className="rounded-lg border bg-card p-3 text-sm">محوّل لسلفة: <span className="font-bold">{violationStats.converted}</span></div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <Button variant={activeTab === 'search' ? 'default' : 'outline'} size="sm" onClick={() => setActiveTab('search')}>
             الاستعلام
@@ -934,16 +961,38 @@ const ViolationResolver = () => {
             </div>
           </div>
 
+          <div className="px-5 py-3 border-b border-border/40 bg-muted/20">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <Input
+                value={savedSearch}
+                onChange={(e) => setSavedSearch(e.target.value)}
+                placeholder="بحث باسم الموظف أو تفاصيل المخالفة..."
+                className="h-9"
+              />
+              <Select value={savedStatusFilter} onValueChange={(v) => setSavedStatusFilter(v as 'all' | 'pending' | 'approved' | 'rejected')}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="كل الحالات" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الحالات</SelectItem>
+                  <SelectItem value="pending">قيد المراجعة</SelectItem>
+                  <SelectItem value="approved">موافَق</SelectItem>
+                  <SelectItem value="rejected">مرفوض</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {(() => {
             if (violationsLoading) {
               return <div className="p-10 text-center text-muted-foreground text-sm">جارٍ التحميل...</div>;
             }
-            if (violations.length === 0) {
+            if (filteredSortedViolations.length === 0) {
               return (
                 <div className="p-12 text-center text-muted-foreground">
                   <CheckCircle2 className="mx-auto mb-3 text-success opacity-30" size={48} />
-                  <p className="font-medium">لا توجد مخالفات مسجلة</p>
-                  <p className="text-sm mt-1">قم بعمل بحث ثم تأكيد ✓ للحفظ.</p>
+                  <p className="font-medium">لا توجد نتائج مطابقة</p>
+                  <p className="text-sm mt-1">غيّر الفلاتر أو قم بتسجيل مخالفات جديدة.</p>
                 </div>
               );
             }
@@ -974,7 +1023,7 @@ const ViolationResolver = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {sortedViolations.map(v => {
+                  {filteredSortedViolations.map(v => {
                     const statusBadge = violationApprovalBadgeClasses(v.status);
                     const convertedAdv = isViolationConvertedToAdvance(v);
 

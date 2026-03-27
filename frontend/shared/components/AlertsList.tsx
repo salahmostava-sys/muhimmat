@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Clock, Shield, CreditCard } from 'lucide-react';
-import { useAlerts } from '@shared/hooks/useAlertsData';
+import { useAlerts } from '@shared/hooks/useAlerts';
 import { useRealtimePostgresChanges, REALTIME_TABLES_ALERTS_WIDGET } from '@shared/hooks/useRealtimePostgresChanges';
 
 const typeLabels: Record<string, string> = {

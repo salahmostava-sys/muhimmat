@@ -12,7 +12,7 @@ import { useToast } from '@shared/hooks/use-toast';
 import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId } from '@shared/hooks/useAuthQueryGate';
 import { alertsService } from '@services/alertsService';
-import { useAlerts } from '@shared/hooks/useAlertsData';
+import { useAlerts } from '@shared/hooks/useAlerts';
 import type { Alert } from '@shared/lib/alertsBuilder';
 import { escapeHtml } from '@shared/lib/security';
 import { format } from 'date-fns';
