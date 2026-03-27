@@ -6,7 +6,8 @@ let monitoringInstalled = false;
 
 /**
  * Centralized error logger.
- * In production we keep logs silent to avoid noisy browser consoles.
+ * In production we avoid noisy console logs and forward events
+ * to monitoring when VITE_MONITORING_ENDPOINT is configured.
  */
 function emitLog(level: LogLevel, message: string, payload: unknown) {
   if (level === 'warn') {
