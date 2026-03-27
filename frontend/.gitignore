@@ -3,6 +3,9 @@
 # Build/test artifacts
 dist/
 coverage/
+test-results/
+playwright-report/
+playwright/.cache/
 
 # AI tool metadata / prompts
 .lovable
