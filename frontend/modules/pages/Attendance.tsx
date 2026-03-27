@@ -106,8 +106,8 @@ const Attendance = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => {
                 const table = document.querySelector('table');
-                if (!table) return;
-                printHtmlTable(table as HTMLTableElement, { title: 'سجل الحضور' });
+                if (!(table instanceof HTMLTableElement)) return;
+                printHtmlTable(table, { title: 'سجل الحضور' });
               }}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

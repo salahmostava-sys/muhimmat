@@ -145,20 +145,20 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
       <p className="text-xs font-medium text-foreground mb-3">إضافة سلفة</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">المبلغ (ر.س) *</label>
-          <Input type="number" className="h-7 text-xs" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0" />
+          <label htmlFor="quick-advance-amount" className="text-[11px] text-muted-foreground mb-1 block">المبلغ (ر.س) *</label>
+          <Input id="quick-advance-amount" type="number" className="h-7 text-xs" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="0" />
         </div>
         <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">تاريخ الصرف *</label>
-          <Input type="date" className="h-7 text-xs" value={form.disbursement_date} onChange={e => setForm(p => ({ ...p, disbursement_date: e.target.value }))} />
+          <label htmlFor="quick-advance-date" className="text-[11px] text-muted-foreground mb-1 block">تاريخ الصرف *</label>
+          <Input id="quick-advance-date" type="date" className="h-7 text-xs" value={form.disbursement_date} onChange={e => setForm(p => ({ ...p, disbursement_date: e.target.value }))} />
         </div>
         <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">أول شهر خصم *</label>
-          <Input type="month" className="h-7 text-xs" value={form.first_deduction_month} onChange={e => setForm(p => ({ ...p, first_deduction_month: e.target.value }))} dir="ltr" />
+          <label htmlFor="quick-advance-month" className="text-[11px] text-muted-foreground mb-1 block">أول شهر خصم *</label>
+          <Input id="quick-advance-month" type="month" className="h-7 text-xs" value={form.first_deduction_month} onChange={e => setForm(p => ({ ...p, first_deduction_month: e.target.value }))} dir="ltr" />
         </div>
         <div className="sm:col-span-3">
-          <label className="text-[11px] text-muted-foreground mb-1 block">ملاحظات</label>
-          <Input className="h-7 text-xs" value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="سبب السلفة..." />
+          <label htmlFor="quick-advance-note" className="text-[11px] text-muted-foreground mb-1 block">ملاحظات</label>
+          <Input id="quick-advance-note" className="h-7 text-xs" value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} placeholder="سبب السلفة..." />
         </div>
       </div>
       <div className="flex gap-2 mt-3 justify-end">
@@ -216,8 +216,8 @@ const WriteOffDialog = ({ employeeName, remaining, advanceIds, onClose, onDone }
             <p className="text-xs text-muted-foreground mt-2">⚠️ يمكن التراجع عن هذا الإجراء لاحقاً من خلال زر الاسترداد.</p>
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">سبب الإعدام</label>
-            <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="مثال: المندوب هرب / ترك العمل..." />
+            <label htmlFor="writeoff-reason" className="text-sm font-medium mb-1 block">سبب الإعدام</label>
+            <Input id="writeoff-reason" value={reason} onChange={e => setReason(e.target.value)} placeholder="مثال: المندوب هرب / ترك العمل..." />
           </div>
         </div>
         <DialogFooter className="mt-2 gap-2">
@@ -344,21 +344,21 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
         <DialogHeader><DialogTitle>✏️ تعديل السلفة — {advance.employees?.name}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="text-sm font-medium mb-1 block">المبلغ الإجمالي (ر.س)</label>
-            <Input type="number" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
+            <label htmlFor="edit-advance-amount" className="text-sm font-medium mb-1 block">المبلغ الإجمالي (ر.س)</label>
+            <Input id="edit-advance-amount" type="number" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">تاريخ الصرف</label>
-            <Input type="date" value={form.disbursement_date} onChange={e => setForm(p => ({ ...p, disbursement_date: e.target.value }))} />
+            <label htmlFor="edit-advance-date" className="text-sm font-medium mb-1 block">تاريخ الصرف</label>
+            <Input id="edit-advance-date" type="date" value={form.disbursement_date} onChange={e => setForm(p => ({ ...p, disbursement_date: e.target.value }))} />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">أول شهر خصم</label>
-            <Input type="month" value={form.first_deduction_month} onChange={e => setForm(p => ({ ...p, first_deduction_month: e.target.value }))} dir="ltr" />
+            <label htmlFor="edit-advance-first-month" className="text-sm font-medium mb-1 block">أول شهر خصم</label>
+            <Input id="edit-advance-first-month" type="month" value={form.first_deduction_month} onChange={e => setForm(p => ({ ...p, first_deduction_month: e.target.value }))} dir="ltr" />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">الحالة</label>
+            <label htmlFor="edit-advance-status" className="text-sm font-medium mb-1 block">الحالة</label>
             <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v as AdvanceStatus }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="edit-advance-status"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">نشطة</SelectItem>
                 <SelectItem value="completed">مكتملة</SelectItem>
@@ -366,8 +366,8 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
             </Select>
           </div>
           <div className="col-span-2">
-            <label className="text-sm font-medium mb-1 block">ملاحظات</label>
-            <textarea value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} rows={2}
+            <label htmlFor="edit-advance-note" className="text-sm font-medium mb-1 block">ملاحظات</label>
+            <textarea id="edit-advance-note" value={form.note} onChange={e => setForm(p => ({ ...p, note: e.target.value }))} rows={2}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring" />
           </div>
         </div>

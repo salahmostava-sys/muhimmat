@@ -169,17 +169,17 @@ const VehicleFormModal = ({
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1">
           <div>
-            <label className="text-sm font-medium mb-1 block">رقم اللوحة (عربي) *</label>
-            <Input value={form.plate_number} onChange={e => setForm(p => ({ ...p, plate_number: e.target.value }))} placeholder="مثال: أ ب ج 1234" />
+            <label htmlFor="vehicle-plate-ar" className="text-sm font-medium mb-1 block">رقم اللوحة (عربي) *</label>
+            <Input id="vehicle-plate-ar" value={form.plate_number} onChange={e => setForm(p => ({ ...p, plate_number: e.target.value }))} placeholder="مثال: أ ب ج 1234" />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">رقم اللوحة (إنجليزي)</label>
-            <Input value={form.plate_number_en} onChange={e => setForm(p => ({ ...p, plate_number_en: e.target.value }))} placeholder="AD 2469" dir="ltr" />
+            <label htmlFor="vehicle-plate-en" className="text-sm font-medium mb-1 block">رقم اللوحة (إنجليزي)</label>
+            <Input id="vehicle-plate-en" value={form.plate_number_en} onChange={e => setForm(p => ({ ...p, plate_number_en: e.target.value }))} placeholder="AD 2469" dir="ltr" />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">النوع</label>
+            <label htmlFor="vehicle-type" className="text-sm font-medium mb-1 block">النوع</label>
             <Select value={form.type} onValueChange={v => setForm(p => ({ ...p, type: v as 'motorcycle' | 'car' }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="vehicle-type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="motorcycle">موتوسيكل</SelectItem>
                 <SelectItem value="car">سيارة</SelectItem>
@@ -187,45 +187,45 @@ const VehicleFormModal = ({
             </Select>
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">الحالة</label>
+            <label htmlFor="vehicle-status" className="text-sm font-medium mb-1 block">الحالة</label>
             <Select value={form.status} onValueChange={v => setForm(p => ({ ...p, status: v as VehicleStatus }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="vehicle-status"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ALL_STATUSES.map(s => <SelectItem key={s} value={s}>{statusLabels[s]}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">الماركة</label>
-            <Input value={form.brand} onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} placeholder="Honda, Yamaha..." />
+            <label htmlFor="vehicle-brand" className="text-sm font-medium mb-1 block">الماركة</label>
+            <Input id="vehicle-brand" value={form.brand} onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} placeholder="Honda, Yamaha..." />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">الموديل</label>
-            <Input value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} placeholder="CG125, R15..." />
+            <label htmlFor="vehicle-model" className="text-sm font-medium mb-1 block">الموديل</label>
+            <Input id="vehicle-model" value={form.model} onChange={e => setForm(p => ({ ...p, model: e.target.value }))} placeholder="CG125, R15..." />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">سنة الصنع</label>
-            <Input type="number" value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} placeholder="2022" />
+            <label htmlFor="vehicle-year" className="text-sm font-medium mb-1 block">سنة الصنع</label>
+            <Input id="vehicle-year" type="number" value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))} placeholder="2022" />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">الرقم التسلسلي</label>
-            <Input value={form.serial_number} onChange={e => setForm(p => ({ ...p, serial_number: e.target.value }))} placeholder="333974020" dir="ltr" />
+            <label htmlFor="vehicle-serial" className="text-sm font-medium mb-1 block">الرقم التسلسلي</label>
+            <Input id="vehicle-serial" value={form.serial_number} onChange={e => setForm(p => ({ ...p, serial_number: e.target.value }))} placeholder="333974020" dir="ltr" />
           </div>
           <div className="col-span-2">
-            <label className="text-sm font-medium mb-1 block">رقم الهيكل</label>
-            <Input value={form.chassis_number} onChange={e => setForm(p => ({ ...p, chassis_number: e.target.value }))} placeholder="ME4KC20F1NA014818" dir="ltr" />
+            <label htmlFor="vehicle-chassis" className="text-sm font-medium mb-1 block">رقم الهيكل</label>
+            <Input id="vehicle-chassis" value={form.chassis_number} onChange={e => setForm(p => ({ ...p, chassis_number: e.target.value }))} placeholder="ME4KC20F1NA014818" dir="ltr" />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">انتهاء التأمين</label>
-            <Input type="date" value={form.insurance_expiry} onChange={e => setForm(p => ({ ...p, insurance_expiry: e.target.value }))} />
+            <label htmlFor="vehicle-insurance-expiry" className="text-sm font-medium mb-1 block">انتهاء التأمين</label>
+            <Input id="vehicle-insurance-expiry" type="date" value={form.insurance_expiry} onChange={e => setForm(p => ({ ...p, insurance_expiry: e.target.value }))} />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">انتهاء التسجيل</label>
-            <Input type="date" value={form.registration_expiry} onChange={e => setForm(p => ({ ...p, registration_expiry: e.target.value }))} />
+            <label htmlFor="vehicle-registration-expiry" className="text-sm font-medium mb-1 block">انتهاء التسجيل</label>
+            <Input id="vehicle-registration-expiry" type="date" value={form.registration_expiry} onChange={e => setForm(p => ({ ...p, registration_expiry: e.target.value }))} />
           </div>
           <div>
-            <label className="text-sm font-medium mb-1 block">انتهاء التفويض</label>
-            <Input type="date" value={form.authorization_expiry} onChange={e => setForm(p => ({ ...p, authorization_expiry: e.target.value }))} />
+            <label htmlFor="vehicle-authorization-expiry" className="text-sm font-medium mb-1 block">انتهاء التفويض</label>
+            <Input id="vehicle-authorization-expiry" type="date" value={form.authorization_expiry} onChange={e => setForm(p => ({ ...p, authorization_expiry: e.target.value }))} />
           </div>
           <div className="col-span-2 flex items-center gap-3 bg-muted/40 rounded-lg px-3 py-2.5">
             <span className="text-lg">⛽</span>
@@ -242,8 +242,8 @@ const VehicleFormModal = ({
             </span>
           </div>
           <div className="col-span-2">
-            <label className="text-sm font-medium mb-1 block">ملاحظات</label>
-            <Input value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="أي ملاحظات إضافية..." />
+            <label htmlFor="vehicle-notes" className="text-sm font-medium mb-1 block">ملاحظات</label>
+            <Input id="vehicle-notes" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="أي ملاحظات إضافية..." />
           </div>
         </div>
         <DialogFooter className="mt-4 gap-2">
