@@ -15,6 +15,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+
+# Build artifacts & coverage (keep local; do not commit)
+frontend/coverage/
+coverage/
+dist/
 *.local
 
 # Editor directories and files
