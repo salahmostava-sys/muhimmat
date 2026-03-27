@@ -594,7 +594,8 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                       className="h-7 text-xs gap-1.5"
                       onClick={() => {
                         // Open the most recent active advance, not always the first one
-                        const activeAdv = empAdvances.find(a => a.status === 'active') || empAdvances[empAdvances.length - 1];
+                        const activeAdv = empAdvances.find(a => a.status === 'active') || empAdvances.at(-1);
+                        if (!activeAdv) return;
                         onEditAdvance(activeAdv);
                       }}
                     >
@@ -676,7 +677,13 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                           <div className="flex items-center gap-2">
                             <Input autoFocus value={noteValue} onChange={e => setNoteValue(e.target.value)} className="h-7 text-xs"
                               placeholder="اكتب ملاحظة..."
-                              onKeyDown={e => { if (e.key === 'Enter') saveNote(inst.id); if (e.key === 'Escape') setEditingNoteId(null); }} />
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  void saveNote(inst.id);
+                                  return;
+                                }
+                                if (e.key === 'Escape') setEditingNoteId(null);
+                              }} />
                             <Button size="sm" className="h-7 text-xs px-2" onClick={() => saveNote(inst.id)} disabled={savingNote}>{savingNote ? '...' : 'حفظ'}</Button>
                             <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setEditingNoteId(null)}>إلغاء</Button>
                           </div>
