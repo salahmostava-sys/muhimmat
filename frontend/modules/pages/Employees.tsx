@@ -932,53 +932,6 @@ const Employees = () => {
         </div>
       </div>
 
-      {isUploading && (
-        <div className="w-full rounded-xl border border-primary/20 bg-card p-3">
-          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Loader2 size={13} className="animate-spin" />
-              جاري معالجة الملف...
-            </span>
-            <span className="font-semibold text-foreground">{uploadProgress}%</span>
-          </div>
-          <div className="mb-2 text-xs text-muted-foreground">
-            تمت معالجة الأسماء: <span className="font-semibold text-foreground">{uploadLiveStats.processedNames}</span> / {uploadLiveStats.totalNames}
-            {uploadLiveStats.currentName ? (
-              <span className="ms-2">— الآن: <span className="font-medium text-foreground">{uploadLiveStats.currentName}</span></span>
-            ) : null}
-          </div>
-          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-primary transition-all duration-200"
-              style={{ width: `${uploadProgress}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {uploadReport && (
-        <div className="w-full rounded-xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">تقرير معالجة ملف الرفع</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-            <div className="rounded-lg bg-muted/40 px-3 py-2">تمت المعالجة: <span className="font-bold">{uploadReport.totalProcessed} سطر</span></div>
-            <div className="rounded-lg bg-emerald-50 text-emerald-700 px-3 py-2">نجاح: <span className="font-bold">{uploadReport.successfulRows} سطر</span></div>
-            <div className="rounded-lg bg-rose-50 text-rose-700 px-3 py-2">فشل: <span className="font-bold">{uploadReport.failedRows} سطر</span></div>
-          </div>
-          {uploadReport.errors.length > 0 && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-3">
-              <p className="text-sm font-semibold text-rose-700 mb-2">تفاصيل الأخطاء</p>
-              <div className="max-h-44 overflow-y-auto space-y-1 text-xs">
-                {uploadReport.errors.map((error, idx) => (
-                  <div key={`${error.rowIndex}-${idx}`} className="text-rose-700">
-                    السطر {error.rowIndex}: {error.issue}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {(isUploading || uploadReport) && (
         <div className="fixed bottom-4 left-4 z-50 w-[min(92vw,420px)] rounded-xl border border-border/70 bg-card shadow-2xl p-3 space-y-2">
           <div className="flex items-center justify-between">
