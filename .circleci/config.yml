@@ -21,6 +21,15 @@ jobs:
       # Checkout the code as the first step.
       - checkout
       - run:
+          name: Validate frontend-only package management
+          command: |
+            for file in package.json package-lock.json bun.lock bun.lockb; do
+              if [ -f "$file" ]; then
+                echo "Root-level $file is not allowed. Use frontend/ package files only."
+                exit 1
+              fi
+            done
+      - run:
           name: Install frontend dependencies
           command: cd frontend && npm ci
       - run:
