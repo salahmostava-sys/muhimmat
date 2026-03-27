@@ -1,4 +1,5 @@
 import { toast } from '@shared/components/ui/sonner';
+import { logError } from '@shared/lib/logger';
 
 /**
  * Default React Query `retry` — do not retry on auth failures; cap other retries (Sonar / TanStack v5).
@@ -21,7 +22,7 @@ export function getErrorMessage(err: unknown, fallback = 'حدث خطأ غير �
     if (typeof anyErr.message === 'string' && anyErr.message.trim()) return anyErr.message;
     if (typeof anyErr.error === 'string' && anyErr.error.trim()) return anyErr.error;
   } catch (e) {
-    console.warn('[getErrorMessage] unexpected error shape', e);
+    logError('[getErrorMessage] unexpected error shape', e, { level: 'warn' });
   }
   return fallback;
 }

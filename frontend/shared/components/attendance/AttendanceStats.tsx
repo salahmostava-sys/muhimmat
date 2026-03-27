@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import attendanceService from '@services/attendanceService';
+import { logError } from '@shared/lib/logger';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend
@@ -104,7 +105,7 @@ const AttendanceStats = ({ selectedMonth, selectedYear }: Props) => {
 
         setData(result);
       } catch (err) {
-        console.error('[AttendanceStats] fetch failed', err);
+        logError('[AttendanceStats] fetch failed', err);
         setData([]);
       } finally {
         setLoading(false);

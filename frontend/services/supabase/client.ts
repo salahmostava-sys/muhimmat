@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
+import { logError } from '@shared/lib/logger';
 
 /** Strips one leading/trailing quote from env values; avoids ReDoS from quantified alternation (Sonar). */
 const cleanEnv = (value: string | undefined) =>
@@ -16,7 +17,7 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 if (import.meta.env.PROD) {
   const u = SUPABASE_URL.toLowerCase();
   if (u.includes('localhost') || u.includes('127.0.0.1') || u.includes('0.0.0.0')) {
-    console.error(
+    logError(
       '[Config] VITE_SUPABASE_URL يبدو محلياً بينما البناء للإنتاج. عيّن في Vercel قيم مشروعك السحابي على Supabase.'
     );
   }
@@ -49,7 +50,7 @@ const wrappedFetch: typeof fetch = async (input, init) => {
     }
     await refreshInFlight;
   } catch (e) {
-    console.error('[Supabase] silent session refresh failed after 401', e);
+    logError('[Supabase] silent session refresh failed after 401', e);
     // Refresh failed; return the original 401 to callers (React Query will handle it without redirect).
     return res;
   }

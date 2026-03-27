@@ -5,6 +5,7 @@ import { ChevronLeft, Archive } from "lucide-react";
 import { Skeleton } from "@shared/components/ui/skeleton";
 import { useMonthlyActiveEmployeeIds } from "@shared/hooks/useMonthlyActiveEmployeeIds";
 import { filterVisibleEmployeesInMonth } from "@shared/lib/employeeVisibility";
+import { logError } from "@shared/lib/logger";
 
 const MONTHS_AR = [
   "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
@@ -80,7 +81,7 @@ const ArchiveAttendance = () => {
         }
         if (attRes.data) setAttendanceRows(attRes.data as AttendanceRow[]);
       } catch (err) {
-        console.error('[ArchiveAttendance] fetch failed', err);
+        logError('[ArchiveAttendance] fetch failed', err);
         setEmployees([]);
         setAttendanceRows([]);
       } finally {

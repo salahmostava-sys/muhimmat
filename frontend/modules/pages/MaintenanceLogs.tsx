@@ -14,6 +14,7 @@ import { useMaintenanceData } from '@shared/hooks/useMaintenanceData';
 import * as XLSX from '@e965/xlsx';
 import { format } from 'date-fns';
 import { vehicleService } from '@services/vehicleService';
+import { logError } from '@shared/lib/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type MaintenanceType = 'routine' | 'breakdown' | 'accident';
@@ -94,7 +95,7 @@ const MaintenanceFormModal = ({ open, onClose, onSaved, editLog, vehicles }: {
       toast({ title: editLog ? 'تم تحديث سجل الصيانة' : 'تم تسجيل الصيانة بنجاح' });
       onSaved(); onClose();
     } catch (e) {
-      console.error(e);
+      logError('[MaintenanceLogs] save failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {
@@ -254,7 +255,7 @@ const MaintenanceLogs = () => {
       toast({ title: 'تم حذف سجل الصيانة' });
       void refetchMaintenanceData();
     } catch (e) {
-      console.error(e);
+      logError('[MaintenanceLogs] import failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     } finally {

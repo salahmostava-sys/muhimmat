@@ -4,6 +4,7 @@ import { Button } from '@shared/components/ui/button';
 import { cn } from '@shared/lib/utils';
 import { useToast } from '@shared/hooks/use-toast';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
+import { logError } from '@shared/lib/logger';
 
 type FileActionLabels = Readonly<{
   export: string;
@@ -53,7 +54,7 @@ export function FileActionsMenu({
     try {
       await fn();
     } catch (e: unknown) {
-      console.error(logPrefix, e);
+      logError(logPrefix, e);
     }
   };
 

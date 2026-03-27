@@ -3,6 +3,7 @@ import { Search, X, Users, Car, CreditCard, Loader2 } from 'lucide-react';
 import { useLanguage } from '@app/providers/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { searchService } from '@services/searchService';
+import { logError } from '@shared/lib/logger';
 import { cn } from '@shared/lib/utils';
 
 interface SearchResult {
@@ -52,7 +53,7 @@ export default function GlobalSearch() {
 
       setResults(out);
     } catch (err) {
-      console.error('[GlobalSearch] search failed', err);
+      logError('[GlobalSearch] search failed', err);
       setResults([]);
     } finally {
       setLoading(false);

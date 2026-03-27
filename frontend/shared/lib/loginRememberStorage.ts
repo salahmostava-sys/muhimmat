@@ -1,3 +1,5 @@
+import { logError } from '@shared/lib/logger';
+
 /**
  * Client-side encrypted storage for "remember email" on the login page.
  * Uses AES-GCM via Web Crypto; key material is derived in-browser (obfuscation, not server-side secrecy).
@@ -61,7 +63,7 @@ export async function decryptRememberedEmail(b64: string): Promise<string | null
     const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
     return new TextDecoder().decode(dec);
   } catch (e) {
-    console.error('[loginRememberStorage] decrypt failed', e);
+    logError('[loginRememberStorage] decrypt failed', e);
     return null;
   }
 }
@@ -70,7 +72,7 @@ export function getRememberFlag(): boolean {
   try {
     return localStorage.getItem(STORAGE_REMEMBER) !== '0';
   } catch (e) {
-    console.error('[loginRememberStorage] getRememberFlag failed', e);
+    logError('[loginRememberStorage] getRememberFlag failed', e);
     return true;
   }
 }
@@ -79,7 +81,7 @@ export function setRememberFlag(active: boolean): void {
   try {
     localStorage.setItem(STORAGE_REMEMBER, active ? '1' : '0');
   } catch (e) {
-    console.error('[loginRememberStorage] setRememberFlag failed', e);
+    logError('[loginRememberStorage] setRememberFlag failed', e);
   }
 }
 
@@ -100,12 +102,12 @@ export async function loadRememberedEmail(): Promise<{ email: string | null; rem
         localStorage.setItem(STORAGE_EMAIL_CIPHER, enc);
         localStorage.removeItem(STORAGE_EMAIL_LEGACY);
       } catch (e) {
-        console.error('[loginRememberStorage] migrate legacy email failed', e);
+        logError('[loginRememberStorage] migrate legacy email failed', e);
       }
       return { email, remember };
     }
   } catch (e) {
-    console.error('[loginRememberStorage] loadRememberedEmail failed', e);
+    logError('[loginRememberStorage] loadRememberedEmail failed', e);
   }
   return { email: null, remember };
 }
@@ -122,6 +124,6 @@ export async function persistRememberedEmail(email: string | null, remember: boo
       localStorage.removeItem(STORAGE_EMAIL_LEGACY);
     }
   } catch (e) {
-    console.error('[loginRememberStorage] persistRememberedEmail failed', e);
+    logError('[loginRememberStorage] persistRememberedEmail failed', e);
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@services/supabase/client';
+import { logError } from '@shared/lib/logger';
 
 export const extractStoragePath = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -32,7 +33,7 @@ export const useSignedUrl = (bucket: string, path: string | null | undefined) =>
       const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
       if (!isMounted) return;
       if (error) {
-        console.error(error);
+        logError('[useSignedUrl] createSignedUrl failed', error);
         setSignedUrl(null);
         setHookError(error);
         return;

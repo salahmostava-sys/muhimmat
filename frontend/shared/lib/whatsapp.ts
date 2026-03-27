@@ -1,3 +1,5 @@
+import { logError } from '@shared/lib/logger';
+
 interface WhatsAppConfig {
   token: string;
   phone_number_id: string;
@@ -12,7 +14,7 @@ export function getWhatsAppConfig(): WhatsAppConfig | null {
     if (!cfg.enabled || !cfg.token || !cfg.phone_number_id) return null;
     return cfg;
   } catch (e) {
-    console.warn('[WhatsApp] getWhatsAppConfig parse failed', e);
+    logError('[WhatsApp] getWhatsAppConfig parse failed', e, { level: 'warn' });
     return null;
   }
 }
@@ -45,7 +47,7 @@ export async function sendWhatsAppMessage(
     );
     return res.ok;
   } catch (e) {
-    console.error('[WhatsApp] sendWhatsAppMessage failed', e);
+    logError('[WhatsApp] sendWhatsAppMessage failed', e);
     return false;
   }
 }

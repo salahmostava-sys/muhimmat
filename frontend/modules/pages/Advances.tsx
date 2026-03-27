@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 import { printHtmlTable } from '@shared/lib/printTable';
 import { ADVANCE_IO_COLUMNS } from '@shared/constants/excelSchemas';
 
@@ -133,7 +134,7 @@ const InlineRowEntry = ({ employeeId, onSaved, onCancel }: InlineRowProps) => {
       toast({ title: '✅ تم إضافة السلفة' });
       onSaved();
     } catch (e) {
-      console.error(e);
+      logError('[Advances] load employees failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {
@@ -194,7 +195,7 @@ const WriteOffDialog = ({ employeeName, remaining, advanceIds, onClose, onDone }
       toast({ title: `✅ تم إعدام ديون ${employeeName}` });
       onDone(); onClose();
     } catch (e) {
-      console.error(e);
+      logError('[Advances] create failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {
@@ -248,7 +249,7 @@ const RestoreWriteOffDialog = ({ employeeName, advanceIds, onClose, onDone }: Re
       toast({ title: `✅ تم استرداد ديون ${employeeName}` });
       onDone(); onClose();
     } catch (e) {
-      console.error(e);
+      logError('[Advances] update failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {
@@ -342,7 +343,7 @@ const EditAdvanceModal = ({ advance, onClose, onSaved }: EditAdvanceModalProps) 
       toast({ title: 'تم تحديث السلفة ✅' });
       onSaved(); onClose();
     } catch (e) {
-      console.error(e);
+      logError('[Advances] save installments failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {
@@ -532,7 +533,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
       setDeleteAdvanceId(null);
       onRefresh();
     } catch (e) {
-      console.error(e);
+      logError('[Advances] delete advance failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     } finally {
@@ -549,7 +550,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
       setDeleteInstallmentId(null);
       onRefresh();
     } catch (e) {
-      console.error(e);
+      logError('[Advances] delete installment failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     } finally {
@@ -566,7 +567,7 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
       onRefresh();
       toast({ title: '✅ تم حفظ الملاحظة' });
     } catch (e) {
-      console.error(e);
+      logError('[Advances] save note failed', e);
       toast({ title: 'خطأ', variant: 'destructive' });
     } finally {
       setSavingNote(false);
@@ -851,7 +852,7 @@ const Advances = () => {
       setDeleteEmployeeAdvancesId(null);
       fetchAll();
     } catch (e) {
-      console.error(e);
+      logError('[Advances] bulk add failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     } finally {

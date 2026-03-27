@@ -16,6 +16,7 @@ import { validateUploadFile } from '@shared/lib/validation';
 import { settingsHubService } from '@services/settingsHubService';
 import { supabase } from '@services/supabase/client';
 import { getErrorMessage } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 
 export default function ProjectSettings() {
   const { isRTL } = useLanguage();
@@ -113,7 +114,7 @@ export default function ProjectSettings() {
       setRemoveLogo(false);
       toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated' });
     } catch (err: unknown) {
-      console.error('[ProjectSettings] save failed', err);
+      logError('[ProjectSettings] save failed', err);
       toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
     setSaving(false);
@@ -183,7 +184,7 @@ export default function ProjectSettings() {
           : `Exported ${exportedCount} tables — JSON + Excel`,
       });
     } catch (err: unknown) {
-      console.error('[ProjectSettings] backup export failed', err);
+      logError('[ProjectSettings] backup export failed', err);
       toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
     }
     setBackupLoading(false);

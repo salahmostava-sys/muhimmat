@@ -24,6 +24,7 @@ import { toast as sonnerToast } from '@shared/components/ui/sonner';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { buildOrdersIoHeaders } from '@shared/constants/excelSchemas';
+import { logError } from '@shared/lib/logger';
 
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -406,7 +407,7 @@ const SpreadsheetGrid = React.memo(() => {
       setData(newData);
       toast({ title: `تم استيراد ${imported} إدخال` });
     } catch (err) {
-      console.error('[Orders] import spreadsheet failed', err);
+      logError('[Orders] import spreadsheet failed', err);
       toast({ title: 'فشل الاستيراد', variant: 'destructive' });
     }
     e.target.value = '';

@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { Skeleton } from '@shared/components/ui/skeleton';
 import { useVehicleAssignmentData } from '@shared/hooks/useVehicleAssignmentData';
+import { logError } from '@shared/lib/logger';
 
 type Vehicle = {
   id: string;
@@ -92,7 +93,7 @@ const AssignmentFormModal = ({
       toast({ title: '✅ تم تسجيل التسليم بنجاح' });
       onSaved(); onClose();
     } catch (e) {
-      console.error(e);
+      logError('[VehicleAssignment] load failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {
@@ -211,7 +212,7 @@ const ReturnModal = ({
       toast({ title: '✅ تم تسجيل الإعادة بنجاح' });
       onSaved(); onClose();
     } catch (e) {
-      console.error(e);
+      logError('[VehicleAssignment] save failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'حدث خطأ', description: message, variant: 'destructive' });
     } finally {

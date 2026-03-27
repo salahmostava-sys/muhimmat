@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '@services/supabase/client';
 import { useAuth } from '@app/providers/AuthContext';
+import { logError } from '@shared/lib/logger';
 
 interface SystemSettings {
   id: string;
@@ -60,7 +61,7 @@ export const SystemSettingsProvider = ({ children }: { children: ReactNode }) =>
       .limit(1)
       .maybeSingle();
     if (error) {
-      console.error(error);
+      logError('[SystemSettingsContext] fetch settings failed', error);
     }
     setSettings((data as unknown as SystemSettings) ?? defaults);
     setLoading(false);

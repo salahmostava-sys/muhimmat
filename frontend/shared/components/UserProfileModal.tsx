@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@shared/lib/utils';
 import { validateUploadFile } from '@shared/lib/validation';
 import { getErrorMessage } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 
 // ─── Password strength ────────────────────────────────────────────────────────
 const getStrength = (pw: string) => {
@@ -118,7 +119,7 @@ const UserProfileModal = ({ onClose }: Props) => {
         if (data) setProfile({ name: data.name || '', avatar_url: data.avatar_url || '' });
       })
       .catch((e: unknown) => {
-        console.error('[UserProfileModal] load profile failed', e);
+        logError('[UserProfileModal] load profile failed', e);
       });
   }, [user]);
 
@@ -158,7 +159,7 @@ const UserProfileModal = ({ onClose }: Props) => {
       setAvatarFile(null);
       toast({ title: isRtl ? 'تم حفظ التغييرات' : 'Changes saved' });
     } catch (err: unknown) {
-      console.error('[UserProfileModal] save profile failed', err);
+      logError('[UserProfileModal] save profile failed', err);
       toast({
         title: isRtl ? 'خطأ في الحفظ' : 'Save failed',
         description: getErrorMessage(err),

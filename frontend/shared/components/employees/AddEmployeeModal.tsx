@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { getErrorMessage } from '@shared/lib/query';
 import { cn } from '@shared/lib/utils';
+import { logError } from '@shared/lib/logger';
 
 
 interface EmployeeData {
@@ -282,7 +283,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       const days = differenceInDays(parseISO(form.residency_expiry), new Date());
       return { days, valid: days >= 0 };
     } catch (e) {
-      console.warn('[AddEmployeeModal] could not parse residency_expiry', e);
+      logError('[AddEmployeeModal] could not parse residency_expiry', e, { level: 'warn' });
       return null;
     }
   })();
@@ -404,7 +405,7 @@ const AddEmployeeModal = ({ onClose, onSuccess, editEmployee }: Props) => {
       if (onSuccess) onSuccess();
       else onClose();
     } catch (err: unknown) {
-      console.error('[AddEmployeeModal] save failed', err);
+      logError('[AddEmployeeModal] save failed', err);
       toast({ title: 'خطأ في الحفظ', description: getErrorMessage(err), variant: 'destructive' });
     } finally {
       setSaving(false);

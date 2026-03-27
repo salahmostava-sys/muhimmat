@@ -1,3 +1,5 @@
+import { logError } from '@shared/lib/logger';
+
 export class ServiceError extends Error {
   readonly cause?: unknown;
 
@@ -11,7 +13,7 @@ export class ServiceError extends Error {
 /** Wraps Supabase or unknown errors as {@link ServiceError} for consistent service-layer throws. */
 export function toServiceError(error: unknown, context?: string): ServiceError {
   if (error instanceof ServiceError) return error;
-  if (error) console.error(error);
+  if (error) logError('[serviceError] toServiceError', error);
   let message: string;
   if (
     error &&

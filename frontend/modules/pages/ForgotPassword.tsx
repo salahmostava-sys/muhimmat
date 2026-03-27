@@ -4,6 +4,7 @@ import { Mail, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Input } from '@shared/components/ui/input';
 import { authService } from '@services/authService';
 import { authGradientBtn, authBtnStyle } from '@shared/lib/authStyles';
+import { logError } from '@shared/lib/logger';
 
 const isValidEmail = (value: string): boolean => {
   const trimmed = value.trim();
@@ -35,7 +36,7 @@ const ForgotPassword = () => {
       await authService.sendPasswordReset(email);
       setSuccess(true);
     } catch (err) {
-      console.error('[ForgotPassword] sendPasswordReset failed', err);
+      logError('[ForgotPassword] sendPasswordReset failed', err);
       setError('حدث خطأ، يرجى المحاولة مجدداً');
     } finally {
       setLoading(false);

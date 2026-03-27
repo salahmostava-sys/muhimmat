@@ -22,6 +22,7 @@ import { useFuelDailyPaged } from '@shared/hooks/useFuelDailyPaged';
 import { auditService } from '@services/auditService';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
+import { logError } from '@shared/lib/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type DailyRow = {
@@ -432,7 +433,7 @@ const ImportModal = ({
       toast({ title: `تم استيراد ${payload.length} سجل بنجاح` });
       onImported();
     } catch (e) {
-      console.error(e);
+      logError('[Fuel] import failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الاستيراد', description: message, variant: 'destructive' });
     } finally {
@@ -708,7 +709,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       const nextRows = buildMonthlyRows(aggMap, ordersMap, vehicleMap, employees);
       setMonthlyRows(nextRows);
     } catch (err) {
-      console.error('[Fuel] fetchMonthly failed', err);
+      logError('[Fuel] fetchMonthly failed', err);
       const message = getErrorMessageOrFallback(err, 'تعذر جلب البيانات الشهرية');
       toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
       setMonthlyRows([]);
@@ -727,7 +728,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       const filteredRows = applyDailyFilters(mappedRows, selectedEmployee, employeeIdsOnPlatform);
       setDailyRows(filteredRows);
     } catch (err) {
-      console.error('[Fuel] fetchDaily failed', err);
+      logError('[Fuel] fetchDaily failed', err);
       const message = getErrorMessageOrFallback(err, 'تعذر جلب البيانات اليومية');
       toast({ title: 'خطأ في جلب البيانات', description: message, variant: 'destructive' });
       setDailyRows([]);
@@ -754,7 +755,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       fetchDaily();
       fetchMonthly();
     } catch (e) {
-      console.error(e);
+      logError('[Fuel] save monthly failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     }
@@ -783,7 +784,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       setNewEntry(ne => ({ ...ne, km_total: '', fuel_cost: '', notes: '' }));
       refresh();
     } catch (e) {
-      console.error(e);
+      logError('[Fuel] save daily failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
     } finally {
@@ -815,7 +816,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       setEditingDaily(null);
       refresh();
     } catch (e) {
-      console.error(e);
+      logError('[Fuel] export failed', e);
       const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
     } finally {

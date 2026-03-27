@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@services/supabase/client';
+import { logError } from '@shared/lib/logger';
 
 export interface CustomColumn {
   key: string;
@@ -62,7 +63,7 @@ export const useAppColors = () => {
         })) as AppColorData[];
         setApps(normalized);
       } catch (err) {
-        console.error('[useAppColors] load failed', err);
+        logError('[useAppColors] load failed', err);
       } finally {
         if (mounted) setLoading(false);
       }

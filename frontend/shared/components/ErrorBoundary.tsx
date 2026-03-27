@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { logError } from '@shared/lib/logger';
 
 type Props = {
   children: ReactNode;
@@ -16,7 +17,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    console.error('App crashed:', error);
+    logError('App crashed', error);
   }
 
   render() {

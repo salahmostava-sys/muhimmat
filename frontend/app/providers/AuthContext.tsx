@@ -4,6 +4,7 @@ import { authService } from '@services/authService';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { onAuthFailure } from '@shared/lib/auth/authFailureBus';
+import { logError } from '@shared/lib/logger';
 
 type AppRole = 'admin' | 'hr' | 'finance' | 'operations' | 'viewer';
 
@@ -73,14 +74,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await queryClient.cancelQueries();
       queryClient.clear();
     } catch (e) {
-      console.error('[Auth] queryClient cancel/clear failed', e);
+      logError('[Auth] queryClient cancel/clear failed', e);
     }
     setRefreshing(false);
     setLoading(false);
     setSession(null);
     setUser(null);
     setRole(null);
-    console.warn('[Auth] transitioning to unauthenticated state', { reason });
+    logError('[Auth] transitioning to unauthenticated state', { reason }, { level: 'warn' });
     redirectToLoginIfNeeded();
   }, [queryClient, redirectToLoginIfNeeded]);
 
@@ -91,7 +92,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.revokeSession(userId);
     } catch (e) {
-      console.error('[Auth] revokeSession failed (session may already be cleared)', e);
+      logError('[Auth] revokeSession failed (session may already be cleared)', e);
     }
     setUser(null);
     setSession(null);
@@ -126,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         return false;
       } catch (e) {
-        console.error('[Auth] recoverSessionSilently failed', e);
+        logError('[Auth] recoverSessionSilently failed', e);
         return false;
       } finally {
         setRefreshing(false);
@@ -176,7 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setRole(null);
           }
         } catch (e) {
-          console.error('[Auth] onAuthStateChange handler failed', e);
+          logError('[Auth] onAuthStateChange handler failed', e);
         }
       })();
     });
@@ -205,7 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       })
       .catch((e) => {
-        console.error('[Auth] getSession bootstrap failed', e);
+        logError('[Auth] getSession bootstrap failed', e);
       })
       .finally(() => {
         setLoading(false);
@@ -316,7 +317,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.signOut();
     } catch (e) {
-      console.warn('[Auth] signOut fallback: remote signOut failed, forcing local unauthenticated state', e);
+      logError('[Auth] signOut fallback: remote signOut failed, forcing local unauthenticated state', e, { level: 'warn' });
     } finally {
       await handleUnauthenticatedState('manual_signout');
     }
