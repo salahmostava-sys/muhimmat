@@ -12,6 +12,7 @@ import { toast } from "@shared/hooks/use-toast";
 import { useLanguage } from "@app/providers/LanguageContext";
 import { usePermissions } from "@shared/hooks/usePermissions";
 import attendanceService from "@services/attendanceService";
+import { supabase } from "@services/supabase/client";
 import { useMonthlyActiveEmployeeIds } from "@shared/hooks/useMonthlyActiveEmployeeIds";
 import { filterVisibleEmployeesInMonth } from "@shared/lib/employeeVisibility";
 
