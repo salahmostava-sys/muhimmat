@@ -48,3 +48,4 @@ coverage/
 prompt.md
 *.prompt
 /src/
+attached_assets/*.env
