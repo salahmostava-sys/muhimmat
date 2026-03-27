@@ -6,7 +6,7 @@ import {
   ChevronDown, Fuel, Settings2, X, FileWarning,
   Layers, ChevronsLeft, ChevronsRight, ShieldCheck,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useLanguage } from '@app/providers/LanguageContext';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { useMobileSidebar } from '@app/providers/MobileSidebarContext';
@@ -14,6 +14,24 @@ import { cn } from '@shared/lib/utils';
 import { routesManifest, routeGroupTitleAr, toPagePermissionKey, type RouteGroup } from '@app/routesManifest';
 import { useAuth } from '@app/providers/AuthContext';
 import { DEFAULT_PERMISSIONS, type AppRole } from '@shared/hooks/usePermissions';
+
+const iconByRouteId: Record<string, ComponentType<{ size?: number; className?: string }>> = {
+  dashboard: LayoutDashboard,
+  employees: Users,
+  attendance: Clock,
+  alerts: Bell,
+  apps: Smartphone,
+  salaries: Wallet,
+  advances: CreditCard,
+  orders: Package,
+  motorcycles: Bike,
+  vehicle_assignment: FileDown,
+  fuel: Fuel,
+  violation_resolver: FileWarning,
+  employee_tiers: Layers,
+  platform_accounts: ShieldCheck,
+  settings: Settings2,
+};
 
 function setHoverStylesIf(
   el: HTMLElement,
@@ -61,24 +79,6 @@ const AppSidebar = () => {
     }
     return true;
   }, [location.pathname, location.search]);
-
-  const iconByRouteId: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
-    dashboard: LayoutDashboard,
-    employees: Users,
-    attendance: Clock,
-    alerts: Bell,
-    apps: Smartphone,
-    salaries: Wallet,
-    advances: CreditCard,
-    orders: Package,
-    motorcycles: Bike,
-    vehicle_assignment: FileDown,
-    fuel: Fuel,
-    violation_resolver: FileWarning,
-    employee_tiers: Layers,
-    platform_accounts: ShieldCheck,
-    settings: Settings2,
-  };
 
   const canViewRoute = useCallback((permission?: string) => {
     const pageKey = toPagePermissionKey(permission);

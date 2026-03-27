@@ -37,6 +37,15 @@ type DashboardData = {
   apps: AppMeta[];
 };
 
+/** Stable empty refs so useMemo deps do not change every render when `data` is missing. */
+const EMPTY_EMP_DETAILS: EmpDetail[] = [];
+const EMPTY_ORDERS_BY_APP: DashboardData['ordersByApp'] = [];
+const EMPTY_ORDERS_BY_CITY: DashboardData['ordersByCity'] = [];
+const EMPTY_RIDERS: Rider[] = [];
+const EMPTY_ATTENDANCE_WEEK: DashboardData['attendanceWeek'] = [];
+const EMPTY_RECENT_ACTIVITY: DashboardData['recentActivity'] = [];
+const EMPTY_APPS: AppMeta[] = [];
+
 type EmployeeCounts = ReturnType<(empDetails: EmpDetail[]) => unknown>;
 
 export function useDashboard(params: {
@@ -71,13 +80,13 @@ export function useDashboard(params: {
   };
 
   const kpis = data?.kpis ?? defaultKpis;
-  const empDetails = data?.empDetails ?? [];
-  const ordersByApp = data?.ordersByApp ?? [];
-  const ordersByCity = data?.ordersByCity ?? [];
-  const allRiders = data?.allRiders ?? [];
-  const attendanceWeek = data?.attendanceWeek ?? [];
-  const recentActivity = data?.recentActivity ?? [];
-  const apps = data?.apps ?? [];
+  const empDetails = data?.empDetails ?? EMPTY_EMP_DETAILS;
+  const ordersByApp = data?.ordersByApp ?? EMPTY_ORDERS_BY_APP;
+  const ordersByCity = data?.ordersByCity ?? EMPTY_ORDERS_BY_CITY;
+  const allRiders = data?.allRiders ?? EMPTY_RIDERS;
+  const attendanceWeek = data?.attendanceWeek ?? EMPTY_ATTENDANCE_WEEK;
+  const recentActivity = data?.recentActivity ?? EMPTY_RECENT_ACTIVITY;
+  const apps = data?.apps ?? EMPTY_APPS;
 
   const orderGrowth = useMemo(
     () => (kpis.prevMonthOrders > 0 ? ((kpis.totalOrders - kpis.prevMonthOrders) / kpis.prevMonthOrders) * 100 : 0),
