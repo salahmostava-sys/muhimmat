@@ -5,16 +5,12 @@ import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@shared/lib/reactQuerySafety';
+import type { PagedResult } from '@shared/types/pagination';
 
 export type SalaryRecordsPagedFilters = {
   branch?: BranchKey;
   search?: string;
   approved?: 'all' | 'approved' | 'pending';
-};
-
-type PagedResult = {
-  data: unknown[];
-  count: number;
 };
 
 export function useSalaryRecordsPaged(params: {
@@ -32,19 +28,16 @@ export function useSalaryRecordsPaged(params: {
   const search = filters.search?.trim() || undefined;
   const approved = filters.approved ?? 'all';
 
-  const q = useQuery<PagedResult>({
+  const q = useQuery<PagedResult<unknown>>({
     queryKey: ['salaries', uid, 'records', 'paged', monthYear, page, pageSize, branch ?? null, approved, search ?? null] as const,
-    queryFn: async () => {
-      const res = await withQueryTimeout(
-        salaryService.getPagedByMonth({
-          monthYear,
-          page,
-          pageSize,
-          filters: { branch, approved, search },
-        })
-      );
-      return { data: res.data, count: res.count };
-    },
+    queryFn: async () => withQueryTimeout(
+      salaryService.getPagedByMonth({
+        monthYear,
+        page,
+        pageSize,
+        filters: { branch, approved, search },
+      })
+    ),
     retry: safeRetry,
     staleTime: 15_000,
     enabled,

@@ -5,16 +5,12 @@ import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@shared/lib/reactQuerySafety';
+import type { PagedResult } from '@shared/types/pagination';
 
 export type EmployeesPagedFilters = {
   branch?: BranchKey;
   search?: string;
   status?: 'all' | 'active' | 'inactive' | 'ended';
-};
-
-type PagedResult = {
-  data: unknown[];
-  count: number;
 };
 
 export function useEmployeesPaged(params: {
@@ -33,12 +29,9 @@ export function useEmployeesPaged(params: {
 
   const q = useQuery<PagedResult>({
     queryKey: ['employees', uid, 'paged', page, pageSize, branch ?? null, status ?? null, search ?? null] as const,
-    queryFn: async () => {
-      const res = await withQueryTimeout(
-        employeeService.getPaged({ page, pageSize, filters: { branch, status, search } })
-      );
-      return { data: res.data, count: res.count };
-    },
+    queryFn: async () => withQueryTimeout(
+      employeeService.getPaged({ page, pageSize, filters: { branch, status, search } })
+    ),
     retry: safeRetry,
     staleTime: 15_000,
     enabled,

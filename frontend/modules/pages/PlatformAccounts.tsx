@@ -951,9 +951,9 @@ function PlatformAccountsFastList(props: {
     apps?: { id: string; name: string; brand_color: string | null; text_color: string | null } | null;
     employees?: { id: string; name: string; city: string | null } | null;
   };
-  const paged = data as unknown as { data?: PagedRow[]; count?: number } | undefined;
-  const rows = paged?.data || [];
-  const total = paged?.count ?? 0;
+  const paged = data as unknown as { rows?: PagedRow[]; total?: number } | undefined;
+  const rows = paged?.rows || [];
+  const total = paged?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const [exporting, setExporting] = useState(false);

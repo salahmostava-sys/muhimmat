@@ -5,7 +5,6 @@ import { escapeHtml } from '@shared/lib/security';
 import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@shared/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@shared/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
@@ -22,16 +21,15 @@ import { salaryDataService } from '@services/salaryDataService';
 import { salarySlipService } from '@services/salarySlipService';
 import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
 import { filterVisibleEmployeesInMonth } from '@shared/lib/employeeVisibility';
-import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
-import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
-import { TableActions, TABLE_ACTIONS_IMPORT_MAX_BYTES } from '@shared/components/table/TableActions';
+import { createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
+import { TABLE_ACTIONS_IMPORT_MAX_BYTES } from '@shared/components/table/TableActions';
 import { SALARY_IMPORT_TEMPLATE_HEADERS, SALARY_IO_COLUMNS, type SalaryIoRecord, parseSalaryImportWorkbook } from '@shared/lib/salaryExcelImport';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryValidation';
-import { printHtmlTable } from '@shared/lib/printTable';
 import { defaultQueryRetry } from '@shared/lib/query';
-import { useSalaryRecordsPaged } from '@shared/hooks/useSalaryRecordsPaged';
 import { auditService } from '@services/auditService';
 import type JSZip from 'jszip';
+import { toCityArabicLabel, type FastApprovedFilter } from '@modules/salaries/model/salaryUtils';
+import { SalaryFastList as SalariesFastList } from '@modules/salaries/components/SalaryFastList';
 
 
 // Kept for legacy references — populated dynamically from DB at runtime
@@ -49,27 +47,6 @@ const SALARY_CARD_SKELETON_KEYS = [
   'salary-card-skeleton-7',
   'salary-card-skeleton-8',
 ] as const;
-const SALARY_TABLE_SKELETON_KEYS = [
-  'salary-table-skeleton-1',
-  'salary-table-skeleton-2',
-  'salary-table-skeleton-3',
-  'salary-table-skeleton-4',
-  'salary-table-skeleton-5',
-  'salary-table-skeleton-6',
-  'salary-table-skeleton-7',
-  'salary-table-skeleton-8',
-  'salary-table-skeleton-9',
-  'salary-table-skeleton-10',
-  'salary-table-skeleton-11',
-  'salary-table-skeleton-12',
-] as const;
-
-const toCityArabicLabel = (city?: string | null) => {
-  if (city === 'makkah') return 'مكة';
-  if (city === 'jeddah') return 'جدة';
-  return '—';
-};
-
 const getStatusStyleForPrint = (status: SalaryRow['status']) => {
   if (status === 'paid') return 'background:#dcfce7;color:#15803d';
   if (status === 'approved') return 'background:#dbeafe;color:#1d4ed8';
@@ -180,8 +157,6 @@ const shortEmployeeName = (name: string) => {
 };
 
 type SortDir = 'asc' | 'desc' | null;
-type FastApprovedFilter = 'all' | 'approved' | 'pending';
-
 interface SalaryRow {
   id: string;
   employeeId: string;
@@ -3005,236 +2980,3 @@ const Salaries = () => {
 };
 
 export default Salaries;
-
-function SalariesFastList(props: Readonly<{
-  monthYear: string;
-  branch: BranchKey;
-  search: string;
-  approved: FastApprovedFilter;
-  onApprovedChange: (v: FastApprovedFilter) => void;
-  onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
-  page: number;
-  pageSize: number;
-  onPageChange: (p: number) => void;
-  onBack: () => void;
-  onSalaryTemplate: () => void;
-  onSalaryImport: (file: File) => void | Promise<void>;
-  salaryActionLoading: boolean;
-}>) {
-  const { toast } = useToast();
-  const {
-    monthYear,
-    branch,
-    search,
-    approved,
-    onApprovedChange,
-    onFiltersChange,
-    page,
-    pageSize,
-    onPageChange,
-    onBack,
-    onSalaryTemplate,
-    onSalaryImport,
-    salaryActionLoading,
-  } = props;
-  const [exporting, setExporting] = useState(false);
-  const fastTableRef = useRef<HTMLTableElement>(null);
-
-  const { data, isLoading } = useSalaryRecordsPaged({
-    monthYear,
-    page,
-    pageSize,
-    filters: { branch, search, approved },
-  });
-
-  type Row = {
-    id: string;
-    employee_id: string;
-    month_year: string;
-    net_salary: number | null;
-    base_salary: number | null;
-    advance_deduction: number | null;
-    external_deduction: number | null;
-    manual_deduction: number | null;
-    attendance_deduction: number | null;
-    is_approved: boolean | null;
-    created_at: string;
-    employees?: { id: string; name: string; national_id: string | null; city: string | null } | null;
-  };
-  const paged = data as { data?: Row[]; count?: number } | undefined;
-  const rows = paged?.data || [];
-  const total = paged?.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  const handleFastPrint = () => {
-    const table = fastTableRef.current;
-    if (!table) return;
-    printHtmlTable(table, {
-      title: `سجلات الرواتب — ${monthYear}`,
-      subtitle: `إجمالي النتائج: ${total.toLocaleString()}`,
-    });
-  };
-
-  const exportExcel = async () => {
-    setExporting(true);
-    try {
-      const XLSX = await loadXlsx();
-      const branchKey: Exclude<BranchKey, 'all'> | undefined = branch === 'all' ? undefined : branch;
-      const q = search?.trim() || undefined;
-
-      const out = (await salaryService.exportMonth({
-        monthYear,
-        filters: { branch: branchKey, search: q, approved },
-      })) as Row[];
-      const sheet = out.map((r) => ({
-        'الموظف': r.employees?.name ?? '',
-        'الهوية': r.employees?.national_id ?? '',
-        'الفرع': r.employees?.city ?? '',
-        'صافي الراتب': r.net_salary ?? 0,
-        'الأساسي': r.base_salary ?? 0,
-        'سلفة': r.advance_deduction ?? 0,
-        'خصم خارجي': r.external_deduction ?? 0,
-        'خصم يدوي': r.manual_deduction ?? 0,
-        'خصم حضور': r.attendance_deduction ?? 0,
-        'معتمد': r.is_approved ? 'نعم' : 'لا',
-        'تاريخ الإنشاء': r.created_at ?? '',
-      }));
-
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(sheet);
-      XLSX.utils.book_append_sheet(wb, ws, 'SalaryRecords');
-      XLSX.writeFile(wb, `salary_records_${monthYear}.xlsx`);
-
-      await auditService.logAdminAction({
-        action: 'salary_records.export',
-        table_name: 'salary_records',
-        record_id: null,
-        meta: { total: out.length, monthYear, branch: branchKey ?? null, approved, search: q ?? null },
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'تعذر التصدير';
-      toast({ title: 'خطأ', description: msg, variant: 'destructive' });
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  let tableRowsNode: React.ReactNode;
-  if (isLoading) {
-    tableRowsNode = SALARY_TABLE_SKELETON_KEYS.map((skeletonKey) => (
-      <tr key={skeletonKey}>
-        <td className="px-4 py-3 text-muted-foreground">...</td>
-        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-        <td className="px-4 py-3 text-center text-muted-foreground">...</td>
-      </tr>
-    ));
-  } else if (rows.length === 0) {
-    tableRowsNode = <tr><td colSpan={5} className="py-10 text-center text-muted-foreground">لا توجد نتائج</td></tr>;
-  } else {
-    tableRowsNode = rows.map((r) => (
-      <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-        <td className="px-4 py-3 font-semibold">{r.employees?.name ?? '—'}</td>
-        <td className="px-4 py-3 text-center">{toCityArabicLabel(r.employees?.city)}</td>
-        <td className="px-4 py-3 text-center font-bold">{Number(r.net_salary || 0).toLocaleString()}</td>
-        <td className="px-4 py-3 text-center">{r.is_approved ? 'نعم' : 'لا'}</td>
-        <td className="px-4 py-3 text-center font-mono text-xs">{(r.created_at || '').slice(0, 10)}</td>
-      </tr>
-    ));
-  }
-
-  return (
-    <div className="space-y-4" dir="rtl">
-      <div className="page-header">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="page-title flex items-center gap-2"><Wallet size={20} /> الرواتب — قائمة (سريعة)</h1>
-            <p className="page-subtitle">{total.toLocaleString()} سجل — {monthYear}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={onBack}>رجوع</Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
-        <TableActions
-          loading={salaryActionLoading || exporting}
-          onDownloadTemplate={onSalaryTemplate}
-          onImportFile={onSalaryImport}
-          onExport={exportExcel}
-          onPrint={handleFastPrint}
-        />
-      </div>
-
-      <div className="ds-card p-3 space-y-3">
-        <GlobalTableFilters
-          value={{
-            ...createDefaultGlobalFilters(),
-            branch,
-            search,
-            driverId: 'all',
-            platformAppId: 'all',
-            dateFrom: '',
-            dateTo: '',
-          }}
-          onChange={(next) => onFiltersChange({ ...next, driverId: 'all', platformAppId: 'all', dateFrom: '', dateTo: '' })}
-          onReset={() => onFiltersChange(createDefaultGlobalFilters())}
-          options={{
-            enableBranch: true,
-            enableDriver: false,
-            enablePlatform: false,
-            enableDateRange: false,
-          }}
-        />
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">الاعتماد</span>
-          <Select value={approved} onValueChange={(v) => onApprovedChange(v as 'all' | 'approved' | 'pending')}>
-            <SelectTrigger className="h-9 w-44 text-sm">
-              <SelectValue placeholder="الكل" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل</SelectItem>
-              <SelectItem value="approved">معتمد</SelectItem>
-              <SelectItem value="pending">غير معتمد</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="ds-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table ref={fastTableRef} className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="text-center font-semibold px-4 py-3">الموظف</th>
-                <th className="text-center font-semibold px-4 py-3">الفرع</th>
-                <th className="text-center font-semibold px-4 py-3">صافي</th>
-                <th className="text-center font-semibold px-4 py-3">معتمد</th>
-                <th className="text-center font-semibold px-4 py-3">تاريخ</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {tableRowsNode}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs">
-          <div className="text-muted-foreground">{total.toLocaleString()} سجل</div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1}>
-              السابق
-            </Button>
-            <span className="tabular-nums text-muted-foreground">{page} / {totalPages}</span>
-            <Button variant="outline" size="sm" className="h-8" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page >= totalPages}>
-              التالي
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

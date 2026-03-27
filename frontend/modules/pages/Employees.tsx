@@ -1570,9 +1570,9 @@ function EmployeesFastList(props: Readonly<{
     job_title: string | null;
   };
 
-  const paged = data as unknown as { data?: Row[]; count?: number } | undefined;
-  const rows = paged?.data || [];
-  const total = paged?.count ?? 0;
+  const paged = data as unknown as { rows?: Row[]; total?: number } | undefined;
+  const rows = paged?.rows || [];
+  const total = paged?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   let fastBodyRows: React.ReactNode;
   if (isLoading) {

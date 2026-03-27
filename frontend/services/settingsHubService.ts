@@ -2,6 +2,7 @@ import { supabase } from '@services/supabase/client';
 import { validateUploadFile } from '@shared/lib/validation';
 import { authService } from '@services/authService';
 import { toServiceError } from '@services/serviceError';
+import { createPagedResult } from '@shared/types/pagination';
 
 const EXPORT_TABLE_ALLOWLIST = new Set([
   'audit_log',
@@ -34,7 +35,12 @@ export const settingsHubService = {
 
     const { data, error, count } = await query;
     if (error) throw toServiceError(error, 'settingsHubService.getAuditLogs');
-    return { data: data ?? [], count: count ?? 0 };
+    return createPagedResult({
+      rows: data,
+      total: count,
+      page: Math.floor(from / Math.max(1, to - from + 1)) + 1,
+      pageSize: Math.max(1, to - from + 1),
+    });
   },
   getAuditProfilesByIds: async (userIds: string[]) => {
     const { data, error } = await supabase.from('profiles').select('id, name, email').in('id', userIds);

@@ -991,10 +991,10 @@ const OrdersList = () => {
     },
   });
 
-  const total = paged.data?.count ?? 0;
+  const total = paged.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const rows = (paged.data?.data ?? []) as Array<{
+  const rows = (paged.data?.rows ?? []) as Array<{
     employee_id: string;
     app_id: string;
     date: string;

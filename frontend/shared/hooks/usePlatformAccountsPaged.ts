@@ -5,6 +5,7 @@ import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@shared/lib/reactQuerySafety';
+import type { PagedResult } from '@shared/types/pagination';
 
 export type PlatformAccountsPagedFilters = {
   driverId?: string;
@@ -14,16 +15,11 @@ export type PlatformAccountsPagedFilters = {
   status?: 'active' | 'inactive' | 'all';
 };
 
-type PagedResult = {
-  data: unknown[];
-  count: number;
-};
-
 export function usePlatformAccountsPaged(params: {
   page: number;
   pageSize: number;
   filters: PlatformAccountsPagedFilters;
-}): UseQueryResult<PagedResult> {
+}): UseQueryResult<PagedResult<unknown>> {
   const { user, session } = useAuth();
   const { userId, authReady } = useAuthQueryGate();
   const uid = authQueryUserId(user?.id ?? userId);
@@ -36,7 +32,7 @@ export function usePlatformAccountsPaged(params: {
   const status = filters.status && filters.status !== 'all' ? filters.status : undefined;
   const search = filters.search?.trim() || undefined;
 
-  const q = useQuery<PagedResult>({
+  const q = useQuery<PagedResult<unknown>>({
     queryKey: [
       'platform-accounts',
       uid,
@@ -49,16 +45,13 @@ export function usePlatformAccountsPaged(params: {
       status ?? null,
       search ?? null,
     ] as const,
-    queryFn: async () => {
-      const res = await withQueryTimeout(
-        platformAccountService.getAccountsPaged({
-          page,
-          pageSize,
-          filters: { employeeId, appId, branch, status, search },
-        })
-      );
-      return { data: res.data, count: res.count };
-    },
+    queryFn: async () => withQueryTimeout(
+      platformAccountService.getAccountsPaged({
+        page,
+        pageSize,
+        filters: { employeeId, appId, branch, status, search },
+      })
+    ),
     retry: safeRetry,
     staleTime: 15_000,
     enabled,

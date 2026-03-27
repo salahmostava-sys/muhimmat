@@ -1328,9 +1328,9 @@ function FuelDailyFastList(props: FuelDailyFastListProps) {
     notes: string | null;
     employees?: { id: string; name: string; city: string | null } | null;
   };
-  const paged = data as unknown as { data?: Row[]; count?: number } | undefined;
-  const rows = paged?.data || [];
-  const total = paged?.count ?? 0;
+  const paged = data as unknown as { rows?: Row[]; total?: number } | undefined;
+  const rows = paged?.rows || [];
+  const total = paged?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const isAllDrivers = filters.driverId === 'all';
   const isAllBranches = filters.branch === 'all';

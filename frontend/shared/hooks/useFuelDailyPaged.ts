@@ -5,16 +5,12 @@ import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { useQueryErrorToast } from '@shared/hooks/useQueryErrorToast';
 import { safeRetry, withQueryTimeout } from '@shared/lib/reactQuerySafety';
+import type { PagedResult } from '@shared/types/pagination';
 
 export type FuelDailyPagedFilters = {
   driverId?: string;
   branch?: BranchKey;
   search?: string;
-};
-
-type PagedResult = {
-  data: unknown[];
-  count: number;
 };
 
 export function useFuelDailyPaged(params: {
@@ -33,20 +29,17 @@ export function useFuelDailyPaged(params: {
   const branch = filters.branch === 'all' ? undefined : filters.branch;
   const search = filters.search?.trim() || undefined;
 
-  const q = useQuery<PagedResult>({
+  const q = useQuery<PagedResult<unknown>>({
     queryKey: ['fuel', uid, 'daily', 'paged', monthStart, monthEnd, page, pageSize, employeeId ?? null, branch ?? null, search ?? null] as const,
-    queryFn: async () => {
-      const res = await withQueryTimeout(
-        fuelService.getDailyMileagePaged({
-          monthStart,
-          monthEnd,
-          page,
-          pageSize,
-          filters: { employeeId, branch, search },
-        })
-      );
-      return { data: res.data, count: res.count };
-    },
+    queryFn: async () => withQueryTimeout(
+      fuelService.getDailyMileagePaged({
+        monthStart,
+        monthEnd,
+        page,
+        pageSize,
+        filters: { employeeId, branch, search },
+      })
+    ),
     retry: safeRetry,
     staleTime: 15_000,
     enabled,

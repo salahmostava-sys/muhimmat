@@ -138,7 +138,7 @@ export default function ActivityLogContent() {
     queryKey: ['activity-log', uid, page, filterAction, filterTable, debouncedSearch],
     enabled,
     queryFn: async () => {
-      const { data, count } = await settingsHubService.getAuditLogs(
+      const { rows: data, total: count } = await settingsHubService.getAuditLogs(
         page * PAGE_SIZE,
         (page + 1) * PAGE_SIZE - 1,
         filterAction,
