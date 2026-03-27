@@ -2291,7 +2291,7 @@ const Salaries = () => {
           )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5 h-9"><FolderOpen size={14} /> أدوات إضافية</Button>
+              <Button size="sm" variant="outline" className="gap-1.5 h-9"><FolderOpen size={14} /> ملفات</Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
