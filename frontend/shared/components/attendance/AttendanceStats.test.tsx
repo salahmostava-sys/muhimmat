@@ -1,5 +1,4 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import AttendanceStats from './AttendanceStats';
 import attendanceService from '@services/attendanceService';
@@ -7,21 +6,6 @@ import attendanceService from '@services/attendanceService';
 vi.mock('@app/providers/LanguageContext', () => ({
   useLanguage: () => ({ isRTL: true }),
 }));
-
-vi.mock('recharts', () => {
-  const Mock = ({ children }: { children?: ReactNode }) => <div>{children}</div>;
-  return {
-    ResponsiveContainer: Mock,
-    BarChart: Mock,
-    Bar: Mock,
-    XAxis: Mock,
-    YAxis: Mock,
-    CartesianGrid: Mock,
-    Tooltip: Mock,
-    Legend: Mock,
-    Cell: Mock,
-  };
-});
 
 vi.mock('@services/attendanceService', () => ({
   default: {
@@ -55,14 +39,12 @@ describe('AttendanceStats', () => {
 
     render(<AttendanceStats selectedMonth={2} selectedYear={2026} />);
 
-    await waitFor(() => expect(screen.getByText('توزيع الحضور يومياً')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('ملخص الحضور الشهري')).toBeInTheDocument());
     expect(screen.getByText('حاضر')).toBeInTheDocument();
     expect(screen.getByText('غائب')).toBeInTheDocument();
     expect(screen.getByText('متأخر')).toBeInTheDocument();
 
-    // Totals from provided dataset: present=2, absent=1, late=1
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getAllByText('1').length).toBeGreaterThan(0);
   });
-
 });

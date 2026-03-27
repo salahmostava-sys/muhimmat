@@ -467,10 +467,9 @@ const Employees = () => {
     return sortEmployees(filteredRows, sortField, sortDir);
   }, [data, colFilters, sortField, sortDir]);
   const employeeStats = useMemo(() => {
-    const active = filtered.filter((emp) => emp.status === 'active').length;
     const inactive = filtered.filter((emp) => emp.status === 'inactive').length;
     const ended = filtered.filter((emp) => emp.status === 'ended').length;
-    return { active, inactive, ended };
+    return { inactive, ended };
   }, [filtered]);
 
   // ── Pagination ──
@@ -896,9 +895,8 @@ const Employees = () => {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-lg border bg-card p-3 text-sm">إجمالي النتائج: <span className="font-bold">{filtered.length}</span></div>
-        <div className="rounded-lg border bg-card p-3 text-sm">نشط: <span className="font-bold">{employeeStats.active}</span></div>
         <div className="rounded-lg border bg-card p-3 text-sm">غير نشط: <span className="font-bold">{employeeStats.inactive}</span></div>
         <div className="rounded-lg border bg-card p-3 text-sm">منتهي: <span className="font-bold">{employeeStats.ended}</span></div>
       </div>

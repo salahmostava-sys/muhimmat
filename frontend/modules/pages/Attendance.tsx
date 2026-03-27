@@ -115,18 +115,18 @@ const Attendance = () => {
         </div>
       </div>
 
-      <PageSection title="Stats">
+      <PageSection title="إحصائيات الحضور">
         <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
       </PageSection>
 
-      <PageSection title="Filters">
+      <PageSection title="الفلاتر">
         <div className="bg-card rounded-xl border border-border/50 p-3 text-sm text-muted-foreground">
           الشهر الحالي: <span className="font-semibold text-foreground">{MONTHS[Number(selectedMonth)]}</span>
           {' '}— السنة: <span className="font-semibold text-foreground">{selectedYear}</span>
         </div>
       </PageSection>
 
-      <PageSection title="Table">
+      <PageSection title="الجدول والتبويبات">
         <Tabs defaultValue="daily" className="space-y-2">
           <TabsList className="bg-muted/50">
             <TabsTrigger value="daily" className="gap-2">

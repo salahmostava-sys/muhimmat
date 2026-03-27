@@ -337,9 +337,6 @@ const Apps = () => {
   };
 
   const filteredEmployees = appEmployees.filter(e => e.name.includes(search));
-  const activeAppsCount = apps.filter((a) => a.is_active).length;
-  const selectedEmployeesCount = filteredEmployees.length;
-  const totalEmployeesInApps = apps.reduce((sum, app) => sum + (app.employeeCount ?? 0), 0);
 
   return (
     <div className="space-y-4">
@@ -363,16 +360,7 @@ const Apps = () => {
         </div>
       </div>
 
-      <PageSection title="Stats">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="rounded-lg border bg-card p-3 text-sm">إجمالي التطبيقات: <span className="font-bold">{apps.length}</span></div>
-          <div className="rounded-lg border bg-card p-3 text-sm">المفعّلة: <span className="font-bold">{activeAppsCount}</span></div>
-          <div className="rounded-lg border bg-card p-3 text-sm">إجمالي المناديب: <span className="font-bold">{totalEmployeesInApps}</span></div>
-          <div className="rounded-lg border bg-card p-3 text-sm">نتيجة جدول المندوبين: <span className="font-bold">{selectedEmployeesCount}</span></div>
-        </div>
-      </PageSection>
-
-      <PageSection title="Filters">
+      <PageSection title="البحث">
         <div className="bg-card rounded-xl border border-border/50 p-3">
           <div className="relative max-w-sm">
             <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -386,7 +374,7 @@ const Apps = () => {
         </div>
       </PageSection>
 
-      <PageSection title="Table">
+      <PageSection title="التطبيقات والمناديب">
         {loadingApps ? (
           <div className="text-center py-12 text-muted-foreground">جارٍ التحميل...</div>
         ) : (

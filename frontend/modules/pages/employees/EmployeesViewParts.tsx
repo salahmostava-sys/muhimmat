@@ -35,10 +35,7 @@ export const SponsorBadge = ({ status }: { status?: string | null }) => {
       cls: 'bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded-full',
     },
     absconded: { label: 'هروب', cls: 'badge-urgent' },
-    terminated: {
-      label: 'انتهاء الخدمة',
-      cls: 'bg-muted text-muted-foreground text-xs font-medium px-2.5 py-0.5 rounded-full',
-    },
+    terminated: { label: 'انتهاء الخدمة', cls: 'badge-urgent' },
   };
   const m = map[status];
   return m ? <span className={m.cls}>{m.label}</span> : null;
