@@ -10,7 +10,7 @@ import { defaultQueryRetry } from '@shared/lib/query';
 
 const FETCH_ALERTS_TIMEOUT_MS = 45_000;
 
-export const useAlertsData = () => {
+export const useAlerts = () => {
   const { settings } = useSystemSettings();
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
@@ -51,4 +51,7 @@ export const useAlertsData = () => {
 
   return { ...query, uid, iqamaAlertDays };
 };
+
+// Backward-compatible alias to avoid breaking imports during migration.
+export const useAlertsData = useAlerts;
 

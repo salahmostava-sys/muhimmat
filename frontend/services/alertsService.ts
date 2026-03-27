@@ -66,31 +66,6 @@ export const alertsService = {
     return results;
   },
 
-  fetchNotificationAlertsData: async (
-    threshold: string
-  ): Promise<
-    readonly [
-      { data: unknown[] | null; error: QueryError },
-      { data: unknown[] | null; error: QueryError },
-    ]
-  > => {
-    const [employeesRes, vehiclesRes] = await Promise.all([
-      supabase
-        .from("employees")
-        .select("id, name, residency_expiry, probation_end_date, sponsorship_status")
-        .eq("status", "active")
-        .or(`residency_expiry.lte.${threshold},probation_end_date.lte.${threshold}`),
-      supabase
-        .from("vehicles")
-        .select("id, plate_number, insurance_expiry, authorization_expiry")
-        .in("status", ["active", "maintenance", "rental"])
-        .or(`insurance_expiry.lte.${threshold},authorization_expiry.lte.${threshold}`),
-    ]);
-    throwIfError(employeesRes.error, "alertsService.fetchNotificationAlertsData.employees");
-    throwIfError(vehiclesRes.error, "alertsService.fetchNotificationAlertsData.vehicles");
-    return [employeesRes, vehiclesRes] as const;
-  },
-
   // Critical fix: resolve action persists in DB.
   resolveAlert: async (alertId: string, resolvedBy: string | null): Promise<ResolveAlertResult> => {
     const { data, error } = await supabase
@@ -106,7 +81,7 @@ export const alertsService = {
     if (!data?.id) {
       throw new Error("alertsService.resolveAlert: alert not found");
     }
-    return { id: data.id as string };
+    return { id: data.id };
   },
 
   // Critical fix: defer action persists in DB.
@@ -125,6 +100,6 @@ export const alertsService = {
     if (!data?.id) {
       throw new Error("alertsService.deferAlert: alert not found");
     }
-    return { id: data.id as string };
+    return { id: data.id };
   },
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCheck, FileWarning, AlertTriangle, Clock, ShieldAlert } from 'lucide-react';
 import { useLanguage } from '@app/providers/LanguageContext';
-import { useAlertsData } from '@shared/hooks/useAlertsData';
+import { useAlerts } from '@shared/hooks/useAlertsData';
 import { cn } from '@shared/lib/utils';
 import { logError } from '@shared/lib/logger';
 import { Link } from 'react-router-dom';
@@ -90,8 +90,8 @@ export default function NotificationCenter() {
     isLoading,
     isFetching,
     refetch,
-  } = useAlertsData();
-  const alerts = alertsData as Alert[];
+  } = useAlerts();
+  const alerts: Alert[] = alertsData;
   const loading = isLoading || isFetching;
 
   // Close on outside click

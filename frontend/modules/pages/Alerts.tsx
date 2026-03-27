@@ -12,7 +12,7 @@ import { useToast } from '@shared/hooks/use-toast';
 import { useAuth } from '@app/providers/AuthContext';
 import { authQueryUserId } from '@shared/hooks/useAuthQueryGate';
 import { alertsService } from '@services/alertsService';
-import { useAlertsData } from '@shared/hooks/useAlertsData';
+import { useAlerts } from '@shared/hooks/useAlertsData';
 import type { Alert } from '@shared/lib/alertsBuilder';
 import { escapeHtml } from '@shared/lib/security';
 import { format } from 'date-fns';
@@ -112,7 +112,7 @@ const Alerts = () => {
     error: alertsError,
     refetch: refetchAlerts,
     iqamaAlertDays,
-  } = useAlertsData();
+  } = useAlerts();
   const alertsQueryKey = ['alerts', uid, 'page-data', iqamaAlertDays] as const;
 
   useEffect(() => {
