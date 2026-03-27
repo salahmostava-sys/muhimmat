@@ -102,9 +102,37 @@ const parseDate = (val: any): string | null => {
   return null;
 };
 
-const isValidPhone = (phone?: string) => !phone || /^[0-9+\s-]{7,15}$/.test(phone);
-const isValidEmail = (email?: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const isValidNationalId = (id?: string) => !id || /^[0-9]{10}$/.test(id);
+const isValidPhone = (phone?: string) => {
+  if (!phone) return true;
+  const value = phone.trim();
+  if (value.length < 7 || value.length > 15) return false;
+  for (const ch of value) {
+    const isDigit = ch >= '0' && ch <= '9';
+    if (!isDigit && ch !== '+' && ch !== '-' && ch !== ' ') return false;
+  }
+  return true;
+};
+
+const isValidEmail = (email?: string) => {
+  if (!email) return true;
+  const value = email.trim();
+  const atIndex = value.indexOf('@');
+  if (atIndex <= 0 || atIndex !== value.lastIndexOf('@')) return false;
+  const local = value.slice(0, atIndex);
+  const domain = value.slice(atIndex + 1);
+  if (!local || !domain || local.includes(' ') || domain.includes(' ')) return false;
+  if (domain.startsWith('.') || domain.endsWith('.')) return false;
+  return domain.includes('.');
+};
+
+const isValidNationalId = (id?: string) => {
+  if (!id) return true;
+  if (id.length !== 10) return false;
+  for (const ch of id) {
+    if (ch < '0' || ch > '9') return false;
+  }
+  return true;
+};
 
 const STEP_LABELS = ['رفع الملف', 'معاينة وتحقق', 'استيراد'] as const;
 
