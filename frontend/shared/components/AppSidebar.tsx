@@ -11,6 +11,9 @@ import { useLanguage } from '@app/providers/LanguageContext';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { useMobileSidebar } from '@app/providers/MobileSidebarContext';
 import { cn } from '@shared/lib/utils';
+import { routesManifest, routeGroupTitleAr, type RouteGroup } from '@app/routesManifest';
+import { useAuth } from '@app/providers/AuthContext';
+import { DEFAULT_PERMISSIONS, type AppRole } from '@shared/hooks/usePermissions';
 
 function setHoverStylesIf(
   el: HTMLElement,
@@ -26,6 +29,7 @@ const AppSidebar = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const { isRTL } = useLanguage();
+  const { role } = useAuth();
   const { projectName, projectSubtitle, settings } = useSystemSettings();
   const { isOpen, close } = useMobileSidebar();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -58,46 +62,50 @@ const AppSidebar = () => {
     return true;
   }, [location.pathname, location.search]);
 
-  const navGroups = useMemo(() => [
-    {
-      key: 'hr',
-      sectionLabel: t('hr'),
-      items: [
-        { label: t('employees'), icon: Users, path: '/employees' },
-        { label: t('attendance'), icon: Clock, path: '/attendance' },
-        { label: t('alerts'), icon: Bell, path: '/alerts' },
-        { label: t('apps'), icon: Smartphone, path: '/apps' },
-      ],
-    },
-    {
-      key: 'finance',
-      sectionLabel: t('finance'),
-      items: [
-        { label: t('payroll'), icon: Wallet, path: '/salaries' },
-        { label: t('advances'), icon: CreditCard, path: '/advances' },
-      ],
-    },
-    {
-      key: 'operations',
-      sectionLabel: t('operations'),
-      items: [
-        { label: t('orders'), icon: Package, path: '/orders' },
-        { label: t('vehicles'), icon: Bike, path: '/motorcycles' },
-        { label: t('vehicleAssignment'), icon: FileDown, path: '/vehicle-assignment' },
-        { label: t('fuel'), icon: Fuel, path: '/fuel' },
-        { label: t('violationResolver'), icon: FileWarning, path: '/violation-resolver' },
-        { label: 'شرائح الشركة', icon: Layers, path: '/employee-tiers' },
-        { label: 'حسابات المنصات', icon: ShieldCheck, path: '/platform-accounts' },
-      ],
-    },
-    {
-      key: 'settings',
-      sectionLabel: isRTL ? 'النظام' : 'System',
-      items: [
-        { label: t('settings'), icon: Settings2, path: '/settings' },
-      ],
-    },
-  ], [isRTL, t]);
+  const iconByRouteId: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+    dashboard: LayoutDashboard,
+    employees: Users,
+    attendance: Clock,
+    alerts: Bell,
+    apps: Smartphone,
+    salaries: Wallet,
+    advances: CreditCard,
+    orders: Package,
+    motorcycles: Bike,
+    vehicle_assignment: FileDown,
+    fuel: Fuel,
+    violation_resolver: FileWarning,
+    employee_tiers: Layers,
+    platform_accounts: ShieldCheck,
+    settings: Settings2,
+  };
+
+  const canViewRoute = useCallback((permission?: string) => {
+    if (!permission) return true;
+    if (role === 'admin') return true;
+    if (!role) return false;
+    const defaults = DEFAULT_PERMISSIONS[role as AppRole] ?? DEFAULT_PERMISSIONS.viewer;
+    return defaults[permission]?.can_view ?? false;
+  }, [role]);
+
+  const navGroups = useMemo(() => {
+    const groupsOrder: RouteGroup[] = ['hr', 'finance', 'operations', 'system'];
+    return groupsOrder.map((groupKey) => {
+      const items = routesManifest
+        .filter((route) => route.group === groupKey && route.sidebar && route.id !== 'dashboard')
+        .filter((route) => canViewRoute(route.permission))
+        .map((route) => ({
+          label: route.titleAr,
+          icon: iconByRouteId[route.id] ?? LayoutDashboard,
+          path: route.path,
+        }));
+      return {
+        key: groupKey,
+        sectionLabel: routeGroupTitleAr[groupKey],
+        items,
+      };
+    }).filter((group) => group.items.length > 0);
+  }, [canViewRoute]);
 
   useEffect(() => {
     const activeGroup = navGroups.find(g => g.items.some(i => isActive(i.path)));
@@ -218,7 +226,7 @@ const AppSidebar = () => {
           {/* Dashboard */}
           <Link
             to="/"
-            title={collapsed ? t('dashboard') : undefined}
+            title={collapsed ? routeGroupTitleAr.dashboard : undefined}
             className={cn(
               'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full transition-all duration-150 overflow-hidden',
               collapsed && 'justify-center px-0',
@@ -247,7 +255,7 @@ const AppSidebar = () => {
               />
             )}
             <LayoutDashboard size={17} className="flex-shrink-0" />
-            {!collapsed && <span>{t('dashboard')}</span>}
+            {!collapsed && <span>{routeGroupTitleAr.dashboard}</span>}
           </Link>
 
           {/* Grouped nav items */}

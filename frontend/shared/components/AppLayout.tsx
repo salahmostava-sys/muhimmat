@@ -7,6 +7,7 @@ import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { useMobileSidebar, MobileSidebarProvider } from '@app/providers/MobileSidebarContext';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { getRouteByPathname } from '@app/routesManifest';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -20,31 +21,6 @@ import { profileService } from '@services/profileService';
 interface AppLayoutProps {
   children: ReactNode;
 }
-
-const routeTitles: Record<string, string> = {
-  '/': 'dashboard',
-  '/settings': 'settings',
-  '/employees': 'employees',
-  '/departments': 'departments',
-  '/positions': 'positions',
-  '/attendance': 'attendance',
-  '/orders': 'orders',
-  '/salaries': 'payroll',
-  '/advances': 'advances',
-  '/motorcycles': 'vehicles',
-  '/vehicle-assignment': 'vehicleAssignment',
-  '/fuel': 'fuel',
-  '/apps': 'apps',
-  '/alerts': 'alerts',
-  '/reports': 'reports',
-  '/analytics': 'analytics',
-  '/violation-resolver': 'violationResolver',
-  '/activity-log': 'activityLog',
-  '/settings/schemes': 'schemes',
-  '/settings/users': 'users',
-  '/settings/general': 'generalSettings',
-  '/profile': 'myProfile',
-};
 
 const roleLabelsMap: Record<string, string> = {
   admin: 'مدير النظام', hr: 'موارد بشرية', finance: 'مالية',
@@ -79,8 +55,8 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
     return () => { globalThis.removeEventListener('storage', onStorage); };
   }, []);
 
-  const pageKey = routeTitles[location.pathname] || 'dashboard';
-  const pageTitle = t(pageKey);
+  const manifestRoute = getRouteByPathname(location.pathname);
+  const pageTitle = manifestRoute?.titleAr ?? t('dashboard');
   const isDashboardRoute = location.pathname === '/';
 
   useEffect(() => {
