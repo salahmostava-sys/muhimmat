@@ -44,3 +44,14 @@ export const throwIfError = (error: unknown, context: string): void => {
 export function handleSupabaseError(error: unknown, context: string): never {
   throw toServiceError(error, context);
 }
+
+/**
+ * Converts unknown runtime errors to user-facing message safely.
+ * Use in UI catch blocks to avoid repetitive instanceof checks.
+ */
+export function getErrorMessage(error: unknown, fallback = 'حدث خطأ غير متوقع'): string {
+  if (error instanceof ServiceError && error.message) return error.message;
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error.trim()) return error;
+  return fallback;
+}

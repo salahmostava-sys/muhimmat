@@ -22,6 +22,7 @@ import { auditService } from '@services/auditService';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { logError } from '@shared/lib/logger';
+import { getErrorMessage } from '@services/serviceError';
 import { useFuel } from '@modules/fuel/hooks/useFuel';
 import {
   calcDailyStats,
@@ -84,7 +85,7 @@ type DailyMileageAggSource = {
 type MonthlyAgg = { km: number; fuel: number; count: number; name: string; photo?: string | null };
 
 const getErrorMessageOrFallback = (err: unknown, fallback: string): string =>
-  err instanceof Error ? err.message : fallback;
+  getErrorMessage(err, fallback);
 
 const buildOrdersMap = (rows: MonthlyOrderRow[]): Record<string, number> => {
   const map: Record<string, number> = {};
@@ -424,7 +425,7 @@ const ImportModal = ({
       onImported();
     } catch (e) {
       logError('[Fuel] import failed', e);
-      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      const message = getErrorMessage(e);
       toast({ title: 'خطأ في الاستيراد', description: message, variant: 'destructive' });
     } finally {
       setSaving(false);
@@ -651,7 +652,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
 
   useEffect(() => {
     if (!fuelBaseError) return;
-    const message = fuelBaseError instanceof Error ? fuelBaseError.message : 'تعذر تحميل البيانات الأساسية';
+    const message = getErrorMessage(fuelBaseError, 'تعذر تحميل البيانات الأساسية');
     toast({ title: 'خطأ في تحميل البيانات', description: message, variant: 'destructive' });
   }, [fuelBaseError, toast]);
 
@@ -750,7 +751,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       refresh();
     } catch (e) {
       logError('[Fuel] save monthly failed', e);
-      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      const message = getErrorMessage(e);
       toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     }
   };
@@ -779,7 +780,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       refresh();
     } catch (e) {
       logError('[Fuel] save daily failed', e);
-      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      const message = getErrorMessage(e);
       toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
     } finally {
       setSavingEntry(false);
@@ -812,7 +813,7 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
       refresh();
     } catch (e) {
       logError('[Fuel] export failed', e);
-      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      const message = getErrorMessage(e);
       toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
     } finally {
       setSavingEntry(false);
@@ -1307,7 +1308,7 @@ function FuelDailyFastList(props: FuelDailyFastListProps) {
         meta: { total: out.length, monthYear, employeeId: employeeId ?? null, branch: branch ?? null, search: search ?? null },
       });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'تعذر التصدير';
+      const msg = getErrorMessage(e, 'تعذر التصدير');
       toast({ title: 'خطأ', description: msg, variant: 'destructive' });
     } finally {
       setExporting(false);

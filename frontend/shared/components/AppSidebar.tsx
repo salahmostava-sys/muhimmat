@@ -11,7 +11,7 @@ import { useLanguage } from '@app/providers/LanguageContext';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { useMobileSidebar } from '@app/providers/MobileSidebarContext';
 import { cn } from '@shared/lib/utils';
-import { routesManifest, routeGroupTitleAr, type RouteGroup } from '@app/routesManifest';
+import { routesManifest, routeGroupTitleAr, toPagePermissionKey, type RouteGroup } from '@app/routesManifest';
 import { useAuth } from '@app/providers/AuthContext';
 import { DEFAULT_PERMISSIONS, type AppRole } from '@shared/hooks/usePermissions';
 
@@ -81,11 +81,12 @@ const AppSidebar = () => {
   };
 
   const canViewRoute = useCallback((permission?: string) => {
-    if (!permission) return true;
+    const pageKey = toPagePermissionKey(permission);
+    if (!pageKey) return true;
     if (role === 'admin') return true;
     if (!role) return false;
     const defaults = DEFAULT_PERMISSIONS[role as AppRole] ?? DEFAULT_PERMISSIONS.viewer;
-    return defaults[permission]?.can_view ?? false;
+    return defaults[pageKey]?.can_view ?? false;
   }, [role]);
 
   const navGroups = useMemo(() => {
