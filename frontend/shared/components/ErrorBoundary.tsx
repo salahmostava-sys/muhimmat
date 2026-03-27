@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
-import { logError } from '@shared/lib/logger';
+import { getErrorContextSnapshot } from '@shared/lib/errorContextMeta';
+import { logger } from '@shared/lib/logger';
 
 type Props = {
   children: ReactNode;
@@ -17,7 +18,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    logError('App crashed', error);
+    logger.error('App crashed', error, { meta: getErrorContextSnapshot() });
   }
 
   render() {

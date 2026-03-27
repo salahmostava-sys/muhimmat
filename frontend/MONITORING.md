@@ -28,11 +28,13 @@ The logger sends JSON payloads with this shape:
 type LogMeta = {
   level: 'error' | 'warn';
   message: string;
-  payload: unknown; // Error object serialized when possible
+  payload: unknown; // Error serialized; may include `{ error, meta }` when meta is passed
   ts: string;       // ISO timestamp
   href: string;     // current page URL
 };
 ```
+
+`ErrorBoundary` reports `App crashed` with `meta` from `errorContextMeta`: `pathname`, optional `search`, `userId`, manifest `feature` (route id), and `routeGroup` when the path matches `routesManifest`.
 
 ## Transport
 

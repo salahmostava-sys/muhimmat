@@ -11,6 +11,7 @@ import { SystemSettingsProvider } from "@app/providers/SystemSettingsContext";
 import ProtectedRoute from "@shared/components/ProtectedRoute";
 import PageGuard from "@shared/components/PageGuard";
 import ErrorBoundary from "@shared/components/ErrorBoundary";
+import { ErrorContextSync } from "@app/components/ErrorContextSync";
 import DashboardLayout from "@shared/components/AppLayout";
 import AuthLayout from "@app/layout/AuthLayout";
 import Loading from "@shared/components/Loading";
@@ -86,6 +87,7 @@ const App = () => (
           }}
         >
           <AuthProvider>
+            <ErrorContextSync />
             <LanguageProvider>
               <SystemSettingsProvider>
                 <ErrorBoundary>
