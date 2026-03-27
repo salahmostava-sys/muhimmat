@@ -3,7 +3,9 @@ import { Users, UserCheck, Package, Award, Bike, Bell, ArrowUpRight, ArrowDownRi
 type StatsCardsProps = Readonly<{
   loading: boolean;
   kpis: {
-    activeEmployees: number;
+    activeRiders: number;
+    totalMonthTarget: number;
+    targetAchievementPct: number;
     presentToday: number;
     absentToday: number;
     totalOrders: number;
@@ -45,12 +47,17 @@ function StatCard(props: Readonly<{ label: string; value: string | number; icon:
 }
 
 export function StatsCards({ loading, kpis, orderGrowth }: StatsCardsProps) {
+  const avgPerRider = kpis.activeRiders > 0 ? Math.round(kpis.totalOrders / kpis.activeRiders) : 0;
+  const ordersSub =
+    kpis.totalMonthTarget > 0
+      ? `هذا الشهر · ${kpis.targetAchievementPct}% من هدف المنصات (${kpis.totalMonthTarget.toLocaleString()})`
+      : 'هذا الشهر';
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-6 gap-3">
-      <StatCard label="المناديب النشطون" value={kpis.activeEmployees} icon={Users} sub="موظف نشط" loading={loading} />
+      <StatCard label="المناديب النشطون" value={kpis.activeRiders} icon={Users} sub="مرتبطون بمنصة توصيل" loading={loading} />
       <StatCard label="حاضرون اليوم" value={kpis.presentToday} icon={UserCheck} sub={`${kpis.absentToday} غائب`} loading={loading} />
-      <StatCard label="طلبات الشهر" value={kpis.totalOrders.toLocaleString()} icon={Package} trend={{ value: orderGrowth, positive: orderGrowth >= 0 }} sub="هذا الشهر" loading={loading} />
-      <StatCard label="متوسط طلبات/مندوب" value={kpis.activeEmployees > 0 ? Math.round(kpis.totalOrders / kpis.activeEmployees) : 0} icon={Award} sub="طلب/مندوب" loading={loading} />
+      <StatCard label="إجمالي طلبات الشهر" value={kpis.totalOrders.toLocaleString()} icon={Package} trend={{ value: orderGrowth, positive: orderGrowth >= 0 }} sub={ordersSub} loading={loading} />
+      <StatCard label="متوسط طلبات/مندوب" value={avgPerRider} icon={Award} sub="على المناديب المرتبطين بالمنصات" loading={loading} />
       <StatCard label="المركبات النشطة" value={kpis.activeVehicles} icon={Bike} loading={loading} />
       <StatCard label="التنبيهات" value={kpis.activeAlerts} icon={Bell} sub="غير محلولة" loading={loading} />
     </div>

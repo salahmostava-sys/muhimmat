@@ -92,4 +92,16 @@ export const appService = {
     if (error) throw toServiceError(error, 'appService.getActiveWithSalarySchemes');
     return data ?? [];
   },
+
+  /** Monthly order target for one app (YYYY-MM), or null if not set */
+  getAppTargetForMonth: async (appId: string, monthYear: string) => {
+    const { data, error } = await supabase
+      .from('app_targets')
+      .select('target_orders')
+      .eq('app_id', appId)
+      .eq('month_year', monthYear)
+      .maybeSingle();
+    if (error) throw toServiceError(error, 'appService.getAppTargetForMonth');
+    return data?.target_orders ?? null;
+  },
 };

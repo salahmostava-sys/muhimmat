@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Shield, RefreshCw, Save, AlertCircle } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
-import { Input } from '@shared/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import { Checkbox } from '@shared/components/ui/checkbox';
@@ -101,9 +100,6 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
   const [matrix, setMatrix] = useState<Record<string, PagePermission>>({});
   const [matrixLoading, setMatrixLoading] = useState(false);
   const [savingMatrix, setSavingMatrix] = useState(false);
-  const [userSearch, setUserSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | AppRole>('all');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   const isAdmin = authRole === 'admin';
   const canEdit = settingsPerm.can_edit && isAdmin;
@@ -150,24 +146,6 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     if (!u) return;
     void loadMatrix(u.id, u.role);
   }, [permUserId, rows, isAdmin, loadMatrix]);
-
-  const totals = useMemo(() => {
-    return {
-      total: rows.length,
-      active: rows.filter((r) => r.isActive).length,
-    };
-  }, [rows]);
-
-  const filteredUsers = useMemo(() => {
-    const q = userSearch.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (roleFilter !== 'all' && row.role !== roleFilter) return false;
-      if (activeFilter === 'active' && !row.isActive) return false;
-      if (activeFilter === 'inactive' && row.isActive) return false;
-      if (!q) return true;
-      return row.name.toLowerCase().includes(q);
-    });
-  }, [activeFilter, roleFilter, rows, userSearch]);
 
   const updateRole = async (userId: string, role: AppRole) => {
     if (!canEdit) return;
@@ -279,52 +257,6 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="rounded-lg border bg-card p-3 text-sm">
-              إجمالي المستخدمين: <span className="font-bold">{totals.total}</span>
-            </div>
-            <div className="rounded-lg border bg-card p-3 text-sm">
-              النشطين: <span className="font-bold">{totals.active}</span>
-            </div>
-            <div className="rounded-lg border bg-card p-3 text-sm">
-              نتيجة الفلاتر: <span className="font-bold">{filteredUsers.length}</span>
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-card p-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <Input
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="بحث باسم المستخدم..."
-                className="h-9"
-              />
-              <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as 'all' | AppRole)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="كل الأدوار" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الأدوار</SelectItem>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {ROLE_LABELS_AR[r]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={activeFilter} onValueChange={(value) => setActiveFilter(value as 'all' | 'active' | 'inactive')}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="كل الحالات" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الحالات</SelectItem>
-                  <SelectItem value="active">نشط</SelectItem>
-                  <SelectItem value="inactive">موقوف</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           <div className="rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/40">
@@ -335,7 +267,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((row) => (
+                {rows.map((row) => (
                   <tr key={row.id} className="border-t">
                     <td className="px-3 py-2">{row.name}</td>
                     <td className="px-3 py-2">{row.isActive ? 'نشط' : 'موقوف'}</td>
@@ -362,10 +294,10 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
                     </td>
                   </tr>
                 ))}
-                {filteredUsers.length === 0 && (
+                {rows.length === 0 && (
                   <tr>
                     <td colSpan={3} className="px-3 py-6 text-center text-muted-foreground">
-                      لا توجد نتائج مطابقة للفلاتر.
+                      لا يوجد مستخدمون.
                     </td>
                   </tr>
                 )}

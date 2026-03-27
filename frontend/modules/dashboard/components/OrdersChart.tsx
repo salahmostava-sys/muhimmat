@@ -16,8 +16,12 @@ export function OrdersChart(props: Readonly<{
   const { loading, ordersByApp, ordersByCity, totalOrders } = props;
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-bold text-foreground">إجمالي طلبات الشهر (كل المنصات)</p>
+        <p className="text-2xl font-black tabular-nums">{loading ? '—' : totalOrders.toLocaleString()}</p>
+      </div>
       <div>
-        <p className="text-xs text-muted-foreground/80 mb-2">طلبات الشهر حسب المنصة — مع نسبة تحقيق الهدف</p>
+        <p className="text-xs text-muted-foreground/80 mb-2">طلبات كل منصة على حدة — مع نسبة تحقيق الهدف</p>
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {['o1', 'o2', 'o3', 'o4'].map((k) => <div key={k} className="h-28 bg-muted/40 rounded-xl animate-pulse" />)}

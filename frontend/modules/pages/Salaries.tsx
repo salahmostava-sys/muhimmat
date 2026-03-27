@@ -6,8 +6,9 @@ import { Input } from '@shared/components/ui/input';
 import { Button } from '@shared/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@shared/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@shared/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
-import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2 } from 'lucide-react';
+import { Search, Wallet, FolderOpen, CheckCircle, Printer, ChevronUp, ChevronDown, ChevronsUpDown, LayoutGrid, Table2, AlertTriangle, FileText, Settings2, Globe, Archive, TrendingUp, Users, Building2, Loader2 } from 'lucide-react';
 import { useToast } from '@shared/hooks/use-toast';
 import { format } from 'date-fns';
 import { useAppColors, CustomColumn } from '@shared/hooks/useAppColors';
@@ -28,6 +29,7 @@ import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryVali
 import { defaultQueryRetry } from '@shared/lib/query';
 import { logError } from '@shared/lib/logger';
 import { auditService } from '@services/auditService';
+import { driverService } from '@services/driverService';
 import type JSZip from 'jszip';
 import { toCityArabicLabel, type FastApprovedFilter } from '@modules/salaries/model/salaryUtils';
 import { SalaryFastList as SalariesFastList } from '@modules/salaries/components/SalaryFastList';
@@ -165,6 +167,8 @@ interface SalaryRow {
   jobTitle: string;
   nationalId: string;
   city: string;
+  /** قيمة قاعدة البيانات للفرع — للتصفية والحفظ */
+  cityKey: 'makkah' | 'jeddah' | null;
   bankAccount: string;
   hasIban: boolean;
   paymentMethod: 'bank' | 'cash';
@@ -584,6 +588,9 @@ const buildSalaryRows = ({
     const status = resolveRowStatus(saved, pendingInstallmentsCount, deductedInstallmentsCount);
     const preview = previewMap[employeeId];
     const hasIban = !!emp.iban;
+    const rawCity = (emp.city as string | null | undefined) ?? null;
+    const cityKey: 'makkah' | 'jeddah' | null =
+      rawCity === 'makkah' || rawCity === 'jeddah' ? rawCity : null;
     const preferredLanguage = (emp as { preferred_language?: SlipLanguage | null }).preferred_language || 'ar';
     const phone = (emp as { phone?: string | null }).phone || null;
 
@@ -593,7 +600,8 @@ const buildSalaryRows = ({
       employeeName: String(emp.name || ''),
       jobTitle: String(emp.job_title || 'مندوب توصيل'),
       nationalId: String(emp.national_id || '—'),
-      city: toCityArabicLabel((emp.city as string | null) || null),
+      city: toCityArabicLabel(rawCity),
+      cityKey,
       bankAccount: emp.iban ? String(emp.iban).slice(-6) : '',
       hasIban,
       paymentMethod: hasIban ? 'bank' : 'cash',
@@ -1419,7 +1427,7 @@ const Salaries = () => {
     return rows.filter(r => {
       const matchSearch = q === '' || r.employeeName.toLowerCase().includes(q);
       const matchStatus = statusFilter === 'all' || r.status === statusFilter;
-      const matchCity = cityFilter === 'all' || r.city === (cityFilter === 'makkah' ? 'مكة' : 'جدة');
+      const matchCity = cityFilter === 'all' || r.cityKey === cityFilter;
       return matchSearch && matchStatus && matchCity;
     });
   }, [rows, search, statusFilter, cityFilter]);
@@ -1466,6 +1474,55 @@ const Salaries = () => {
     }));
     if (payslipRow?.id === id) setPayslipRow(prev => prev ? { ...prev, ...patch } : prev);
   }, [payslipRow]);
+
+  const [employeeFieldSaving, setEmployeeFieldSaving] = useState<string | null>(null);
+
+  const persistEmployeeCity = useCallback(
+    async (row: SalaryRow, nextCity: 'makkah' | 'jeddah') => {
+      if (row.cityKey === nextCity) return;
+      setEmployeeFieldSaving(`${row.employeeId}:city`);
+      try {
+        await driverService.update(row.employeeId, { city: nextCity });
+        await queryClient.invalidateQueries({ queryKey: ['salaries', uid, 'base-context', selectedMonth] });
+        toast({ title: 'تم تحديث الفرع' });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'تعذر الحفظ';
+        toast({ title: 'فشل تحديث الفرع', description: msg, variant: 'destructive' });
+      } finally {
+        setEmployeeFieldSaving(null);
+      }
+    },
+    [toast, queryClient, uid, selectedMonth],
+  );
+
+  const persistEmployeePaymentMethod = useCallback(
+    async (row: SalaryRow, next: 'bank' | 'cash') => {
+      if (row.paymentMethod === next) return;
+      if (next === 'bank' && !row.hasIban) {
+        toast({
+          title: 'لا يوجد رقم آيبان',
+          description: 'أضف رقم الآيبان من ملف الموظف قبل اختيار التحويل البنكي.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (next === 'cash' && !row.hasIban) return;
+      setEmployeeFieldSaving(`${row.employeeId}:payment`);
+      try {
+        if (next === 'cash') {
+          await driverService.update(row.employeeId, { iban: null });
+        }
+        await queryClient.invalidateQueries({ queryKey: ['salaries', uid, 'base-context', selectedMonth] });
+        toast({ title: 'تم تحديث طريقة الصرف' });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : 'تعذر الحفظ';
+        toast({ title: 'فشل تحديث طريقة الصرف', description: msg, variant: 'destructive' });
+      } finally {
+        setEmployeeFieldSaving(null);
+      }
+    },
+    [toast, queryClient, uid, selectedMonth],
+  );
 
   const updatePlatformOrders = (id: string, platform: string, value: number) => {
     setRows(prev => prev.map(r => {
@@ -2475,7 +2532,7 @@ const Salaries = () => {
               <thead className="sticky top-0 z-30">
                 <tr className="bg-muted/70 border-b border-border/50">
                   <th className={`${thFrozenBase} w-10 text-center`} style={stickyLeft(0)}>#</th>
-                  <th colSpan={5} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(40)}>بيانات المندوب</th>
+                  <th colSpan={3} className={`${thFrozenBase} border-l border-border/50`} style={stickyLeft(40)}>بيانات المندوب</th>
                   <th colSpan={3} className="px-3 py-2 text-xs font-semibold text-info whitespace-nowrap border-b border-border/40 bg-info/10 text-center border-l border-border/40">📊 بيانات المندوب الشهرية</th>
                   <th colSpan={platforms.length} className="px-3 py-2 text-xs font-semibold text-primary whitespace-nowrap border-b border-border/50 bg-muted/40 text-center border-l border-border/50">
                     المنصات (نقر مزدوج لتعديل الطلبات)
@@ -2485,6 +2542,7 @@ const Salaries = () => {
                   <th colSpan={dedColCount} className="px-3 py-2 text-xs font-semibold text-destructive whitespace-nowrap border-b border-border/40 bg-destructive/10 text-center border-l border-border/40">🔻 المستقطعات</th>
                   <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-success whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">المستحق</th>
                   <th colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">معلومات الصرف</th>
+                  <th colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">الفرع وطريقة الصرف</th>
                   <th colSpan={1} className="px-3 py-2 text-xs font-semibold text-muted-foreground whitespace-nowrap border-b border-border/40 bg-muted/40 text-center border-l border-border/40">الإجراءات</th>
                 </tr>
                 <tr className="bg-muted/50">
@@ -2497,12 +2555,6 @@ const Salaries = () => {
                   </th>
                   <th className={`${thFrozenBase} w-28 cursor-pointer hover:text-foreground select-none`} style={stickyLeft(264)} onClick={() => handleSort('nationalId')}>
                     رقم الهوية <SortIcon field="nationalId" sortField={sortField} sortDir={sortDir} />
-                  </th>
-                  <th className={`${thBase} cursor-pointer hover:text-foreground select-none`} onClick={() => handleSort('city')}>
-                    الفرع <SortIcon field="city" sortField={sortField} sortDir={sortDir} />
-                  </th>
-                  <th className={`${thBase} border-l border-border/40 cursor-pointer hover:text-foreground select-none`} onClick={() => handleSort('paymentMethod')}>
-                    طريقة الصرف <SortIcon field="paymentMethod" sortField={sortField} sortDir={sortDir} />
                   </th>
                   {/* ── New info columns ── */}
                   <th className="px-2 py-2 text-xs font-semibold text-info whitespace-nowrap border border-border/40 bg-info/10 text-center cursor-pointer select-none hover:brightness-95" onClick={() => handleSort('platformIncome')}>
@@ -2549,6 +2601,12 @@ const Salaries = () => {
                   <th className={thBase}>المستحق</th>
                   <th className={thBase}>المحوّل</th>
                   <th className={`${thBase} border-l border-border/40`}>المتبقي</th>
+                  <th className={`${thBase} cursor-pointer hover:text-foreground select-none`} onClick={() => handleSort('city')}>
+                    الفرع <SortIcon field="city" sortField={sortField} sortDir={sortDir} />
+                  </th>
+                  <th className={`${thBase} border-l border-border/40 cursor-pointer hover:text-foreground select-none`} onClick={() => handleSort('paymentMethod')}>
+                    طريقة الصرف <SortIcon field="paymentMethod" sortField={sortField} sortDir={sortDir} />
+                  </th>
                   <th className={`${thBase} border-l border-border/50`}>الإجراءات</th>
                 </tr>
               </thead>
@@ -2583,12 +2641,6 @@ const Salaries = () => {
                       </td>
                       <td className={`${tdClass} whitespace-nowrap`} style={{ position: 'sticky', left: 168, zIndex: 10, background: 'hsl(var(--card))' }}>{r.jobTitle}</td>
                       <td className={`${tdClass} border-l border-border/40 text-muted-foreground text-xs whitespace-nowrap`} style={{ position: 'sticky', left: 264, zIndex: 10, background: 'hsl(var(--card))' }}>{r.nationalId}</td>
-                      <td className={`${tdClass} text-center whitespace-nowrap`}>
-                        {r.city || '—'}
-                      </td>
-                      <td className={`${tdClass} border-l border-border/40 text-center whitespace-nowrap`}>
-                        {r.paymentMethod === 'bank' ? '🏦 بنك' : '💵 كاش'}
-                      </td>
                       {/* ── New info columns: income (manual), work days, fuel ── */}
                       <td className="px-2 py-2 text-xs text-center border border-border/40 bg-info/5 whitespace-nowrap">
                         <EditableCell value={r.platformIncome} onChange={v => updateRow(r.id, { platformIncome: v })} className="text-foreground" />
@@ -2653,6 +2705,54 @@ const Salaries = () => {
                         <EditableCell value={r.transfer} onChange={v => updateRow(r.id, { transfer: Math.max(0, Math.min(v, Math.max(0, c.netSalary))) })} />
                       </td>
                       <td className={`${tdClass} border-l border-border/20`}>{c.remaining.toLocaleString()}</td>
+                      <td className={`${tdClass} text-center align-middle`}>
+                        <Select
+                          value={r.cityKey ?? '_none'}
+                          onValueChange={(v) => {
+                            if (v === '_none') return;
+                            void persistEmployeeCity(r, v as 'makkah' | 'jeddah');
+                          }}
+                          disabled={employeeFieldSaving === `${r.employeeId}:city`}
+                        >
+                          <SelectTrigger className="h-8 w-[104px] text-xs mx-auto" dir="rtl">
+                            {employeeFieldSaving === `${r.employeeId}:city` ? (
+                              <span className="flex w-full justify-center">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              </span>
+                            ) : (
+                              <SelectValue placeholder="الفرع" />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent dir="rtl">
+                            <SelectItem value="_none" className="text-muted-foreground">
+                              —
+                            </SelectItem>
+                            <SelectItem value="makkah">مكة</SelectItem>
+                            <SelectItem value="jeddah">جدة</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className={`${tdClass} border-l border-border/40 text-center align-middle`}>
+                        <Select
+                          value={r.paymentMethod}
+                          onValueChange={(v) => void persistEmployeePaymentMethod(r, v as 'bank' | 'cash')}
+                          disabled={employeeFieldSaving === `${r.employeeId}:payment`}
+                        >
+                          <SelectTrigger className="h-8 w-[100px] text-xs mx-auto" dir="rtl">
+                            {employeeFieldSaving === `${r.employeeId}:payment` ? (
+                              <span className="flex w-full justify-center">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              </span>
+                            ) : (
+                              <SelectValue />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent dir="rtl">
+                            <SelectItem value="cash">💵 كاش</SelectItem>
+                            <SelectItem value="bank">🏦 بنك</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
                       <td className={`${tdClass} border-l border-border`}>
                         <div className="flex items-center justify-center gap-1.5">
                           {r.status === 'pending' && (
@@ -2685,8 +2785,6 @@ const Salaries = () => {
                   <td className={`${tfClass} sticky text-center border-l border-border/30`} style={{ left: 40, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}>الإجمالي</td>
                    <td className={tfClass} style={{ position: 'sticky', left: 168, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
                    <td className={`${tfClass} border-l border-border/30`} style={{ position: 'sticky', left: 264, zIndex: 20, background: 'hsl(var(--muted) / 0.6)' }}></td>
-                   <td className={tfClass}></td>
-                   <td className={`${tfClass} border-l border-border/30`}></td>
                    {/* New info columns totals */}
                    <td className="px-2 py-2 text-xs font-bold text-center border border-border/40 bg-info/10 text-foreground">
                      {filtered.reduce((s, r) => s + r.platformIncome, 0).toLocaleString()}
@@ -2727,6 +2825,8 @@ const Salaries = () => {
                   <td className={`${tfClass} text-foreground text-base ${totals.net < 0 ? 'text-destructive' : ''}`}>{totals.net.toLocaleString()}</td>
                   <td className={tfClass}>{totals.transfer.toLocaleString()}</td>
                   <td className={`${tfClass} border-l border-border/30`}>{totals.remaining.toLocaleString()}</td>
+                  <td className={tfClass} />
+                  <td className={`${tfClass} border-l border-border/30`} />
                   <td className={tfClass} colSpan={1}></td>
                 </tr>
               </tbody>

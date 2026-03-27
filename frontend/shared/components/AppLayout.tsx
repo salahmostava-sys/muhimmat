@@ -6,7 +6,7 @@ import { useTheme } from '@app/providers/ThemeContext';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { useMobileSidebar, MobileSidebarProvider } from '@app/providers/MobileSidebarContext';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { getRouteByPathname } from '@app/routesManifest';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -44,7 +44,6 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
   const { toggle } = useMobileSidebar();
   const { t } = useTranslation();
   const location = useLocation();
-  const navigate = useNavigate();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
@@ -258,13 +257,17 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
                     </div>
                   </div>
                 </div>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => navigate('/profile')}>
-                  <User size={14} />
-                  <span>الملف الشخصي</span>
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                    <User size={14} />
+                    <span>الملف الشخصي</span>
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => navigate('/settings')}>
-                  <Settings size={14} />
-                  <span>إعدادات النظام</span>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                    <Settings size={14} />
+                    <span>إعدادات النظام</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="gap-2 cursor-pointer text-destructive focus:text-destructive" onClick={signOut}>

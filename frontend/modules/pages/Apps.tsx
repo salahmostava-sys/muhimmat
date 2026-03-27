@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getDate, getDaysInMonth } from 'date-fns';
 import { Smartphone, Search, Plus, Edit2, Power, PowerOff, X, Check, Trash2, PlusCircle, Columns } from 'lucide-react';
 import {
   AlertDialog,
@@ -41,6 +42,12 @@ interface EmployeeInApp {
   id: string;
   name: string;
   monthOrders: number;
+  /** حصة تقديرية من هدف المنصة (هدف الشهر ÷ عدد المناديب) */
+  targetShare: number | null;
+  /** إسقاط نهاية الشهر من معدل الأيام المنقضية */
+  projectedMonthEnd: number | null;
+  /** هل الإسقاط يحقق حصة التارجت (≥ تقريباً 95%) */
+  onTrack: boolean | null;
 }
 
 type EmployeeAppRow = {
@@ -247,6 +254,8 @@ const Apps = () => {
   const [modalApp, setModalApp] = useState<AppData | null | undefined>(undefined);
   const [deleteApp, setDeleteApp] = useState<AppData | null>(null);
   const [deleting, setDeleting] = useState(false);
+  /** عرض أعمدة تحقيق تارجت المندوب في المنصة (حصة + إسقاط) */
+  const [showTargetProjection, setShowTargetProjection] = useState(false);
 
   useEffect(() => {
     setApps(appsData as AppData[]);
@@ -286,11 +295,30 @@ const Apps = () => {
           e.sponsorship_status !== 'terminated'
         );
 
+      const targetOrders = await appService.getAppTargetForMonth(app.id, currentMonth);
+      const riderCount = employees.length;
+      const sharePerRider =
+        targetOrders != null && riderCount > 0 ? targetOrders / riderCount : null;
+
+      const now = new Date();
+      const daysInMonth = getDaysInMonth(now);
+      const daysPassed = Math.max(1, getDate(now));
+
       const employeesWithOrders = await Promise.all(
         employees.map(async (emp) => {
           const orders = await appService.getEmployeeMonthlyOrders(emp.id, app.id, startDate, endDate);
           const total = orders.reduce((s: number, o) => s + o.orders_count, 0) || 0;
-          return { id: emp.id, name: emp.name, monthOrders: total };
+          const projectedMonthEnd = Math.round((total / daysPassed) * daysInMonth);
+          const onTrack =
+            sharePerRider != null ? projectedMonthEnd >= sharePerRider * 0.95 : null;
+          return {
+            id: emp.id,
+            name: emp.name,
+            monthOrders: total,
+            targetShare: sharePerRider,
+            projectedMonthEnd,
+            onTrack,
+          };
         })
       );
       setAppEmployees(employeesWithOrders);
@@ -360,9 +388,9 @@ const Apps = () => {
         </div>
       </div>
 
-      <PageSection title="البحث">
-        <div className="bg-card rounded-xl border border-border/50 p-3">
-          <div className="relative max-w-sm">
+      <PageSection title="البحث والعرض">
+        <div className="bg-card rounded-xl border border-border/50 p-3 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="relative max-w-sm flex-1">
             <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="بحث في مناديب التطبيق المختار..."
@@ -371,7 +399,22 @@ const Apps = () => {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Switch
+              id="apps-target-projection"
+              checked={showTargetProjection}
+              onCheckedChange={setShowTargetProjection}
+            />
+            <Label htmlFor="apps-target-projection" className="text-sm cursor-pointer">
+              توقع تحقيق تارجت المندوب في المنصة
+            </Label>
+          </div>
         </div>
+        {showTargetProjection && (
+          <p className="text-xs text-muted-foreground mt-2 max-w-3xl">
+            الحصة = هدف المنصة لهذا الشهر (من «أهداف المنصات») مقسوم على عدد المناديب النشطين. الإسقاط يفترض استمرار المعدل اليومي حتى نهاية الشهر.
+          </p>
+        )}
       </PageSection>
 
       <PageSection title="التطبيقات والمناديب">
@@ -501,6 +544,13 @@ const Apps = () => {
                     <th className="ta-th text-center">المندوب</th>
                     <th className="ta-th text-center">الحالة</th>
                     <th className="ta-th text-center">طلبات الشهر</th>
+                    {showTargetProjection && (
+                      <>
+                        <th className="ta-th text-center">حصة التارجت</th>
+                        <th className="ta-th text-center">إسقاط نهاية الشهر</th>
+                        <th className="ta-th text-center">توقع التحقق</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -511,6 +561,25 @@ const Apps = () => {
                       <td className="ta-td text-center font-semibold" style={{ color: selectedApp.brand_color }}>
                         {emp.monthOrders.toLocaleString()}
                       </td>
+                      {showTargetProjection && (
+                        <>
+                          <td className="ta-td text-center text-sm tabular-nums">
+                            {emp.targetShare != null ? Math.round(emp.targetShare).toLocaleString() : '—'}
+                          </td>
+                          <td className="ta-td text-center text-sm tabular-nums">
+                            {emp.projectedMonthEnd != null ? emp.projectedMonthEnd.toLocaleString() : '—'}
+                          </td>
+                          <td className="ta-td text-center">
+                            {emp.onTrack === null ? (
+                              <span className="text-xs text-muted-foreground">لا يوجد هدف للشهر</span>
+                            ) : emp.onTrack ? (
+                              <span className="badge-success text-xs">متوقع تحقيق الحصة</span>
+                            ) : (
+                              <span className="text-xs font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md">أقل من الحصة</span>
+                            )}
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>

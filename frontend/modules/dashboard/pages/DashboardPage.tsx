@@ -12,7 +12,7 @@ import {
 import AlertsList from '@shared/components/AlertsList';
 import { dashboardService } from '@services/dashboardService';
 import {
-  format, formatDistanceToNow,
+  format,
   subMonths, startOfMonth, endOfMonth, getDaysInMonth, getDate,
 } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -32,7 +32,7 @@ import { OrdersChart } from '@modules/dashboard/components/OrdersChart';
 import { AttendanceChart } from '@modules/dashboard/components/AttendanceChart';
 import { AlertsWidget } from '@modules/dashboard/components/AlertsWidget';
 import { TopEmployees } from '@modules/dashboard/components/TopEmployees';
-import { useDashboard } from '@modules/dashboard/hooks/useDashboard';
+import { useDashboard, type AtRiskRider } from '@modules/dashboard/hooks/useDashboard';
 
 const SKELETON_KEYS_2 = ['sk-1', 'sk-2'] as const;
 const SKELETON_KEYS_4 = ['sk-1', 'sk-2', 'sk-3', 'sk-4'] as const;
@@ -250,29 +250,6 @@ const DashboardHeader = ({ activeTab, onTabChange }: { activeTab: DashboardTabKe
     </div>
   </div>
 );
-
-type DashboardRecentActivityItem = { text: string; time: string; icon: LucideIcon };
-
-const RecentActivityCard = ({ recentActivity }: { recentActivity: DashboardRecentActivityItem[] }) => {
-  if (recentActivity.length === 0) return null;
-  return (
-    <Card title="آخر النشاطات" subtitle="آخر 6 إجراءات في النظام">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1">
-        {recentActivity.map((item) => (
-          <div key={`${item.text}-${item.time}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/40 transition-colors">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-              <item.icon size={14} className="text-blue-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground/75 truncate">{item.text}</p>
-              <p className="text-[10px] text-muted-foreground/80">{item.time}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-};
 
 const OrdersByCityCard = ({ ordersByCity, totalOrders }: { ordersByCity: { city: string; orders: number }[]; totalOrders: number }) => {
   if (ordersByCity.length === 0) return null;
@@ -747,55 +724,6 @@ const getAttendanceTodayCounts = (att: DashboardAttendanceToday | null | undefin
 const buildAttendanceWeek = (rows: DashboardAttendanceWeekRow[]) =>
   rows.map((r) => ({ day: DASHBOARD_DAY_NAMES_AR[new Date(`${r.date}T12:00:00`).getDay()], ...r }));
 
-const DASHBOARD_ICON_MAP: Record<string, LucideIcon> = {
-  employees: Users,
-  attendance: UserCheck,
-  daily_orders: Package,
-  vehicles: Bike,
-  apps: Smartphone,
-  alerts: Bell,
-};
-
-const DASHBOARD_TABLE_LABELS_AR: Record<string, string> = {
-  employees: 'الموظفون',
-  attendance: 'الحضور',
-  advances: 'السلف',
-  salary_records: 'الرواتب',
-  daily_orders: 'الطلبات',
-  vehicles: 'المركبات',
-  apps: 'التطبيقات',
-  user_roles: 'الأدوار',
-  system_settings: 'الإعدادات',
-  alerts: 'التنبيهات',
-};
-
-const DASHBOARD_ACTION_LABELS_AR: Record<string, string> = {
-  INSERT: 'إضافة',
-  UPDATE: 'تعديل',
-  DELETE: 'حذف',
-};
-
-type DashboardAuditRow = {
-  action: string;
-  table_name: string;
-  created_at: string;
-  profiles?: { name?: string | null; email?: string | null } | null;
-};
-
-const buildRecentActivity = (rows: DashboardAuditRow[]) => {
-  return rows.map((a) => {
-    const userName = 'مستخدم';
-    const actionLabel = DASHBOARD_ACTION_LABELS_AR[a.action] || a.action;
-    const tableLabel = DASHBOARD_TABLE_LABELS_AR[a.table_name] || a.table_name;
-    const icon = DASHBOARD_ICON_MAP[a.table_name] || Activity;
-    return {
-      text: `${userName} — ${actionLabel} في ${tableLabel}`,
-      time: formatDistanceToNow(new Date(a.created_at), { locale: ar, addSuffix: true }),
-      icon,
-    };
-  });
-};
-
 const useDashboardRealtimeInvalidation = (
   userId: string | undefined,
   currentMonth: string,
@@ -813,7 +741,10 @@ const fetchDashboardKpis = async (
   activeEmployeeIdsInMonth: ReadonlySet<string> | undefined
 ) => {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const rpcData = await dashboardService.getOverviewRpc(currentMonth, today);
+  const [rpcData, employeeAppAssignments] = await Promise.all([
+    dashboardService.getOverviewRpc(currentMonth, today),
+    dashboardService.getEmployeeAppAssignments(),
+  ]);
 
   type DashboardRpcShape = {
     apps?: DashboardApp[];
@@ -823,7 +754,6 @@ const fetchDashboardKpis = async (
     ordersByCity?: DashboardOrdersByCityRow[];
     riders?: Array<{ name: string; orders: number; app: string; appColor: string; appId: string }>;
     attendanceWeek?: DashboardAttendanceWeekRow[];
-    recentActivity?: DashboardAuditRow[];
     kpis?: {
       estRevenueTotal?: number;
       prevMonthOrders?: number;
@@ -844,8 +774,13 @@ const fetchDashboardKpis = async (
     isEmployeeVisibleInMonth({ id: e.id, sponsorship_status: e.sponsorship_status }, activeEmployeeIdsInMonth)
   );
 
+  const driverIdSet = new Set((employeeAppAssignments || []).map((a) => a.employee_id));
+  const activeRiders = empDetails.filter((e) => driverIdSet.has(e.id)).length;
+
   const ordersByApp = (rpc.ordersByApp || []) as DashboardOrdersByAppRow[];
   const totalOrders = ordersByApp.reduce((s, r) => s + (r.orders || 0), 0);
+  const totalMonthTarget = ordersByApp.reduce((s, r) => s + (r.target || 0), 0);
+  const targetAchievementPct = totalMonthTarget > 0 ? Math.min(999, Math.round((totalOrders / totalMonthTarget) * 100)) : 0;
   const estRevenueByApp = ordersByApp;
   const estRevenueTotal = (rpc.kpis?.estRevenueTotal as number) || estRevenueByApp.reduce((s, r) => s + (r.estRevenue || 0), 0);
 
@@ -864,6 +799,9 @@ const fetchDashboardKpis = async (
 
   const kpis = {
     activeEmployees: empDetails.length,
+    activeRiders,
+    totalMonthTarget,
+    targetAchievementPct,
     presentToday, absentToday, lateToday, leaveToday, sickToday,
     totalOrders, prevMonthOrders: (rpc.kpis?.prevMonthOrders as number) || 0,
     activeVehicles: (rpc.kpis?.activeVehicles as number) || 0,
@@ -881,17 +819,16 @@ const fetchDashboardKpis = async (
     (rpc.attendanceWeek || []) as DashboardAttendanceWeekRow[]
   );
 
-  const recentActivity = buildRecentActivity(
-    ((rpc.recentActivity || []) as DashboardAuditRow[]) || []
-  );
-
-  return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, recentActivity, apps, estRevenueByApp };
+  return { kpis, empDetails, ordersByApp, ordersByCity, allRiders, attendanceWeek, apps, estRevenueByApp };
 };
 
 type OverviewTabProps = {
   loading: boolean;
   kpis: {
     activeEmployees: number;
+    activeRiders: number;
+    totalMonthTarget: number;
+    targetAchievementPct: number;
     presentToday: number;
     absentToday: number;
     lateToday: number;
@@ -912,8 +849,9 @@ type OverviewTabProps = {
   handleTopNBlur: () => void;
   topRidersOverall: { name: string; orders: number; app: string; appColor: string; appId: string }[];
   topRidersPerApp: Array<{ id: string; name: string; brand_color: string; riders: { name: string; orders: number; app: string; appColor: string; appId: string }[] }>;
+  bottomRidersPerApp: Array<{ id: string; name: string; brand_color: string; riders: { name: string; orders: number; app: string; appColor: string; appId: string }[] }>;
+  atRiskRiders: AtRiskRider[];
   attendanceWeek: { day: string; present: number; absent: number; leave: number; sick: number; late: number }[];
-  recentActivity: DashboardRecentActivityItem[];
 };
 
 const OverviewTab = ({
@@ -927,8 +865,9 @@ const OverviewTab = ({
   handleTopNBlur,
   topRidersOverall,
   topRidersPerApp,
+  bottomRidersPerApp,
+  atRiskRiders,
   attendanceWeek,
-  recentActivity,
 }: OverviewTabProps) => (
   <div className="space-y-6">
     <StatsCards loading={loading} kpis={kpis} orderGrowth={orderGrowth} />
@@ -940,6 +879,8 @@ const OverviewTab = ({
       handleTopNBlur={handleTopNBlur}
       topRidersOverall={topRidersOverall}
       topRidersPerApp={topRidersPerApp}
+      bottomRidersPerApp={bottomRidersPerApp}
+      atRiskRiders={atRiskRiders}
     />
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       <div className="lg:col-span-2">
@@ -947,9 +888,6 @@ const OverviewTab = ({
       </div>
       <AlertsWidget />
     </div>
-
-    {/* ── Recent Activity ──────────────────────────────────────── */}
-    <RecentActivityCard recentActivity={recentActivity} />
   </div>
 );
 
@@ -971,12 +909,13 @@ const Dashboard = () => {
     ordersByApp,
     ordersByCity,
     attendanceWeek,
-    recentActivity,
     topNInput,
     setTopNInput,
     handleTopNBlur,
     topRidersOverall,
     topRidersPerApp,
+    bottomRidersPerApp,
+    atRiskRiders,
   } = useDashboard({
     userId: uid,
     currentMonth,
@@ -1013,8 +952,9 @@ const Dashboard = () => {
           handleTopNBlur={handleTopNBlur}
           topRidersOverall={topRidersOverall}
           topRidersPerApp={topRidersPerApp}
+          bottomRidersPerApp={bottomRidersPerApp}
+          atRiskRiders={atRiskRiders}
           attendanceWeek={attendanceWeek}
-          recentActivity={recentActivity}
         />
       )}
     </div>

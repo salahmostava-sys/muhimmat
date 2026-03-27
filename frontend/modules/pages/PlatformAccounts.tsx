@@ -101,6 +101,8 @@ const PlatformAccounts = () => {
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [apps, setApps] = useState<App[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  /** كل الموظفين النشطين لنماذج الربط (لا يُطبَّق عليها تصفية الشهر حتى لا يختفِ موظف مرتبط بحساب) */
+  const [employeesFull, setEmployeesFull] = useState<Employee[]>([]);
   const {
     data: pageData,
     isLoading: loading,
@@ -186,6 +188,7 @@ const PlatformAccounts = () => {
   useEffect(() => {
     if (!pageData) return;
     setApps(pageData.appsData);
+    setEmployeesFull(pageData.empData);
     setEmployees(filterVisibleEmployeesInMonth(pageData.empData, activeEmployeeIdsInMonth));
     setAccounts(pageData.enriched);
   }, [pageData, activeEmployeeIdsInMonth]);
@@ -198,9 +201,40 @@ const PlatformAccounts = () => {
 
   // ── Account CRUD ───────────────────────────────────────────────────────────
 
+  const applyEmployeeToAccountForm = (employeeId: string | null) => {
+    if (!employeeId) {
+      setAccountForm((p) => ({
+        ...p,
+        employee_id: null,
+        account_username: '',
+        iqama_number: '',
+        iqama_expiry_date: '',
+      }));
+      return;
+    }
+    const emp = employeesFull.find((e) => e.id === employeeId);
+    if (!emp) return;
+    setAccountForm((p) => ({
+      ...p,
+      employee_id: employeeId,
+      account_username: emp.name.trim(),
+      iqama_number: emp.national_id?.trim() || '',
+      iqama_expiry_date: emp.residency_expiry ? String(emp.residency_expiry).slice(0, 10) : '',
+    }));
+  };
+
   const openAddAccount = () => {
     setEditingAccount(null);
-    setAccountForm({ employee_id: null, app_id: '', account_username: '', account_id_on_platform: '', iqama_number: '', iqama_expiry_date: '', status: 'active', notes: '' });
+    setAccountForm({
+      employee_id: null,
+      app_id: '',
+      account_username: '',
+      account_id_on_platform: '',
+      iqama_number: '',
+      iqama_expiry_date: '',
+      status: 'active',
+      notes: '',
+    });
     setAccountDialog(true);
   };
 
@@ -209,6 +243,10 @@ const PlatformAccounts = () => {
     setAccountForm({ ...a });
     setAccountDialog(true);
   };
+
+  const accountEmployeeSelectValue = accountForm.employee_id ? String(accountForm.employee_id) : '__none__';
+  const accountEmployeeOrphan =
+    !!accountForm.employee_id && !employeesFull.some((e) => e.id === accountForm.employee_id);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -252,8 +290,16 @@ const PlatformAccounts = () => {
   };
 
   const saveAccount = async () => {
-    if (!accountForm.app_id || !accountForm.account_username?.trim()) {
-      toast({ title: 'خطأ', description: 'اختر المنصة وأدخل اسم الحساب', variant: 'destructive' });
+    if (!accountForm.app_id) {
+      toast({ title: 'خطأ', description: 'اختر المنصة', variant: 'destructive' });
+      return;
+    }
+    if (!editingAccount && !accountForm.employee_id) {
+      toast({ title: 'خطأ', description: 'اختر صاحب الحساب من قائمة الموظفين', variant: 'destructive' });
+      return;
+    }
+    if (!accountForm.account_username?.trim()) {
+      toast({ title: 'خطأ', description: 'اسم صاحب الحساب مطلوب', variant: 'destructive' });
       return;
     }
     setSavingAccount(true);
@@ -674,11 +720,11 @@ const PlatformAccounts = () => {
 
       {/* ── Add/Edit Account Dialog ──────────────────────────────────────────── */}
       <Dialog open={accountDialog} onOpenChange={setAccountDialog}>
-        <DialogContent className="max-w-lg" dir="rtl">
-          <DialogHeader>
+        <DialogContent className="max-w-lg flex flex-col max-h-[min(90vh,44rem)] gap-0 overflow-hidden p-0 sm:max-w-lg" dir="rtl">
+          <DialogHeader className="space-y-1.5 px-6 pt-6 pb-2 shrink-0 pr-14 text-right">
             <DialogTitle>{editingAccount ? 'تعديل الحساب' : 'إضافة حساب جديد'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="flex-1 overflow-y-auto min-h-0 px-6 py-2 space-y-4">
             <p className="text-xs text-muted-foreground leading-relaxed">
               بيانات الحساب على المنصة ثابتة (اسم صاحب الحساب، الإقامة المسجّلة على الحساب). المندوب الحالي يُدار من «تعيين» أو يظهر من آخر تعيين نشط؛ ويمكن أن يتعاقب عدة مناديب على نفس الحساب خلال الشهر.
             </p>
@@ -693,12 +739,46 @@ const PlatformAccounts = () => {
             </div>
             <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
               <p className="text-xs font-semibold text-foreground">بيانات الحساب على المنصة</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>اسم صاحب الحساب (كما يظهر على المنصة)</Label>
-                  <Input value={accountForm.account_username ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_username: e.target.value }))} placeholder="اسم المستخدم / صاحب الحساب" />
-                </div>
-                <div className="space-y-1.5">
+              <div className="space-y-1.5">
+                <Label>صاحب الحساب (من الموظفين)</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  عند الاختيار يُعبّأ تلقائياً <strong>رقم الإقامة</strong> و<strong>تاريخ انتهاء الإقامة</strong> من ملف الموظف؛ يمكنك تعديلهما أدناه إذا اختلفت بيانات المنصة.
+                </p>
+                <Select
+                  value={accountEmployeeSelectValue}
+                  onValueChange={(v) => {
+                    const id = v === '__none__' ? null : v;
+                    applyEmployeeToAccountForm(id);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={editingAccount ? '— بدون ربط —' : 'اختر الموظف'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">{editingAccount ? '— بدون ربط (سجل قديم) —' : '— اختر —'}</SelectItem>
+                    {accountEmployeeOrphan && accountForm.employee_id && (
+                      <SelectItem value={accountForm.employee_id}>
+                        {accountForm.account_username?.trim() || 'موظف مرتبط (غير في القائمة)'}
+                      </SelectItem>
+                    )}
+                    {employeesFull.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {editingAccount && !accountForm.employee_id && (
+                  <div className="space-y-1.5 pt-1">
+                    <Label className="text-xs text-muted-foreground">اسم صاحب الحساب (يدوي — سجلات قديمة)</Label>
+                    <Input
+                      value={accountForm.account_username ?? ''}
+                      onChange={(e) => setAccountForm((p) => ({ ...p, account_username: e.target.value }))}
+                      placeholder="اسم المستخدم / صاحب الحساب"
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className="space-y-1.5 sm:col-span-2">
                   <Label>رقم الحساب (ID على المنصة)</Label>
                   <Input value={accountForm.account_id_on_platform ?? ''} onChange={e => setAccountForm(p => ({ ...p, account_id_on_platform: e.target.value }))} placeholder="رقم الحساب" dir="ltr" />
                 </div>
@@ -718,39 +798,6 @@ const PlatformAccounts = () => {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>اقتراح من بيانات مندوب (اختياري)</Label>
-              <p className="text-[11px] text-muted-foreground mb-1">
-                عند اختيار مندوب يُعبّأ تلقائياً <strong>رقم الإقامة</strong> و<strong>تاريخ انتهاء الإقامة</strong> من ملفه الموظّف؛ عدّل الحقلين إذا كانت إقامة الحساب على المنصة ليست نفس إقامة المندوب.
-              </p>
-              <Select
-                value={(accountForm.employee_id ?? null) ? String(accountForm.employee_id) : '__none__'}
-                onValueChange={v => {
-                  const id = v === '__none__' ? null : v;
-                  setAccountForm(p => {
-                    const emp = id ? employees.find(e => e.id === id) : null;
-                    return {
-                      ...p,
-                      employee_id: id,
-                      ...(emp
-                        ? {
-                            iqama_number: emp.national_id?.trim() || p.iqama_number || '',
-                            iqama_expiry_date: emp.residency_expiry
-                              ? String(emp.residency_expiry).slice(0, 10)
-                              : p.iqama_expiry_date,
-                          }
-                        : {}),
-                    };
-                  });
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="اختياري — لاستيراد الإقامة من ملف الموظف" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— بدون اختيار —</SelectItem>
-                  {employees.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
               <Label>الحالة</Label>
               <Select value={accountForm.status ?? 'active'} onValueChange={v => setAccountForm(p => ({ ...p, status: v as 'active' | 'inactive' }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -765,9 +812,9 @@ const PlatformAccounts = () => {
               <Textarea value={accountForm.notes ?? ''} onChange={e => setAccountForm(p => ({ ...p, notes: e.target.value }))} placeholder="ملاحظات اختيارية..." rows={2} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAccountDialog(false)}>إلغاء</Button>
-            <Button onClick={saveAccount} disabled={savingAccount} className="gap-2">
+          <DialogFooter className="shrink-0 border-t px-6 py-4 gap-2 bg-muted/30 sm:justify-start">
+            <Button variant="outline" type="button" onClick={() => setAccountDialog(false)}>إلغاء</Button>
+            <Button type="button" onClick={() => void saveAccount()} disabled={savingAccount} className="gap-2">
               {savingAccount && <Loader2 size={14} className="animate-spin" />}
               {editingAccount ? 'حفظ التعديلات' : 'إضافة الحساب'}
             </Button>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, Trash2, Search, Loader2, AlertTriangle, CheckCircle2,
   Calendar, Layers, ChevronUp, ChevronDown, ChevronsUpDown, Check, X,
@@ -16,6 +16,21 @@ import { employeeTierService } from '@services/employeeTierService';
 import { cn } from '@shared/lib/utils';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
+import { printHtmlTable } from '@shared/lib/printTable';
+import { logError } from '@shared/lib/logger';
+import { TableActions } from '@shared/components/table/TableActions';
+import {
+  EMPLOYEE_TIER_IO_COLUMNS,
+  EMPLOYEE_TIER_TEMPLATE_HEADERS,
+  findEmployeeIdByName,
+  isTierMatrixRowEmpty,
+  mapPlatformNamesToIds,
+  parseTierDeliveryStatus,
+  parseTierRenewalDate,
+  splitTierPlatformNames,
+} from '@shared/lib/employeeTierExcel';
+
+const loadXlsx = () => import('@e965/xlsx');
 
 /* ─── Types ─── */
 type Employee = { id: string; name: string; sponsorship_status: string | null; };
@@ -158,9 +173,11 @@ const SortIcon = ({ field, sortField, sortDir }: { field: string; sortField: str
 ═══════════════════════════════════════════════════════════════ */
 const EmployeeTiers = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
   const { permissions: perms } = usePermissions('employee_tiers');
+  const [fileActionsLoading, setFileActionsLoading] = useState(false);
 
   const [tiers, setTiers]       = useState<TierRow[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -389,6 +406,193 @@ const EmployeeTiers = () => {
     return list;
   }, [tiers, search, statusFilter, sortField, sortDir, empMap]);
 
+  const downloadTierTemplate = async () => {
+    setFileActionsLoading(true);
+    try {
+      const XLSX = await loadXlsx();
+      const exampleRow = [
+        '0555123456',
+        'اسم المندوب كما في النظام',
+        'باقة شهرية',
+        '2026-12-31',
+        'مسلّمة',
+        'مرسول، جاهز',
+      ];
+      const ws = XLSX.utils.aoa_to_sheet([EMPLOYEE_TIER_TEMPLATE_HEADERS, exampleRow]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'شرائح');
+      XLSX.writeFile(wb, 'قالب_استيراد_شرائح_الشركة.xlsx');
+      toast({ title: 'تم تحميل القالب' });
+    } catch (e) {
+      logError('[EmployeeTiers] template download failed', e);
+      toast({ title: 'تعذر إنشاء القالب', variant: 'destructive' });
+    } finally {
+      setFileActionsLoading(false);
+    }
+  };
+
+  const exportTiersExcel = async () => {
+    setFileActionsLoading(true);
+    try {
+      const XLSX = await loadXlsx();
+      const rows = filtered.map((t) => {
+        const platformLabel = apps.filter((a) => t.app_ids.includes(a.id)).map((a) => a.name).join('، ');
+        return [
+          t.sim_number || '',
+          empMap[t.employee_id]?.name || '',
+          t.package_type,
+          t.renewal_date,
+          statusLabel(t.delivery_status),
+          platformLabel,
+        ];
+      });
+      const ws = XLSX.utils.aoa_to_sheet([EMPLOYEE_TIER_TEMPLATE_HEADERS, ...rows]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'شرائح');
+      XLSX.writeFile(wb, `شرائح_الشركة_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      toast({ title: 'تم تصدير Excel' });
+    } catch (e) {
+      logError('[EmployeeTiers] export failed', e);
+      toast({ title: 'تعذر التصدير', variant: 'destructive' });
+    } finally {
+      setFileActionsLoading(false);
+    }
+  };
+
+  const importTiersExcel = async (file: File) => {
+    if (!perms.can_edit) {
+      toast({ title: 'صلاحية غير كافية', description: 'ليس لديك صلاحية الاستيراد', variant: 'destructive' });
+      return;
+    }
+    setFileActionsLoading(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const XLSX = await loadXlsx();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
+      if (matrix.length < 2) {
+        toast({ title: 'الملف فارغ أو لا يحتوي بيانات', variant: 'destructive' });
+        return;
+      }
+      const actualHeaders = (matrix[0] || []).map((h) => String(h ?? '').trim());
+      const headersMatch =
+        actualHeaders.length === EMPLOYEE_TIER_TEMPLATE_HEADERS.length &&
+        actualHeaders.every((h, i) => h === EMPLOYEE_TIER_TEMPLATE_HEADERS[i]);
+      if (!headersMatch) {
+        toast({
+          title: 'هيكل الأعمدة غير مطابق للقالب',
+          description: 'حمّل القالب من «ملفات» ولا تغيّر صف العناوين',
+          variant: 'destructive',
+        });
+        return;
+      }
+      let success = 0;
+      const rowErrors: string[] = [];
+      for (let i = 1; i < matrix.length; i++) {
+        const line = matrix[i];
+        const values = Array.isArray(line) ? line : [];
+        if (isTierMatrixRowEmpty(values)) continue;
+        const row: Record<string, unknown> = {};
+        EMPLOYEE_TIER_IO_COLUMNS.forEach((col, idx) => {
+          row[col.key] = values[idx];
+        });
+        const employeeName = String(row.employee_name ?? '').trim();
+        const packageType = String(row.package_type ?? '').trim();
+        if (!employeeName || !packageType) {
+          rowErrors.push(`سطر ${i + 1}: اسم المندوب ونوع الباقة مطلوبان`);
+          continue;
+        }
+        const empId = findEmployeeIdByName(employees, employeeName);
+        if (!empId) {
+          rowErrors.push(`سطر ${i + 1}: لم يُعثر على مندوب «${employeeName}»`);
+          continue;
+        }
+        const renewal = parseTierRenewalDate(row.renewal_date);
+        const delivery = parseTierDeliveryStatus(row.delivery_status);
+        const platformNames = splitTierPlatformNames(row.platforms);
+        const appIds = mapPlatformNamesToIds(platformNames, apps);
+        const simRaw = row.sim_number;
+        const simStr =
+          simRaw !== undefined && simRaw !== null && String(simRaw).trim() !== ''
+            ? String(simRaw).trim()
+            : null;
+        try {
+          await employeeTierService.createTier({
+            sim_number: simStr,
+            employee_id: empId,
+            package_type: packageType,
+            renewal_date: renewal,
+            delivery_status: delivery,
+            app_ids: appIds,
+            start_date: new Date().toISOString().slice(0, 10),
+          });
+          success++;
+        } catch (err) {
+          logError('[EmployeeTiers] import row failed', err, { level: 'warn' });
+          rowErrors.push(`سطر ${i + 1}: ${err instanceof Error ? err.message : 'فشل الحفظ'}`);
+        }
+      }
+      await queryClient.invalidateQueries({ queryKey: ['employee-tiers', uid, 'page-data'] });
+      toast({
+        title: `تم استيراد ${success} شريحة`,
+        description: rowErrors.length ? rowErrors.slice(0, 5).join(' · ') : undefined,
+        variant: rowErrors.length && success === 0 ? 'destructive' : 'default',
+      });
+    } catch (e) {
+      logError('[EmployeeTiers] import failed', e);
+      toast({
+        title: 'فشل الاستيراد',
+        description: e instanceof Error ? e.message : 'خطأ غير متوقع',
+        variant: 'destructive',
+      });
+    } finally {
+      setFileActionsLoading(false);
+    }
+  };
+
+  const printTiersTable = () => {
+    if (filtered.length === 0) {
+      toast({ title: 'لا يوجد بيانات للطباعة' });
+      return;
+    }
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    ['رقم الشريحة', 'المندوب', 'نوع الباقة', 'حالة التسليم', 'تاريخ التجديد', 'المنصات'].forEach((text) => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    filtered.forEach((tier) => {
+      const tr = document.createElement('tr');
+      const platformLabel =
+        apps.filter((a) => tier.app_ids.includes(a.id)).map((a) => a.name).join('، ') || '—';
+      const cells = [
+        tier.sim_number || '—',
+        empMap[tier.employee_id]?.name || '—',
+        tier.package_type,
+        statusLabel(tier.delivery_status),
+        tier.renewal_date,
+        platformLabel,
+      ];
+      cells.forEach((text) => {
+        const td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    printHtmlTable(table, {
+      title: 'شرائح الشركة',
+      subtitle: `${filtered.length} سجل — تاريخ الطباعة: ${new Date().toLocaleDateString('ar-SA')}`,
+    });
+  };
+
   /* ── Stats ── */
   const total      = tiers.length;
   const delivered  = tiers.filter(r => r.delivery_status === STATUS_DELIVERED).length;
@@ -460,7 +664,17 @@ const EmployeeTiers = () => {
             </button>
           ))}
         </div>
-        <span className="text-xs text-muted-foreground mr-auto">{filtered.length} سجل</span>
+        <TableActions
+          onDownloadTemplate={downloadTierTemplate}
+          onImportFile={importTiersExcel}
+          onExport={exportTiersExcel}
+          onPrint={printTiersTable}
+          loading={fileActionsLoading}
+          disabled={loading}
+          hideImport={!perms.can_edit}
+          className="ms-auto shrink-0"
+        />
+        <span className="text-xs text-muted-foreground">السجلات: {filtered.length}</span>
       </div>
 
       {/* Table — يملأ المساحة المتبقية من ارتفاع الصفحة */}
