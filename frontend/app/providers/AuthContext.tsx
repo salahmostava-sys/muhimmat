@@ -21,6 +21,22 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+const AUTH_SIGNIN_TIMEOUT_MS = 15_000;
+const AUTH_ACTIVE_CHECK_TIMEOUT_MS = 10_000;
+
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label}:timeout`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
 
 const fetchRole = async (userId: string): Promise<AppRole | null> => {
   return authService.fetchUserRole(userId);
@@ -249,10 +265,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const data = await authService.signIn(email, password);
+      const data = await withTimeout(
+        authService.signIn(email, password),
+        AUTH_SIGNIN_TIMEOUT_MS,
+        'authService.signIn'
+      );
 
       if (data.user) {
-        const active = await authService.fetchIsActive(data.user.id);
+        const active = await withTimeout(
+          authService.fetchIsActive(data.user.id),
+          AUTH_ACTIVE_CHECK_TIMEOUT_MS,
+          'authService.fetchIsActive'
+        );
         if (!active) {
           await authService.signOut();
           return { error: { message: 'هذا الحساب معطّل. تواصل مع المسؤول.' } };
@@ -262,6 +286,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null };
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'تعذر تسجيل الدخول';
+      if (msg.includes(':timeout')) {
+        return { error: { message: 'انتهت مهلة الاتصال بالخادم. تحقّق من الإنترنت وإعدادات Supabase ثم حاول مجددًا.' } };
+      }
       return { error: { message: msg } };
     }
   };
