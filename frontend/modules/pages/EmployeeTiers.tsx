@@ -174,7 +174,7 @@ const EmployeeTiers = () => {
     queryKey: ['employee-tiers', uid, 'page-data'],
     enabled,
     queryFn: async () => {
-      const [{ data: tiersRows }, { data: employeeRows }, { data: appsRows }] = await Promise.all([
+      const [tiersRows, employeeRows, appsRows] = await Promise.all([
         employeeTierService.getTiers(),
         employeeTierService.getEmployees(),
         employeeTierService.getActiveApps(),
@@ -253,7 +253,7 @@ const EmployeeTiers = () => {
         // Show alert dialog only once per employee per session
         if (newlyAbsconded.includes(tier.employee_id)) {
           const emp = employees.find(e => e.id === tier.employee_id);
-          const { data: assignments } = await employeeTierService.getActiveAssignmentWithVehicleByEmployee(tier.employee_id);
+          const assignments = await employeeTierService.getActiveAssignmentWithVehicleByEmployee(tier.employee_id);
 
           const firstAssignment = assignments?.[0] as { vehicles?: { plate_number?: string | null } } | undefined;
           const plate = firstAssignment?.vehicles?.plate_number || 'غير مسجلة';
@@ -289,18 +289,20 @@ const EmployeeTiers = () => {
     const merged = { ...tier, ...editRows[tier.id] };
     if (!merged.employee_id) { toast({ title: 'خطأ', description: 'اختر مندوباً', variant: 'destructive' }); return; }
     setSavingId(tier.id);
-    const { error } = await employeeTierService.updateTier(tier.id, {
-      sim_number: merged.sim_number || null,
-      employee_id: merged.employee_id,
-      package_type: merged.package_type,
-      renewal_date: merged.renewal_date,
-      delivery_status: merged.delivery_status,
-      app_ids: merged.app_ids,
-    });
-    if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); }
-    else {
+    try {
+      await employeeTierService.updateTier(tier.id, {
+        sim_number: merged.sim_number || null,
+        employee_id: merged.employee_id,
+        package_type: merged.package_type,
+        renewal_date: merged.renewal_date,
+        delivery_status: merged.delivery_status,
+        app_ids: merged.app_ids,
+      });
       toast({ title: '✅ تم الحفظ' });
       setEditRows(prev => { const n = { ...prev }; delete n[tier.id]; return n; });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر حفظ التعديل';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
     }
     setSavingId(null);
     void refetchTiersData();
@@ -317,20 +319,22 @@ const EmployeeTiers = () => {
     }
     if (!newRow.employee_id) { toast({ title: 'خطأ', description: 'اختر مندوباً', variant: 'destructive' }); return; }
     setSavingNew(true);
-    const { error } = await employeeTierService.createTier({
-      sim_number: newRow.sim_number || null,
-      employee_id: newRow.employee_id,
-      package_type: newRow.package_type || '',
-      renewal_date: newRow.renewal_date || new Date().toISOString().slice(0, 10),
-      delivery_status: newRow.delivery_status || STATUS_DELIVERED,
-      app_ids: newRow.app_ids || [],
-      start_date: new Date().toISOString().slice(0, 10),
-    });
-    if (error) { toast({ title: 'خطأ', description: error.message, variant: 'destructive' }); }
-    else {
+    try {
+      await employeeTierService.createTier({
+        sim_number: newRow.sim_number || null,
+        employee_id: newRow.employee_id,
+        package_type: newRow.package_type || '',
+        renewal_date: newRow.renewal_date || new Date().toISOString().slice(0, 10),
+        delivery_status: newRow.delivery_status || STATUS_DELIVERED,
+        app_ids: newRow.app_ids || [],
+        start_date: new Date().toISOString().slice(0, 10),
+      });
       toast({ title: '✅ تمت الإضافة' });
       setAddingRow(false);
       setNewRow({ sim_number: '', employee_id: '', package_type: '', renewal_date: '', delivery_status: STATUS_DELIVERED, app_ids: [] });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر إنشاء السجل';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
     }
     setSavingNew(false);
     void refetchTiersData();

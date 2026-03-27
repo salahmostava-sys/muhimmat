@@ -8,7 +8,6 @@ export const driverService = {
       .update(payload)
       .eq('id', id);
     throwIfError(error, 'driverService.update');
-    return { error: null };
   },
 
   async delete(id: string) {
@@ -17,7 +16,6 @@ export const driverService = {
       .delete()
       .eq('id', id);
     throwIfError(error, 'driverService.delete');
-    return { error: null };
   },
 };
 

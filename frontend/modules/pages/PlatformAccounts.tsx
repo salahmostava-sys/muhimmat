@@ -121,8 +121,8 @@ const PlatformAccounts = () => {
       const appsData: App[] = (appsRes ?? []) as App[];
       const empData: Employee[] = (empRes ?? []) as Employee[];
       const rawAccounts = (accRes ?? []) as PlatformAccount[];
-      const activeAssignments = (assignRes.data ?? []) as Assignment[];
-      const monthRows = (monthAssignRes.data ?? []) as { account_id: string }[];
+      const activeAssignments = (assignRes ?? []) as Assignment[];
+      const monthRows = (monthAssignRes ?? []) as { account_id: string }[];
 
       const countByAccount = new Map<string, number>();
       monthRows.forEach((r) => {
@@ -319,7 +319,7 @@ const PlatformAccounts = () => {
     const monthYear = assignForm.start_date.slice(0, 7);
 
     // 1. Close any open assignment for this account
-    const { data: open } = await accountAssignmentService.getOpenAssignmentIdsByAccount(assignTarget!.id);
+    const open = await accountAssignmentService.getOpenAssignmentIdsByAccount(assignTarget!.id);
 
     if (open && open.length > 0) {
       const openRows = open as Array<{ id: string }>;
@@ -327,19 +327,20 @@ const PlatformAccounts = () => {
     }
 
     // 2. Insert new assignment
-    const { error } = await accountAssignmentService.createAssignment({
-      account_id: assignTarget!.id,
-      employee_id: assignForm.employee_id,
-      start_date: assignForm.start_date,
-      end_date: null,
-      month_year: monthYear,
-      notes: assignForm.notes?.trim() || null,
-      created_by: user?.id ?? null,
-    });
-
-    if (error) {
+    try {
+      await accountAssignmentService.createAssignment({
+        account_id: assignTarget!.id,
+        employee_id: assignForm.employee_id,
+        start_date: assignForm.start_date,
+        end_date: null,
+        month_year: monthYear,
+        notes: assignForm.notes?.trim() || null,
+        created_by: user?.id ?? null,
+      });
+    } catch (e: unknown) {
       setSavingAssign(false);
-      toast({ title: 'خطأ', description: error.message, variant: 'destructive' });
+      const message = e instanceof Error ? e.message : 'خطأ أثناء إنشاء التعيين';
+      toast({ title: 'خطأ', description: message, variant: 'destructive' });
       return;
     }
 
@@ -378,7 +379,7 @@ const PlatformAccounts = () => {
     setHistoryDialog(true);
     setHistoryLoading(true);
 
-    const { data } = await accountAssignmentService.getHistoryByAccountId(account.id);
+    const data = await accountAssignmentService.getHistoryByAccountId(account.id);
     await auditService.logAdminAction({
       action: 'platform_account_assignments.view_history',
       table_name: 'platform_accounts',

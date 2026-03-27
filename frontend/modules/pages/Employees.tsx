@@ -490,10 +490,12 @@ const Employees = () => {
     const prev = data.find(e => e.id === id);
     const updatePatch = { [field]: value, ...(extraFields ?? undefined) };
     setData(d => d.map(e => e.id === id ? { ...e, ...updatePatch } : e));
-    const { error } = await driverService.update(id, updatePatch);
-    if (error) {
+    try {
+      await driverService.update(id, updatePatch);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر حفظ التعديل';
       setData(d => d.map(e => e.id === id ? { ...e, [field]: prev ? getEmployeeFieldValue(prev, field) : undefined } : e));
-      toast({ title: 'خطأ في الحفظ', description: error.message, variant: 'destructive' });
+      toast({ title: 'خطأ في الحفظ', description: message, variant: 'destructive' });
     }
   }, [data, toast]);
 
@@ -523,12 +525,13 @@ const Employees = () => {
   const handleDelete = useCallback(async () => {
     if (!deleteEmployee) return;
     setDeleting(true);
-    const { error } = await driverService.delete(deleteEmployee.id);
-    if (error) {
-      toast({ title: 'خطأ في الحذف', description: error.message, variant: 'destructive' });
-    } else {
+    try {
+      await driverService.delete(deleteEmployee.id);
       setData(d => d.filter(e => e.id !== deleteEmployee.id));
       toast({ title: 'تم الحذف', description: deleteEmployee.name });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'تعذر حذف المندوب';
+      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
     }
     setDeleting(false);
     setDeleteEmployee(null);

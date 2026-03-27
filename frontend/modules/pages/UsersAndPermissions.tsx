@@ -124,8 +124,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
     if (!isAdmin) return;
     setMatrixLoading(true);
     try {
-      const { data, error } = await userPermissionService.getUserPermissions(userId);
-      if (error) throw error;
+      const data = await userPermissionService.getUserPermissions(userId);
       setMatrix(mergeMatrix(role, (data || []) as { permission_key: string; can_view: boolean; can_edit: boolean; can_delete: boolean }[]));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'تعذر تحميل الصلاحيات';

@@ -26,7 +26,7 @@ export const accountAssignmentService = {
   getActiveAssignments: async () => {
     const { data, error } = await supabase.from('account_assignments').select('*').is('end_date', null);
     throwIfError(error, 'accountAssignmentService.getActiveAssignments');
-    return { data, error: null };
+    return data ?? [];
   },
 
   /** كل التعيينات المسجّلة على شهر محدد (لإحصاء مناديب متعددين على نفس الحساب) */
@@ -36,30 +36,30 @@ export const accountAssignmentService = {
       .select('account_id, employee_id, month_year, start_date, end_date')
       .eq('month_year', monthYear);
     throwIfError(error, 'accountAssignmentService.getAssignmentsForMonthYear');
-    return { data, error: null };
+    return data ?? [];
   },
 
   getHistoryByAccountId: async (accountId: string) => {
     const { data, error } = await supabase.from('account_assignments').select('*').eq('account_id', accountId).order('start_date', { ascending: false });
     throwIfError(error, 'accountAssignmentService.getHistoryByAccountId');
-    return { data, error: null };
+    return data ?? [];
   },
 
   getOpenAssignmentIdsByAccount: async (accountId: string) => {
     const { data, error } = await supabase.from('account_assignments').select('id').eq('account_id', accountId).is('end_date', null);
     throwIfError(error, 'accountAssignmentService.getOpenAssignmentIdsByAccount');
-    return { data, error: null };
+    return data ?? [];
   },
 
   closeAssignmentsByIds: async (ids: string[], endDate: string) => {
     const { data, error } = await supabase.from('account_assignments').update({ end_date: endDate }).in('id', ids);
     throwIfError(error, 'accountAssignmentService.closeAssignmentsByIds');
-    return { data, error: null };
+    return data ?? [];
   },
 
   createAssignment: async (payload: AccountAssignmentInsertPayload) => {
     const { data, error } = await supabase.from('account_assignments').insert(payload);
     throwIfError(error, 'accountAssignmentService.createAssignment');
-    return { data, error: null };
+    return data ?? [];
   },
 };
