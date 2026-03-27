@@ -41,6 +41,16 @@ type LogMeta = {
 - Primary: `navigator.sendBeacon(...)`
 - Fallback: `fetch(..., { keepalive: true })`
 
+## Securing the receiving endpoint
+
+The browser sends events with `Content-Type: application/json` to whatever URL you configure. Anyone who knows the URL can POST traffic unless the server rejects it.
+
+Recommended for production:
+
+- **Do not** use a public write-only URL without checks: add **authentication** (e.g. signed token in a header — set from a same-origin API route if you add one later), **rate limiting**, and **IP / WAF** rules where possible.
+- Restrict **CORS** on the logging API so only your app origin is allowed, if the collector supports it.
+- Treat payloads as **potentially sensitive** (URLs, error text, optional user id in meta); store and retain according to your privacy policy.
+
 ## Notes
 
 - Logging must never throw; all transport errors are swallowed.
