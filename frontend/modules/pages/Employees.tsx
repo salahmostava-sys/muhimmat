@@ -24,6 +24,7 @@ import { DataTableActions } from '@shared/components/table/DataTableActions';
 import {
   EMPLOYEE_TEMPLATE_AR_HEADERS,
   parseEmployeeArabicWorkbook,
+  type EmployeeArabicRow,
   upsertEmployeeArabicRows,
 } from '@shared/lib/employeeArabicTemplateImport';
 import { printHtmlTable } from '@shared/lib/printTable';
@@ -88,6 +89,101 @@ type SortField = keyof Employee | 'days_residency' | 'residency_status';
 type SortDir = 'asc' | 'desc' | null;
 type EmployeeProfileProps = ComponentProps<typeof EmployeeProfile>;
 type EmployeeStatusFilter = 'all' | 'active' | 'inactive' | 'ended';
+type UploadReport = {
+  totalProcessed: number;
+  successfulRows: number;
+  failedRows: number;
+  errors: Array<{ rowIndex: number; issue: string }>;
+};
+
+type UploadLiveStats = {
+  processedNames: number;
+  totalNames: number;
+  currentName: string;
+};
+
+const isValidImportPhone = (value: string) => /^[+]?\d{8,15}$/.test(value.replaceAll(/\s/g, ''));
+
+const validateImportRow = (row: EmployeeArabicRow, rowIndex: number) => {
+  const issues: Array<{ rowIndex: number; issue: string }> = [];
+  const name = String(row.name ?? '').trim();
+  const phone = String(row.phone ?? '').trim();
+  const nationalId = String(row.national_id ?? '').trim();
+
+  if (!name) issues.push({ rowIndex, issue: 'الاسم مفقود' });
+  if (!phone) issues.push({ rowIndex, issue: 'رقم الهاتف مفقود' });
+  else if (!isValidImportPhone(phone)) issues.push({ rowIndex, issue: 'رقم الهاتف غير صالح' });
+  if (!nationalId) issues.push({ rowIndex, issue: 'رقم الهوية مفقود' });
+
+  return issues;
+};
+
+const processBulkImportRows = async (
+  buffer: ArrayBuffer,
+  onProgress: (value: number) => void,
+  onLiveStats: (stats: UploadLiveStats) => void,
+): Promise<{ report: UploadReport; headerWarnings: number }> => {
+  onProgress(10);
+  const { rows, headerErrors } = parseEmployeeArabicWorkbook(buffer);
+  if (rows.length === 0) {
+    return {
+      report: {
+        totalProcessed: 0,
+        successfulRows: 0,
+        failedRows: 0,
+        errors: [{ rowIndex: 1, issue: 'الملف لا يحتوي على بيانات صالحة للمعالجة' }],
+      },
+      headerWarnings: headerErrors.length,
+    };
+  }
+
+  const validationErrors: Array<{ rowIndex: number; issue: string }> = [];
+  const validRows: Array<{ rowIndex: number; row: EmployeeArabicRow }> = [];
+
+  if (headerErrors.length > 0) {
+    headerErrors.forEach((err) => validationErrors.push({ rowIndex: 1, issue: err }));
+  }
+
+  rows.forEach((row, idx) => {
+    const rowIndex = idx + 2;
+    const rowIssues = validateImportRow(row, rowIndex);
+    if (rowIssues.length > 0) validationErrors.push(...rowIssues);
+    else validRows.push({ rowIndex, row });
+  });
+
+  onProgress(25);
+
+  let successfulRows = 0;
+  const processingErrors: Array<{ rowIndex: number; issue: string }> = [];
+  const totalToProcess = Math.max(validRows.length, 1);
+  onLiveStats({ processedNames: 0, totalNames: validRows.length, currentName: '' });
+
+  for (let i = 0; i < validRows.length; i++) {
+    const item = validRows[i];
+    const currentName = String(item.row.name ?? '').trim() || `سطر ${item.rowIndex}`;
+    onLiveStats({ processedNames: i, totalNames: validRows.length, currentName });
+    const { processed, failures } = await upsertEmployeeArabicRows([item.row]);
+    if (processed > 0) successfulRows++;
+    if (failures.length > 0) {
+      processingErrors.push({
+        rowIndex: item.rowIndex,
+        issue: failures[0]?.error || 'تعذر حفظ السطر',
+      });
+    }
+    const progress = 25 + Math.round(((i + 1) / totalToProcess) * 70);
+    onProgress(Math.min(progress, 95));
+    onLiveStats({ processedNames: i + 1, totalNames: validRows.length, currentName });
+  }
+
+  const report: UploadReport = {
+    totalProcessed: rows.length,
+    successfulRows,
+    failedRows: rows.length - successfulRows,
+    errors: [...validationErrors, ...processingErrors],
+  };
+
+  return { report, headerWarnings: headerErrors.length };
+};
 
 const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
   return (employee as Record<string, unknown>)[field];
@@ -287,6 +383,15 @@ const Employees = () => {
   const [deleteEmployee, setDeleteEmployee] = useState<Employee | null>(null);
   const [deleting, setDeleting]             = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const uploadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [uploadReport, setUploadReport] = useState<UploadReport | null>(null);
+  const [uploadLiveStats, setUploadLiveStats] = useState<UploadLiveStats>({
+    processedNames: 0,
+    totalNames: 0,
+    currentName: '',
+  });
 
   // Status-date dialog (absconded / terminated)
   const [statusDateDialog, setStatusDateDialog] = useState<{
@@ -331,6 +436,15 @@ const Employees = () => {
 
   // Reset page when filters/sort change
   useEffect(() => { setPage(1); }, [colFilters, sortField, sortDir]);
+
+  useEffect(() => {
+    return () => {
+      if (uploadIntervalRef.current) {
+        clearInterval(uploadIntervalRef.current);
+        uploadIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   // ── Sort handler ──
   const handleSort = (field: string) => {
@@ -585,39 +699,64 @@ const Employees = () => {
   const runImportFile = async (file: File) => {
     if (!permissions.can_edit) return;
     setActionLoading(true);
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadReport(null);
+    setUploadLiveStats({ processedNames: 0, totalNames: 0, currentName: '' });
+    if (uploadIntervalRef.current) {
+      clearInterval(uploadIntervalRef.current);
+      uploadIntervalRef.current = null;
+    }
+
     try {
       const buf = await file.arrayBuffer();
-      const { rows, headerErrors } = parseEmployeeArabicWorkbook(buf);
-      if (rows.length === 0) {
+      const { report, headerWarnings } = await processBulkImportRows(buf, setUploadProgress, setUploadLiveStats);
+      setUploadReport(report);
+      if (report.totalProcessed === 0) {
         toast({
-          title: 'Error',
-          description: 'Error: Invalid file format',
+          title: 'تعذر المعالجة',
+          description: 'الملف لا يحتوي على بيانات صالحة',
           variant: 'destructive',
         });
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadLiveStats({ processedNames: 0, totalNames: 0, currentName: '' });
         return;
       }
-      const { processed, failures } = await upsertEmployeeArabicRows(rows);
       await refetchEmployees();
       await auditService.logAdminAction({
         action: 'employees.import_arabic_template',
         table_name: 'employees',
         record_id: null,
-        meta: { processed, failed: failures.length, headerWarnings: headerErrors.length },
+        meta: { processed: report.successfulRows, failed: report.failedRows, headerWarnings },
       });
-      toast({ title: `Success: ${processed} rows processed` });
-      if (failures.length > 0) {
-        toast({
-          title: 'Error',
-          description: `${failures.length} row(s) failed`,
-          variant: 'destructive',
-        });
-      }
+      const hasFailures = report.failedRows > 0;
+      toast({
+        title: hasFailures ? 'اكتملت المعالجة مع أخطاء' : 'اكتملت المعالجة بنجاح',
+        description: hasFailures
+          ? `تمت معالجة ${report.totalProcessed} سطر، نجح ${report.successfulRows} وفشل ${report.failedRows}`
+          : `تمت معالجة ${report.totalProcessed} سطر بنجاح`,
+        variant: hasFailures ? 'destructive' : undefined,
+      });
+      setUploadProgress(100);
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadLiveStats({ processedNames: 0, totalNames: 0, currentName: '' });
+      }, 900);
     } catch (e: unknown) {
       toast({
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Error: Invalid file format',
+        title: 'تعذر معالجة الملف',
+        description: e instanceof Error ? e.message : 'حدث خطأ أثناء معالجة الملف',
         variant: 'destructive',
       });
+      if (uploadIntervalRef.current) {
+        clearInterval(uploadIntervalRef.current);
+        uploadIntervalRef.current = null;
+      }
+      setIsUploading(false);
+      setUploadProgress(0);
+      setUploadLiveStats({ processedNames: 0, totalNames: 0, currentName: '' });
     } finally {
       setActionLoading(false);
     }
@@ -637,6 +776,44 @@ const Employees = () => {
   const hasActiveFilters = Object.keys(colFilters).length > 0;
   const isTableLoading = loading;
   const hasNoPaginatedRows = paginated.length === 0;
+  let floatingUploadBody: React.ReactNode = null;
+  if (isUploading) {
+    floatingUploadBody = (
+      <>
+        <div className="text-xs text-muted-foreground">
+          تمت معالجة الأسماء: <span className="font-semibold text-foreground">{uploadLiveStats.processedNames}</span> / {uploadLiveStats.totalNames}
+        </div>
+        {uploadLiveStats.currentName && (
+          <div className="text-xs text-muted-foreground truncate">
+            الآن: <span className="text-foreground font-medium">{uploadLiveStats.currentName}</span>
+          </div>
+        )}
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+          <div className="h-full rounded-full bg-primary transition-all duration-200" style={{ width: `${uploadProgress}%` }} />
+        </div>
+        <div className="text-xs font-semibold text-foreground text-end">{uploadProgress}%</div>
+      </>
+    );
+  } else if (uploadReport) {
+    floatingUploadBody = (
+      <div className="space-y-2 text-xs">
+        <div className="grid grid-cols-3 gap-1">
+          <div className="rounded bg-muted/40 px-2 py-1 text-center">المعالجة: {uploadReport.totalProcessed}</div>
+          <div className="rounded bg-emerald-50 text-emerald-700 px-2 py-1 text-center">نجاح: {uploadReport.successfulRows}</div>
+          <div className="rounded bg-rose-50 text-rose-700 px-2 py-1 text-center">فشل: {uploadReport.failedRows}</div>
+        </div>
+        {uploadReport.errors.length > 0 && (
+          <div className="max-h-36 overflow-y-auto rounded border border-rose-200 bg-rose-50/40 p-2 space-y-1">
+            {uploadReport.errors.map((error, idx) => (
+              <div key={`${error.rowIndex}-floating-${idx}`} className="text-rose-700">
+                السطر {error.rowIndex}: {error.issue}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // ── profile view ──
   if (selectedEmployee) {
@@ -683,7 +860,7 @@ const Employees = () => {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <nav className="page-breadcrumb">
             <span>الموارد البشرية</span>
@@ -692,56 +869,125 @@ const Employees = () => {
           </nav>
           <h1 className="page-title">الموظفين</h1>
         </div>
-        <div className="flex gap-2 flex-wrap items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-1 w-full lg:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
+            <DataTableActions
+              loading={actionLoading}
+              onExport={runExportDetailed}
+              onDownloadTemplate={runTemplateDownload}
+              onPrint={runPrintDetailed}
+              onImportFile={runImportFile}
+              hideImport={!permissions.can_edit}
+              className="!w-auto !justify-start"
+            />
+
+            {/* Hide/show columns */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                  <Columns size={14} /> الأعمدة
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 max-h-80 overflow-y-auto">
+                <DropdownMenuLabel>إظهار / إخفاء الأعمدة</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {ALL_COLUMNS.filter(c => c.key !== 'seq' && c.key !== 'actions').map(col => (
+                  <DropdownMenuCheckboxItem
+                    key={col.key}
+                    checked={visibleCols.has(col.key)}
+                    onCheckedChange={checked => {
+                      setVisibleCols(prev => {
+                        const next = new Set(prev);
+                        if (checked) next.add(col.key); else next.delete(col.key);
+                        return next;
+                      });
+                    }}
+                  >
+                    {col.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setViewMode('fast')}>
+              <Columns size={14} /> قائمة (سريعة)
+            </Button>
+          </div>
+
           {permissions.can_edit && (
             <Button onClick={() => { setEditEmployee(null); setShowAddModal(true); }} className="gap-2 h-9">
               <Plus size={15} /> إضافة موظف
             </Button>
           )}
-
-          <DataTableActions
-            loading={actionLoading}
-            onExport={runExportDetailed}
-            onDownloadTemplate={runTemplateDownload}
-            onPrint={runPrintDetailed}
-            onImportFile={runImportFile}
-            hideImport={!permissions.can_edit}
-            className="!w-auto !justify-start"
-          />
-
-          {/* Hide/show columns */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                <Columns size={14} /> الأعمدة
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 max-h-80 overflow-y-auto">
-              <DropdownMenuLabel>إظهار / إخفاء الأعمدة</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {ALL_COLUMNS.filter(c => c.key !== 'seq' && c.key !== 'actions').map(col => (
-                <DropdownMenuCheckboxItem
-                  key={col.key}
-                  checked={visibleCols.has(col.key)}
-                  onCheckedChange={checked => {
-                    setVisibleCols(prev => {
-                      const next = new Set(prev);
-                      if (checked) next.add(col.key); else next.delete(col.key);
-                      return next;
-                    });
-                  }}
-                >
-                  {col.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setViewMode('fast')}>
-            <Columns size={14} /> قائمة (سريعة)
-          </Button>
         </div>
       </div>
+
+      {isUploading && (
+        <div className="w-full rounded-xl border border-primary/20 bg-card p-3">
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Loader2 size={13} className="animate-spin" />
+              جاري معالجة الملف...
+            </span>
+            <span className="font-semibold text-foreground">{uploadProgress}%</span>
+          </div>
+          <div className="mb-2 text-xs text-muted-foreground">
+            تمت معالجة الأسماء: <span className="font-semibold text-foreground">{uploadLiveStats.processedNames}</span> / {uploadLiveStats.totalNames}
+            {uploadLiveStats.currentName ? (
+              <span className="ms-2">— الآن: <span className="font-medium text-foreground">{uploadLiveStats.currentName}</span></span>
+            ) : null}
+          </div>
+          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-200"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {uploadReport && (
+        <div className="w-full rounded-xl border border-border/60 bg-card p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">تقرير معالجة ملف الرفع</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+            <div className="rounded-lg bg-muted/40 px-3 py-2">تمت المعالجة: <span className="font-bold">{uploadReport.totalProcessed} سطر</span></div>
+            <div className="rounded-lg bg-emerald-50 text-emerald-700 px-3 py-2">نجاح: <span className="font-bold">{uploadReport.successfulRows} سطر</span></div>
+            <div className="rounded-lg bg-rose-50 text-rose-700 px-3 py-2">فشل: <span className="font-bold">{uploadReport.failedRows} سطر</span></div>
+          </div>
+          {uploadReport.errors.length > 0 && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-3">
+              <p className="text-sm font-semibold text-rose-700 mb-2">تفاصيل الأخطاء</p>
+              <div className="max-h-44 overflow-y-auto space-y-1 text-xs">
+                {uploadReport.errors.map((error, idx) => (
+                  <div key={`${error.rowIndex}-${idx}`} className="text-rose-700">
+                    السطر {error.rowIndex}: {error.issue}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {(isUploading || uploadReport) && (
+        <div className="fixed bottom-4 left-4 z-50 w-[min(92vw,420px)] rounded-xl border border-border/70 bg-card shadow-2xl p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">حالة رفع القالب</p>
+            {uploadReport && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => setUploadReport(null)}
+              >
+                إغلاق
+              </Button>
+            )}
+          </div>
+          {floatingUploadBody}
+        </div>
+      )}
 
       {/* Active filters summary */}
       {hasActiveFilters && (
@@ -1306,6 +1552,7 @@ function EmployeesFastList(props: Readonly<{
     actionLoading,
     canEdit,
   } = props;
+  const { toast } = useToast();
 
   const fastTableRef = useRef<HTMLTableElement>(null);
 
@@ -1380,6 +1627,18 @@ function EmployeesFastList(props: Readonly<{
     });
   };
 
+  const runSafe = async (fn: () => void | Promise<void>, fallbackMessage: string) => {
+    try {
+      await fn();
+    } catch (e: unknown) {
+      toast({
+        title: 'حدث خطأ',
+        description: e instanceof Error ? e.message : fallbackMessage,
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="page-header">
@@ -1399,10 +1658,10 @@ function EmployeesFastList(props: Readonly<{
       <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
         <DataTableActions
           loading={actionLoading}
-          onExport={onExport}
-          onDownloadTemplate={onDownloadTemplate}
-          onPrint={handleFastPrint}
-          onImportFile={onImportFile}
+          onExport={() => runSafe(onExport, 'تعذر تنفيذ التصدير')}
+          onDownloadTemplate={() => runSafe(onDownloadTemplate, 'تعذر تحميل القالب')}
+          onPrint={() => runSafe(() => { handleFastPrint(); }, 'تعذر طباعة الجدول')}
+          onImportFile={(file) => runSafe(() => onImportFile(file), 'تعذر استيراد الملف')}
           hideImport={!canEdit}
         />
       </div>

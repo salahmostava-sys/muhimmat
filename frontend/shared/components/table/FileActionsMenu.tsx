@@ -90,7 +90,7 @@ export function FileActionsMenu({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center justify-center gap-2 sm:gap-3 w-full',
+        'flex flex-wrap items-center justify-start gap-2 sm:gap-3 w-auto max-w-full',
         className
       )}
       role="toolbar"
