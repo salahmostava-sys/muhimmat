@@ -192,7 +192,7 @@ const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 const ALL_COLUMNS = [
-  { key: 'seq',                      label: 'التسلسل',                 sortable: false },
+  { key: 'seq',                      label: 'م',                       sortable: false },
   { key: 'employee_code',            label: 'الكود',                   sortable: true  },
   { key: 'name',                     label: 'اسم الموظف',              sortable: true  },
   { key: 'name_en',                  label: 'الاسم (إنجليزي)',         sortable: true  },
@@ -1063,7 +1063,7 @@ const Employees = () => {
                   return (
                     <th
                       key={col.key}
-                      className={`ta-th select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-foreground' : ''}`}
+                      className={`ta-th select-none whitespace-nowrap ${col.key === 'seq' ? 'w-10 px-2 text-center' : ''} ${col.sortable ? 'cursor-pointer hover:text-foreground' : ''}`}
                       onClick={col.sortable ? () => handleSort(col.key) : undefined}
                     >
                       <div className="flex items-center gap-1">
@@ -1110,7 +1110,7 @@ const Employees = () => {
                     {activeCols.map(col => { // NOSONAR
                       switch (col.key) {
                         case 'seq':
-                          return <td key="seq" className="px-3 py-2.5 text-xs text-muted-foreground text-center">{globalIdx}</td>;
+                          return <td key="seq" className="px-2 py-2 text-[11px] text-muted-foreground text-center tabular-nums">{globalIdx}</td>;
 
                         case 'name':
                           return (
@@ -1128,10 +1128,10 @@ const Employees = () => {
                           return <td key="name_en" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap" dir="ltr">{emp.name_en || '—'}</td>;
 
                         case 'employee_code':
-                          return <td key="employee_code" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap">{emp.employee_code || '—'}</td>;
+                          return <td key="employee_code" className="px-3 py-2.5 text-sm text-muted-foreground tabular-nums whitespace-nowrap">{emp.employee_code || '—'}</td>;
 
                         case 'national_id':
-                          return <td key="national_id" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.national_id || '—'}</td>;
+                          return <td key="national_id" className="px-3 py-2.5 text-sm text-muted-foreground tabular-nums whitespace-nowrap" dir="ltr">{emp.national_id || '—'}</td>;
 
                         case 'job_title':
                           return <td key="job_title" className="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{emp.job_title || '—'}</td>;
@@ -1294,10 +1294,10 @@ const Employees = () => {
                         }
 
                         case 'bank_account_number':
-                          return <td key="bank_account_number" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.bank_account_number || '—'}</td>;
+                          return <td key="bank_account_number" className="px-3 py-2.5 text-sm text-muted-foreground tabular-nums whitespace-nowrap" dir="ltr">{emp.bank_account_number || '—'}</td>;
 
                         case 'iban':
-                          return <td key="iban" className="px-3 py-2.5 text-sm text-muted-foreground font-mono whitespace-nowrap" dir="ltr">{emp.iban || '—'}</td>;
+                          return <td key="iban" className="px-3 py-2.5 text-sm text-muted-foreground tabular-nums whitespace-nowrap" dir="ltr">{emp.iban || '—'}</td>;
 
                         case 'email':
                           return (
@@ -1567,16 +1567,16 @@ function EmployeesFastList(props: Readonly<{
     fastBodyRows = rows.map((r) => (
       <tr key={r.id} className="hover:bg-muted/30 transition-colors">
         <td className="px-4 py-3 font-semibold">{r.name}</td>
-        <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{r.employee_code ?? '—'}</td>
-        <td className="px-4 py-3 text-xs font-mono">{r.national_id ?? '—'}</td>
-        <td className="px-4 py-3 text-xs font-mono">{r.phone ?? '—'}</td>
+        <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{r.employee_code ?? '—'}</td>
+        <td className="px-4 py-3 text-xs tabular-nums">{r.national_id ?? '—'}</td>
+        <td className="px-4 py-3 text-xs tabular-nums">{r.phone ?? '—'}</td>
         <td className="px-4 py-3">{toCityLabel(r.city)}</td>
         <td className="px-4 py-3">
           <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
             {r.status}
           </span>
         </td>
-        <td className="px-4 py-3 text-xs font-mono">{r.residency_expiry ?? '—'}</td>
+        <td className="px-4 py-3 text-xs tabular-nums">{r.residency_expiry ?? '—'}</td>
       </tr>
     ));
   }
