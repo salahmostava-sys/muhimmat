@@ -5,6 +5,16 @@ import { Input } from '@shared/components/ui/input';
 import { authService } from '@services/authService';
 import { authGradientBtn, authBtnStyle } from '@shared/lib/authStyles';
 
+const isValidEmail = (value: string): boolean => {
+  const trimmed = value.trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex <= 0 || atIndex !== trimmed.lastIndexOf('@')) return false;
+  const local = trimmed.slice(0, atIndex);
+  const domain = trimmed.slice(atIndex + 1);
+  if (!local || !domain || domain.startsWith('.') || domain.endsWith('.')) return false;
+  return domain.includes('.');
+};
+
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,7 +25,7 @@ const ForgotPassword = () => {
     e.preventDefault();
     setError('');
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       setError('يرجى إدخال بريد إلكتروني صحيح');
       return;
     }
