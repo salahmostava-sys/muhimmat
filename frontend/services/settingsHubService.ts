@@ -3,6 +3,7 @@ import { validateUploadFile } from '@shared/lib/validation';
 import { authService } from '@services/authService';
 import { toServiceError } from '@services/serviceError';
 import { createPagedResult } from '@shared/types/pagination';
+import { sanitizeStoragePath } from '@shared/lib/storagePath';
 
 const EXPORT_TABLE_ALLOWLIST = new Set([
   'audit_log',
@@ -59,6 +60,13 @@ export const settingsHubService = {
     return data;
   },
   uploadAvatar: async (path: string, file: File) => {
+    const safePath = sanitizeStoragePath(path);
+    if (!safePath) {
+      throw toServiceError(new Error('Invalid storage path'), 'settingsHubService.uploadAvatar.path');
+    }
+    if (safePath.includes('..') || safePath.startsWith('/') || !/^[A-Za-z0-9/_\-.]+$/.test(safePath)) {
+      throw toServiceError(new Error('Unsafe storage path'), 'settingsHubService.uploadAvatar.path');
+    }
     const validation = validateUploadFile(file, {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
     });
@@ -68,7 +76,7 @@ export const settingsHubService = {
         'settingsHubService.uploadAvatar.validation'
       );
     }
-    const { data, error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    const { data, error } = await supabase.storage.from('avatars').upload(safePath, file, { upsert: true });
     if (error) throw toServiceError(error, 'settingsHubService.uploadAvatar');
     if (!data) throw toServiceError(new Error('Upload returned no data'), 'settingsHubService.uploadAvatar');
     return data;
@@ -86,6 +94,13 @@ export const settingsHubService = {
     return data;
   },
   uploadCompanyLogo: async (path: string, file: File) => {
+    const safePath = sanitizeStoragePath(path);
+    if (!safePath) {
+      throw toServiceError(new Error('Invalid storage path'), 'settingsHubService.uploadCompanyLogo.path');
+    }
+    if (safePath.includes('..') || safePath.startsWith('/') || !/^[A-Za-z0-9/_\-.]+$/.test(safePath)) {
+      throw toServiceError(new Error('Unsafe storage path'), 'settingsHubService.uploadCompanyLogo.path');
+    }
     const validation = validateUploadFile(file, {
       allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
     });
@@ -95,7 +110,7 @@ export const settingsHubService = {
         'settingsHubService.uploadCompanyLogo.validation'
       );
     }
-    const { data, error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    const { data, error } = await supabase.storage.from('avatars').upload(safePath, file, { upsert: true });
     if (error) throw toServiceError(error, 'settingsHubService.uploadCompanyLogo');
     if (!data) throw toServiceError(new Error('Upload returned no data'), 'settingsHubService.uploadCompanyLogo');
     return data;

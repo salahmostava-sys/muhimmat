@@ -1,8 +1,11 @@
 import { Label } from '@shared/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
-import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
-import type { GlobalTableFilterState } from '@shared/components/table/GlobalTableFilters';
-import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
+import {
+  GlobalTableFilters,
+  createDefaultGlobalFilters,
+  type GlobalTableFilterState,
+  type BranchKey,
+} from '@shared/components/table/GlobalTableFilters';
 
 export type EmployeeStatusFilter = 'all' | 'active' | 'inactive' | 'ended';
 

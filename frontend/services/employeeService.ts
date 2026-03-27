@@ -1,6 +1,7 @@
 import { supabase } from '@services/supabase/client';
 import { toServiceError } from '@services/serviceError';
 import { createPagedResult } from '@shared/types/pagination';
+import { sanitizeStoragePath } from '@shared/lib/storagePath';
 
 export type EmployeeAppOption = {
   id: string;
@@ -207,9 +208,15 @@ export const employeeService = {
   },
 
   async uploadEmployeeDocument(storagePath: string, file: File) {
+    const safePath = sanitizeStoragePath(storagePath);
+    if (!safePath) throw toServiceError(new Error('Invalid storage path'), 'employeeService.uploadEmployeeDocument.path');
+    // Extra in-place guard to satisfy SAST checks before sink call.
+    if (safePath.includes('..') || safePath.startsWith('/') || !/^[A-Za-z0-9/_\-.]+$/.test(safePath)) {
+      throw toServiceError(new Error('Unsafe storage path'), 'employeeService.uploadEmployeeDocument.path');
+    }
     const { data, error } = await supabase.storage
       .from('employee-documents')
-      .upload(storagePath, file, { upsert: true });
+      .upload(safePath, file, { upsert: true });
     if (error) throw toServiceError(error, 'employeeService.uploadEmployeeDocument');
     return data;
   },
