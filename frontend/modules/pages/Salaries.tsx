@@ -31,7 +31,7 @@ import { printHtmlTable } from '@shared/lib/printTable';
 import { defaultQueryRetry } from '@shared/lib/query';
 import { useSalaryRecordsPaged } from '@shared/hooks/useSalaryRecordsPaged';
 import { auditService } from '@services/auditService';
-import JSZip from 'jszip';
+import type JSZip from 'jszip';
 
 
 // Kept for legacy references — populated dynamically from DB at runtime
@@ -109,6 +109,7 @@ const wasFixedSchemeAlreadyCalculated = (
 const loadXlsx = () => import('@e965/xlsx');
 const loadHtml2Canvas = async () => (await import('html2canvas')).default;
 const loadJsPdf = async () => (await import('jspdf')).default;
+const loadJsZip = async () => (await import('jszip')).default;
 
 const calculatePlatformSalary = ({
   platformName,
@@ -1778,9 +1779,10 @@ const Salaries = () => {
     return () => clearTimeout(timer);
   }, [batchIndex, batchQueue, batchZip, selectedMonth, toast]);
 
-  const startBatchZipExport = () => {
+  const startBatchZipExport = async () => {
     if (filtered.length === 0) { toast({ title: 'لا توجد بيانات للتصدير' }); return; }
-    const zip = new JSZip();
+    const JSZipCtor = await loadJsZip();
+    const zip = new JSZipCtor();
     const monthLabel = months.find(m => m.v === selectedMonth)?.l || selectedMonth;
     setBatchMonth(monthLabel);
     setBatchZip(zip);

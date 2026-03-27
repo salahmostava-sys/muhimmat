@@ -160,7 +160,7 @@ const ORDERS_SKELETON_CELL_KEYS = [
 ] as const;
 
 // ─── SpreadsheetGrid ─────────────────────────────────────────────────
-const SpreadsheetGrid = () => {
+const SpreadsheetGrid = React.memo(() => {
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
   const qk = ordersQueryKeys(uid);
@@ -174,14 +174,11 @@ const SpreadsheetGrid = () => {
   const importRef = useRef<HTMLInputElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
 
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [apps, setApps] = useState<App[]>([]);
   const [data, setData] = useState<DailyData>({});
   const [saving, setSaving] = useState(false);
   const [expandedEmp, setExpandedEmp] = useState<Set<string>>(new Set());
   const [cellPopover, setCellPopover] = useState<OrdersPopoverState | null>(null);
   const [platformFilter, setPlatformFilter] = useState('all');
-  const [appEmployeeIds, setAppEmployeeIds] = useState<Record<string, Set<string>>>({});
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [lockingMonth, setLockingMonth] = useState(false);
   const canEditMonth = permissions.can_edit && !isMonthLocked;
@@ -208,6 +205,11 @@ const SpreadsheetGrid = () => {
         employeeApps: (employeeApps || []) as EmployeeAppAssignmentRow[],
       };
     },
+    select: (base) => ({
+      employees: base.employees,
+      apps: base.apps,
+      appEmployeeIdsMap: buildAppEmployeeIdsMap(base.employeeApps),
+    }),
     retry: defaultQueryRetry,
     // Orders domain policy: semi-fresh
     staleTime: 60_000,
@@ -250,12 +252,18 @@ const SpreadsheetGrid = () => {
 
   const loading = spreadsheetBaseLoading || spreadsheetMonthLoading;
 
-  useEffect(() => {
-    if (!spreadsheetBaseData) return;
-    setEmployees(filterVisibleEmployeesInMonth(spreadsheetBaseData.employees, activeEmployeeIdsInMonth));
-    setApps(spreadsheetBaseData.apps);
-    setAppEmployeeIds(buildAppEmployeeIdsMap(spreadsheetBaseData.employeeApps));
-  }, [spreadsheetBaseData, activeEmployeeIdsInMonth]);
+  const apps = useMemo<App[]>(
+    () => spreadsheetBaseData?.apps ?? [],
+    [spreadsheetBaseData]
+  );
+  const appEmployeeIds = useMemo(
+    () => spreadsheetBaseData?.appEmployeeIdsMap ?? {},
+    [spreadsheetBaseData]
+  );
+  const employees = useMemo<Employee[]>(
+    () => filterVisibleEmployeesInMonth(spreadsheetBaseData?.employees ?? [], activeEmployeeIdsInMonth),
+    [spreadsheetBaseData, activeEmployeeIdsInMonth]
+  );
 
   useEffect(() => {
     setData(spreadsheetMonthData);
@@ -650,10 +658,10 @@ const SpreadsheetGrid = () => {
       )}
     </div>
   );
-};
+});
 
 // ─── Month Summary ─────────────────────────────────────────────────
-const MonthSummary = () => {
+const MonthSummary = React.memo(() => {
   const { enabled, userId } = useAuthQueryGate();
   const uid = authQueryUserId(userId);
   const qk = ordersQueryKeys(uid);
@@ -663,10 +671,8 @@ const MonthSummary = () => {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [apps, setApps] = useState<App[]>([]);
-  const [data, setData] = useState<DailyData>({});
   const [targets, setTargets] = useState<Record<string, string>>({});
+  const [data, setData] = useState<DailyData>({});
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [isMonthLocked, setIsMonthLocked] = useState(false);
   const [sortField, setSortField] = useState<OrdersEmployeeSortField>('name');
@@ -692,6 +698,10 @@ const MonthSummary = () => {
         apps: (apps || []) as App[],
       };
     },
+    select: (base) => ({
+      employees: base.employees,
+      apps: base.apps,
+    }),
     retry: defaultQueryRetry,
     staleTime: 60_000,
   });
@@ -734,11 +744,14 @@ const MonthSummary = () => {
 
   const loading = summaryBaseLoading || summaryMonthLoading;
 
-  useEffect(() => {
-    if (!summaryBaseData) return;
-    setEmployees(filterVisibleEmployeesInMonth(summaryBaseData.employees, activeEmployeeIdsInMonth));
-    setApps(summaryBaseData.apps);
-  }, [summaryBaseData, activeEmployeeIdsInMonth]);
+  const employees = useMemo<Employee[]>(
+    () => filterVisibleEmployeesInMonth(summaryBaseData?.employees ?? [], activeEmployeeIdsInMonth),
+    [summaryBaseData, activeEmployeeIdsInMonth]
+  );
+  const apps = useMemo<App[]>(
+    () => summaryBaseData?.apps ?? [],
+    [summaryBaseData]
+  );
 
   // Load targets when month changes
   useEffect(() => {
@@ -924,7 +937,7 @@ const MonthSummary = () => {
       </div>
     </div>
   );
-};
+});
 
 // ─── Orders List (server-side paginated) ─────────────────────────────────────
 const OrdersList = () => {

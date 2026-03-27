@@ -1,6 +1,7 @@
 import { supabase } from '@services/supabase/client';
 import { isEmployeeIdUuid, isValidSalaryMonthYear } from '@shared/lib/salaryValidation';
 import { handleSupabaseError } from '@services/serviceError';
+import { createPagedResult } from '@shared/types/pagination';
 
 export interface SalaryRecordPayload {
   employee_id: string;
@@ -291,7 +292,12 @@ export const salaryService = {
 
     const { data, error, count } = await query;
     if (error) handleSupabaseError(error, 'salaryService.getPagedByMonth');
-    return { data: data || [], count: count ?? 0 };
+    return createPagedResult({
+      rows: data,
+      total: count,
+      page,
+      pageSize,
+    });
   },
 
   /** Export helper for large salary_records datasets (chunked). */
@@ -313,8 +319,8 @@ export const salaryService = {
     const all: unknown[] = [];
     for (let page = 1; page <= Math.ceil(maxRows / chunkSize); page++) {
       const res = await salaryService.getPagedByMonth({ monthYear, page, pageSize: chunkSize, filters });
-      all.push(...(res.data || []));
-      if ((res.data || []).length < chunkSize) break;
+      all.push(...res.rows);
+      if (res.rows.length < chunkSize) break;
     }
     return all;
   },

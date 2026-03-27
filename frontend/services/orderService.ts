@@ -1,6 +1,7 @@
 import { supabase } from '@services/supabase/client';
 import { toServiceError } from '@services/serviceError';
 import { authService } from '@services/authService';
+import { createPagedResult } from '@shared/types/pagination';
 
 export interface DailyOrder {
   id: string;
@@ -155,10 +156,12 @@ export const orderService = {
 
     const { data, error, count } = await query;
     if (error) throw toServiceError(error, 'orderService.getMonthPaged');
-    return {
-      data: (data || []) as unknown[],
-      count: count ?? 0,
-    };
+    return createPagedResult({
+      rows: (data || []) as unknown[],
+      total: count,
+      page,
+      pageSize,
+    });
   },
 
   upsert: async (employeeId: string, date: string, appId: string, ordersCount: number) => {

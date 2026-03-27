@@ -1,5 +1,6 @@
 import { supabase } from '@services/supabase/client';
 import { toServiceError } from '@services/serviceError';
+import { createPagedResult } from '@shared/types/pagination';
 
 export type EmployeeAppOption = {
   id: string;
@@ -68,7 +69,12 @@ export const employeeService = {
 
     const { data, error, count } = await query;
     if (error) throw toServiceError(error, 'employeeService.getPaged');
-    return { data: data || [], count: count ?? 0 };
+    return createPagedResult({
+      rows: data,
+      total: count,
+      page,
+      pageSize,
+    });
   },
 
   /** Export helper for large datasets (chunked). */
@@ -88,8 +94,8 @@ export const employeeService = {
     const all: unknown[] = [];
     for (let page = 1; page <= Math.ceil(maxRows / chunkSize); page++) {
       const res = await employeeService.getPaged({ page, pageSize: chunkSize, filters });
-      all.push(...(res.data || []));
-      if ((res.data || []).length < chunkSize) break;
+      all.push(...res.rows);
+      if (res.rows.length < chunkSize) break;
     }
     return all;
   },

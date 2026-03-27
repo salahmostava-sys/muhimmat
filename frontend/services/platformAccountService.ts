@@ -1,5 +1,6 @@
 import { supabase } from '@services/supabase/client';
 import { handleSupabaseError } from '@services/serviceError';
+import { createPagedResult } from '@shared/types/pagination';
 
 export interface PlatformApp {
   id: string;
@@ -113,7 +114,12 @@ export const platformAccountService = {
 
     const { data, error, count } = await query;
     if (error) handleSupabaseError(error, 'platformAccountService.getAccountsPaged');
-    return { data: data ?? [], count: count ?? 0 };
+    return createPagedResult({
+      rows: data,
+      total: count,
+      page,
+      pageSize,
+    });
   },
 
   /** Export helper for large datasets (chunked). */
@@ -139,8 +145,8 @@ export const platformAccountService = {
         pageSize: chunkSize,
         filters,
       });
-      all.push(...res.data);
-      if (res.data.length < chunkSize) break;
+      all.push(...res.rows);
+      if (res.rows.length < chunkSize) break;
     }
     return all;
   },
