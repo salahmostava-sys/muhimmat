@@ -28,5 +28,5 @@ export function formatCurrency(amount: number, currencySymbol: string = '$'): st
  * @returns Formatted number string.
  */
 export function formatNumber(num: number): string {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return new Intl.NumberFormat('en-US').format(num);
 }
