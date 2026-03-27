@@ -47,4 +47,3 @@ coverage/
 .ai
 prompt.md
 *.prompt
-sonar-issues.json
