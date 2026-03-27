@@ -21,7 +21,7 @@ const Login = lazy(() => import("@modules/pages/Login"));
 const ForgotPassword = lazy(() => import("@modules/pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("@modules/pages/ResetPassword"));
 const Dashboard = lazy(() => import("@modules/pages/Dashboard"));
-const Employees = lazy(() => import("@modules/pages/Employees"));
+const Employees = lazy(() => import("@modules/employees/pages/EmployeesPage"));
 const Attendance = lazy(() => import("@modules/pages/Attendance"));
 const Orders = lazy(() => import("@modules/pages/Orders"));
 const Salaries = lazy(() => import("@modules/pages/Salaries"));

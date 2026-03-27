@@ -20,7 +20,6 @@ import {
 } from '@shared/components/ui/alert-dialog';
 import { differenceInDays, parseISO, format } from 'date-fns';
 import EmployeeProfile from '@shared/components/employees/EmployeeProfile';
-import AddEmployeeModal from '@shared/components/employees/AddEmployeeModal';
 import { DataTableActions } from '@shared/components/table/DataTableActions';
 import {
   EMPLOYEE_TEMPLATE_AR_HEADERS,
@@ -33,16 +32,16 @@ import { printHtmlTable } from '@shared/lib/printTable';
 import { driverService } from '@services/driverService';
 import { useToast } from '@shared/hooks/use-toast';
 import * as XLSX from '@e965/xlsx';
-import { Skeleton } from '@shared/components/ui/skeleton';
 import { usePermissions } from '@shared/hooks/usePermissions';
-import { useEmployees } from '@shared/hooks/useEmployees';
-import { useMonthlyActiveEmployeeIds } from '@shared/hooks/useMonthlyActiveEmployeeIds';
-import { filterVisibleEmployeesInMonth, isEmployeeVisibleInMonth } from '@shared/lib/employeeVisibility';
-import { GlobalTableFilters, createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
-import type { BranchKey } from '@shared/components/table/GlobalTableFilters';
-import { useEmployeesPaged } from '@shared/hooks/useEmployeesPaged';
+import { isEmployeeVisibleInMonth } from '@shared/lib/employeeVisibility';
+import { createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
 import { employeeService } from '@services/employeeService';
 import { auditService } from '@services/auditService';
+import { useEmployeesData } from '@modules/employees/hooks/useEmployees';
+import { validateImportRow } from '@modules/employees/model/employeeValidation';
+import { applyEmployeeFilters, getEmployeeFieldValue, parseBranchFilter, sortEmployees } from '@modules/employees/model/employeeUtils';
+import { EmployeesFastList as EmployeesFastListView } from '@modules/employees/components/EmployeesFastList';
+import { EmployeeFormModal } from '@modules/employees/components/EmployeeFormModal';
 import {
   CityBadge,
   LicenseBadge,
@@ -102,22 +101,6 @@ type UploadLiveStats = {
   processedNames: number;
   totalNames: number;
   currentName: string;
-};
-
-const isValidImportPhone = (value: string) => /^[+]?\d{8,15}$/.test(value.replaceAll(/\s/g, ''));
-
-const validateImportRow = (row: EmployeeArabicRow, rowIndex: number) => {
-  const issues: Array<{ rowIndex: number; issue: string }> = [];
-  const name = String(row.name ?? '').trim();
-  const phone = String(row.phone ?? '').trim();
-  const nationalId = String(row.national_id ?? '').trim();
-
-  if (!name) issues.push({ rowIndex, issue: 'الاسم مفقود' });
-  if (!phone) issues.push({ rowIndex, issue: 'رقم الهاتف مفقود' });
-  else if (!isValidImportPhone(phone)) issues.push({ rowIndex, issue: 'رقم الهاتف غير صالح' });
-  if (!nationalId) issues.push({ rowIndex, issue: 'رقم الهوية مفقود' });
-
-  return issues;
 };
 
 const processBulkImportRows = async (
@@ -185,10 +168,6 @@ const processBulkImportRows = async (
   };
 
   return { report, headerWarnings: headerErrors.length };
-};
-
-const getEmployeeFieldValue = (employee: Employee, field: string): unknown => {
-  return (employee as Record<string, unknown>)[field];
 };
 
 // ─── Column definitions ───────────────────────────────────────────────────────
@@ -260,10 +239,6 @@ const residencyStatusLabel = (status: 'valid' | 'expired' | 'unknown'): string =
   if (status === 'expired') return 'منتهية';
   return '';
 };
-const parseBranchFilter = (branch: BranchKey): Exclude<BranchKey, 'all'> | undefined => {
-  if (branch === 'makkah' || branch === 'jeddah') return branch;
-  return undefined;
-};
 
 const probationColor = (days: number): string => {
   if (days < 0) return 'text-muted-foreground';
@@ -272,73 +247,6 @@ const probationColor = (days: number): string => {
   return 'text-success';
 };
 
-const matchesText = (source: string | null | undefined, filterValue: string): boolean =>
-  (source || '').toLowerCase().includes(filterValue.toLowerCase());
-
-const matchesExact = (source: string | null | undefined, filterValue: string): boolean =>
-  (source || '') === filterValue;
-
-function matchesResidencyFilter(employee: Employee, filterValue: string): boolean {
-  const res = calcResidency(employee.residency_expiry);
-  if (filterValue === 'valid') return res.status === 'valid';
-  if (filterValue === 'expired') return res.status === 'expired';
-  if (filterValue === 'urgent') return res.days !== null && res.days < 30;
-  return true;
-}
-
-function matchesColumnFilter(employee: Employee, key: string, filterValue: string): boolean {
-  if (!filterValue) return true;
-  const predicates: Record<string, () => boolean> = {
-    name: () => matchesText(employee.name, filterValue),
-    national_id: () => (employee.national_id || '').includes(filterValue),
-    employee_code: () => matchesText(employee.employee_code, filterValue),
-    phone: () => (employee.phone || '').includes(filterValue),
-    job_title: () => matchesExact(employee.job_title, filterValue),
-    city: () => matchesExact(employee.city, filterValue),
-    nationality: () => matchesExact(employee.nationality, filterValue),
-    sponsorship_status: () => matchesExact(employee.sponsorship_status, filterValue),
-    license_status: () => matchesExact(employee.license_status, filterValue),
-    status: () => matchesExact(employee.status, filterValue),
-    residency_status: () => matchesResidencyFilter(employee, filterValue),
-    email: () => matchesText(employee.email, filterValue),
-    bank_account_number: () => (employee.bank_account_number || '').includes(filterValue),
-  };
-  const predicate = predicates[key];
-  if (!predicate) return true;
-  return predicate();
-}
-
-function applyEmployeeFilters(rows: Employee[], colFilters: Record<string, string>): Employee[] {
-  return rows.filter((employee) => {
-    for (const [key, value] of Object.entries(colFilters)) {
-      if (!matchesColumnFilter(employee, key, value)) return false;
-    }
-    return true;
-  });
-}
-
-function sortEmployees(rows: Employee[], sortField: string | null, sortDir: SortDir): Employee[] {
-  if (!sortField || !sortDir) return rows;
-  return [...rows].sort((a, b) => { // NOSONAR
-    const [va, vb]: [string | number, string | number] = sortField === 'days_residency'
-      ? [
-          a.residency_expiry ? differenceInDays(parseISO(a.residency_expiry), new Date()) : -9999,
-          b.residency_expiry ? differenceInDays(parseISO(b.residency_expiry), new Date()) : -9999,
-        ]
-      : (() => {
-      const aVal = getEmployeeFieldValue(a, sortField);
-      const bVal = getEmployeeFieldValue(b, sortField);
-      return [
-        typeof aVal === 'number' ? aVal : String(aVal ?? ''),
-        typeof bVal === 'number' ? bVal : String(bVal ?? ''),
-      ];
-    })();
-    if (va < vb) return sortDir === 'asc' ? -1 : 1;
-    if (va > vb) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
-}
-
 // (Badges / InlineSelect / Avatar / SortIcon / FilterPopover / SkeletonRow extracted to EmployeesViewParts)
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -346,18 +254,14 @@ const Employees = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { permissions } = usePermissions('employees');
-  const currentMonth = format(new Date(), 'yyyy-MM');
-  const { data: activeIdsData } = useMonthlyActiveEmployeeIds(currentMonth);
-  const activeEmployeeIdsInMonth = activeIdsData?.employeeIds;
-
   const [data, setData]       = useState<Employee[]>([]);
   const [viewMode, setViewMode] = useState<'detailed' | 'fast'>('detailed');
   const {
-    data: employeesData = [],
+    employees: employeesData,
     isLoading: loading,
     error: employeesError,
     refetch: refetchEmployees,
-  } = useEmployees();
+  } = useEmployeesData();
   const [sortField, setSortField] = useState<string | null>('name');
   const [sortDir, setSortDir]     = useState<SortDir>('asc');
 
@@ -431,8 +335,8 @@ const Employees = () => {
 
   useEffect(() => {
     const rows = (employeesData as Employee[]) ?? [];
-    setData(filterVisibleEmployeesInMonth(rows, activeEmployeeIdsInMonth));
-  }, [employeesData, activeEmployeeIdsInMonth]);
+    setData(rows);
+  }, [employeesData]);
 
   useEffect(() => {
     if (!employeesError) return;
@@ -876,7 +780,7 @@ const Employees = () => {
 
   if (viewMode === 'fast') {
     return (
-      <EmployeesFastList
+      <EmployeesFastListView
         loadingMain={loading}
         onBackToDetailed={() => setViewMode('detailed')}
         branch={fastFilters.branch}
@@ -895,6 +799,7 @@ const Employees = () => {
         onImportFile={runImportFile}
         actionLoading={actionLoading}
         canEdit={permissions.can_edit}
+        toCityLabel={toCityLabel}
       />
     );
   }
@@ -1436,13 +1341,12 @@ const Employees = () => {
       </div>
 
       {/* Modals */}
-      {showAddModal && (
-        <AddEmployeeModal
-          onClose={() => { setShowAddModal(false); setEditEmployee(null); }}
-          editEmployee={editEmployee}
-          onSuccess={() => { void refetchEmployees(); setShowAddModal(false); setEditEmployee(null); }}
-        />
-      )}
+      <EmployeeFormModal
+        open={showAddModal}
+        editEmployee={editEmployee}
+        onClose={() => { setShowAddModal(false); setEditEmployee(null); }}
+        onSuccess={() => { void refetchEmployees(); setShowAddModal(false); setEditEmployee(null); }}
+      />
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteEmployee} onOpenChange={open => !open && setDeleteEmployee(null)}>
@@ -1512,241 +1416,3 @@ const Employees = () => {
 };
 
 export default Employees;
-
-function EmployeesFastList(props: Readonly<{
-  loadingMain: boolean;
-  onBackToDetailed: () => void;
-  branch: BranchKey;
-  search: string;
-  status: EmployeeStatusFilter;
-  onStatusChange: (v: EmployeeStatusFilter) => void;
-  onFiltersChange: (next: ReturnType<typeof createDefaultGlobalFilters>) => void;
-  page: number;
-  onPageChange: (p: number) => void;
-  pageSize: number;
-  onExport: () => void | Promise<void>;
-  onDownloadTemplate: () => void | Promise<void>;
-  onImportFile: (file: File) => void | Promise<void>;
-  actionLoading: boolean;
-  canEdit: boolean;
-}>) {
-  const {
-    loadingMain,
-    onBackToDetailed,
-    branch,
-    search,
-    status,
-    onStatusChange,
-    onFiltersChange,
-    page,
-    onPageChange,
-    pageSize,
-    onExport,
-    onDownloadTemplate,
-    onImportFile,
-    actionLoading,
-    canEdit,
-  } = props;
-  const { toast } = useToast();
-
-  const fastTableRef = useRef<HTMLTableElement>(null);
-
-  const { data, isLoading } = useEmployeesPaged({
-    page,
-    pageSize,
-    filters: { branch, search, status },
-  });
-
-  type Row = {
-    id: string;
-    name: string;
-    employee_code: string | null;
-    national_id: string | null;
-    phone: string | null;
-    city: string | null;
-    status: string;
-    sponsorship_status: string | null;
-    residency_expiry: string | null;
-    job_title: string | null;
-  };
-
-  const paged = data as unknown as { rows?: Row[]; total?: number } | undefined;
-  const rows = paged?.rows || [];
-  const total = paged?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  let fastBodyRows: React.ReactNode;
-  if (isLoading) {
-    fastBodyRows = FAST_SKELETON_IDS.map((id) => (
-      <tr key={`employees-table-skeleton-${id}`}>
-        <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
-        <td className="px-4 py-3"><Skeleton className="h-4 w-20" /></td>
-        <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
-        <td className="px-4 py-3"><Skeleton className="h-4 w-24" /></td>
-        <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-        <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-        <td className="px-4 py-3"><Skeleton className="h-4 w-28" /></td>
-      </tr>
-    ));
-  } else if (rows.length === 0) {
-    fastBodyRows = (
-      <tr>
-        <td colSpan={7} className="py-10 text-center text-muted-foreground">
-          لا توجد نتائج
-        </td>
-      </tr>
-    );
-  } else {
-    fastBodyRows = rows.map((r) => (
-      <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-        <td className="px-4 py-3 font-semibold">{r.name}</td>
-        <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{r.employee_code ?? '—'}</td>
-        <td className="px-4 py-3 text-xs tabular-nums">{r.national_id ?? '—'}</td>
-        <td className="px-4 py-3 text-xs tabular-nums">{r.phone ?? '—'}</td>
-        <td className="px-4 py-3">{toCityLabel(r.city)}</td>
-        <td className="px-4 py-3">
-          <span className="text-[11px] px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
-            {r.status}
-          </span>
-        </td>
-        <td className="px-4 py-3 text-xs tabular-nums">{r.residency_expiry ?? '—'}</td>
-      </tr>
-    ));
-  }
-
-  const handleFastPrint = () => {
-    const table = fastTableRef.current;
-    if (!table) return;
-    printHtmlTable(table, {
-      title: 'الموظفين — قائمة سريعة',
-      subtitle: `إجمالي النتائج: ${total.toLocaleString()} — ${new Date().toLocaleDateString('ar-SA')}`,
-    });
-  };
-
-  const runSafe = async (fn: () => void | Promise<void>, fallbackMessage: string) => {
-    try {
-      await fn();
-    } catch (e: unknown) {
-      toast({
-        title: 'حدث خطأ',
-        description: e instanceof Error ? e.message : fallbackMessage,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="page-header">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="page-title">الموظفين — قائمة (سريعة)</h1>
-            <p className="page-subtitle">{loadingMain ? 'جارٍ التحميل...' : `${total.toLocaleString()} نتيجة`}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={onBackToDetailed}>
-              رجوع للتفصيلي
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
-        <DataTableActions
-          loading={actionLoading}
-          onExport={() => runSafe(onExport, 'تعذر تنفيذ التصدير')}
-          onDownloadTemplate={() => runSafe(onDownloadTemplate, 'تعذر تحميل القالب')}
-          onPrint={() => runSafe(() => { handleFastPrint(); }, 'تعذر طباعة الجدول')}
-          onImportFile={(file) => runSafe(() => onImportFile(file), 'تعذر استيراد الملف')}
-          hideImport={!canEdit}
-        />
-      </div>
-
-      <div className="ds-card p-3 space-y-3">
-        <GlobalTableFilters
-          value={{
-            ...createDefaultGlobalFilters(),
-            branch,
-            search,
-            driverId: 'all',
-            platformAppId: 'all',
-            dateFrom: '',
-            dateTo: '',
-          }}
-          onChange={(next) =>
-            onFiltersChange({ ...next, driverId: 'all', platformAppId: 'all', dateFrom: '', dateTo: '' })
-          }
-          onReset={() => onFiltersChange(createDefaultGlobalFilters())}
-          options={{
-            enableBranch: true,
-            enableDriver: false,
-            enablePlatform: false,
-            enableDateRange: false,
-          }}
-        />
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <Label className="text-xs">الحالة</Label>
-          <Select value={status} onValueChange={(v) => onStatusChange(v as 'all' | 'active' | 'inactive' | 'ended')}>
-            <SelectTrigger className="h-9 w-40 text-sm">
-              <SelectValue placeholder="الحالة" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">الكل</SelectItem>
-              <SelectItem value="active">نشط</SelectItem>
-              <SelectItem value="inactive">غير نشط</SelectItem>
-              <SelectItem value="ended">منتهي</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="ds-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table ref={fastTableRef} className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="text-center font-semibold px-4 py-3">الاسم</th>
-                <th className="text-center font-semibold px-4 py-3">الكود</th>
-                <th className="text-center font-semibold px-4 py-3">رقم الهوية</th>
-                <th className="text-center font-semibold px-4 py-3">الهاتف</th>
-                <th className="text-center font-semibold px-4 py-3">الفرع</th>
-                <th className="text-center font-semibold px-4 py-3">الحالة</th>
-                <th className="text-center font-semibold px-4 py-3">انتهاء الإقامة</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {fastBodyRows}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs">
-          <div className="text-muted-foreground">{total.toLocaleString()} نتيجة</div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => onPageChange(Math.max(1, page - 1))}
-              disabled={page <= 1}
-            >
-              السابق
-            </Button>
-            <span className="tabular-nums text-muted-foreground">
-              {page} / {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-              disabled={page >= totalPages}
-            >
-              التالي
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
