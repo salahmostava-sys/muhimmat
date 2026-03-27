@@ -23,6 +23,14 @@ import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGat
 import { defaultQueryRetry } from '@shared/lib/query';
 import { logError } from '@shared/lib/logger';
 import { getErrorMessage } from '@services/serviceError';
+import {
+  calcFuelCostPerKm,
+  calcFuelPerOrder,
+  getRiderDailyRows,
+  getRiderOrders,
+  sumRiderFuel,
+  sumRiderKm,
+} from '@shared/lib/fuelBusiness';
 import { useFuel } from '@modules/fuel/hooks/useFuel';
 import {
   calcDailyStats,
@@ -858,12 +866,10 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     XLSX.writeFile(wb, `إدخالات_يومية_${selectedMonth}_${selectedYear}.xlsx`);
   };
 
-  const dailyForRider = (empId: string) =>
-    filteredDaily.filter(r => r.employee_id === empId).sort((a, b) => b.date.localeCompare(a.date));
-
-  const riderMonthKm = (empId: string) => dailyForRider(empId).reduce((s, r) => s + (Number(r.km_total) || 0), 0);
-  const riderMonthFuel = (empId: string) => dailyForRider(empId).reduce((s, r) => s + (Number(r.fuel_cost) || 0), 0);
-  const riderMonthOrders = (empId: string) => monthOrdersMap[empId] || 0;
+  const dailyForRider = (empId: string) => getRiderDailyRows(filteredDaily, empId);
+  const riderMonthKm = (empId: string) => sumRiderKm(dailyForRider(empId));
+  const riderMonthFuel = (empId: string) => sumRiderFuel(dailyForRider(empId));
+  const riderMonthOrders = (empId: string) => getRiderOrders(monthOrdersMap, empId);
   const updateEditingDaily = (field: 'km_total' | 'fuel_cost' | 'notes', value: string) => {
     setEditingDaily((current) => {
       if (!current) return null;
@@ -879,8 +885,8 @@ const FuelPage = () => { // NOSONAR: UI container with many independent handlers
     monthlyBodyRows = (
       <>
         {filteredMonthly.map(row => {
-          const costPerKm = row.km_total > 0 ? row.fuel_cost / row.km_total : null;
-          const fuelPerOrder = row.orders_count > 0 ? row.fuel_cost / row.orders_count : null;
+          const costPerKm = calcFuelCostPerKm(row.km_total, row.fuel_cost);
+          const fuelPerOrder = calcFuelPerOrder(row.fuel_cost, row.orders_count);
           return (
             <tr key={row.employee_id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
               <td className="px-4 py-3">
