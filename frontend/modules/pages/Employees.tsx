@@ -731,6 +731,7 @@ const Employees = () => {
             onPrint={runPrintDetailed}
             onImportFile={runImportFile}
             hideImport={!permissions.can_edit}
+            className="!w-auto !justify-start"
           />
 
           {permissions.can_edit && (
