@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Building2, Save, Upload, X, Loader2 } from 'lucide-react';
+import { Building2, Save, Loader2 } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
 import { Input } from '@shared/components/ui/input';
 import { Label } from '@shared/components/ui/label';
 import { useToast } from '@shared/hooks/use-toast';
 import { useLanguage } from '@app/providers/LanguageContext';
-import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { settingsHubService } from '@services/settingsHubService';
-import { validateUploadFile } from '@shared/lib/validation';
 import { getErrorMessage } from '@shared/lib/query';
 
 const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle?: string }) => (
@@ -26,7 +24,6 @@ const SectionHeader = ({ icon, title, subtitle }: { icon: React.ReactNode; title
 export default function CompanySettingsContent() {
   const { isRTL } = useLanguage();
   const { toast } = useToast();
-  const { settings, refresh } = useSystemSettings();
 
   const [recordId, setRecordId] = useState<string | null>(null);
   const [nameAr, setNameAr] = useState('');
@@ -35,14 +32,6 @@ export default function CompanySettingsContent() {
   const [taxNumber, setTaxNumber] = useState('');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [savingLogo, setSavingLogo] = useState(false);
-
-  useEffect(() => {
-    if (settings?.logo_url) setLogoPreview(settings.logo_url);
-  }, [settings]);
 
   useEffect(() => {
     settingsHubService.getTradeRegister()
@@ -57,49 +46,6 @@ export default function CompanySettingsContent() {
         setLoading(false);
       });
   }, []);
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const validation = validateUploadFile(file, {
-      allowedTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'],
-    });
-    if (!validation.valid) {
-      toast({ title: validation.error, variant: 'destructive' });
-      return;
-    }
-    setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
-  };
-
-  const handleSaveLogo = async () => {
-    if (!logoFile || !settings?.id) return;
-    setSavingLogo(true);
-    try {
-      const ext = logoFile.name.split('.').pop();
-      const path = `logo/project-logo.${ext}`;
-      await settingsHubService.uploadCompanyLogo(path, logoFile);
-      const { data: { publicUrl } } = settingsHubService.getCompanyLogoPublicUrl(path);
-      await settingsHubService.updateSystemLogo(settings.id, publicUrl);
-      await refresh();
-      setLogoFile(null);
-      toast({ title: isRTL ? 'تم حفظ الشعار ✓' : 'Logo saved ✓' });
-    } catch (err: unknown) {
-      console.error('[CompanySettings] save logo failed', err);
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
-    }
-    setSavingLogo(false);
-  };
-
-  const handleRemoveLogo = async () => {
-    if (!settings?.id) return;
-    try {
-      await settingsHubService.updateSystemLogo(settings.id, null);
-      setLogoPreview(null); setLogoFile(null); await refresh();
-    } catch (err: unknown) {
-      toast({ title: isRTL ? 'خطأ' : 'Error', description: getErrorMessage(err), variant: 'destructive' });
-    }
-  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -176,47 +122,6 @@ export default function CompanySettingsContent() {
               {isRTL ? 'الرقم الضريبي' : 'Tax Number'}
             </Label>
             <Input value={taxNumber} onChange={e => setTaxNumber(e.target.value)} placeholder="3000524140003" dir="ltr" />
-          </div>
-        </div>
-      </div>
-
-      {/* Logo */}
-      <div className="bg-card rounded-xl border border-border/50 p-5 space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {isRTL ? 'شعار الشركة' : 'Company Logo'}
-        </p>
-        <div className="flex items-center gap-4">
-          {logoPreview ? (
-            <div className="relative">
-              <img src={logoPreview} alt="logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
-              <button
-                onClick={handleRemoveLogo}
-                className="absolute -top-1.5 -end-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center"
-              >
-                <X size={10} />
-              </button>
-            </div>
-          ) : (
-            <div className="h-16 w-16 rounded-xl bg-muted flex items-center justify-center text-2xl border border-dashed border-border">
-              🏢
-            </div>
-          )}
-          <div className="flex-1 space-y-2">
-            <label className="cursor-pointer">
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" className="hidden" onChange={handleLogoChange} />
-              <Button variant="outline" size="sm" className="gap-2 pointer-events-none w-full" asChild>
-                <span><Upload size={13} /> {isRTL ? 'اختيار شعار' : 'Choose Logo'}</span>
-              </Button>
-            </label>
-            <p className="text-[11px] text-muted-foreground">
-              {isRTL ? 'PNG أو SVG — الحد الأقصى 2MB' : 'PNG or SVG — Max 2MB'}
-            </p>
-            {logoFile && (
-              <Button size="sm" onClick={handleSaveLogo} disabled={savingLogo} className="w-full gap-2">
-                {savingLogo ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                {isRTL ? 'رفع الشعار' : 'Upload Logo'}
-              </Button>
-            )}
           </div>
         </div>
       </div>

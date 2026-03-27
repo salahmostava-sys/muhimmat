@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useLanguage } from '@app/providers/LanguageContext';
 import { useTheme } from '@app/providers/ThemeContext';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
@@ -15,9 +14,10 @@ import { usePermissions } from '@shared/hooks/usePermissions';
 import { useAuth } from '@app/providers/AuthContext';
 import { validateUploadFile } from '@shared/lib/validation';
 import { settingsHubService } from '@services/settingsHubService';
+import { supabase } from '@services/supabase/client';
+import { getErrorMessage } from '@shared/lib/query';
 
 export default function ProjectSettings() {
-  const { t } = useTranslation();
   const { isRTL } = useLanguage();
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
@@ -27,8 +27,6 @@ export default function ProjectSettings() {
 
   const [nameAr, setNameAr] = useState('');
   const [nameEn, setNameEn] = useState('');
-  const [subtitleAr, setSubtitleAr] = useState('');
-  const [subtitleEn, setSubtitleEn] = useState('');
   const [defaultLang, setDefaultLang] = useState('ar');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -40,8 +38,6 @@ export default function ProjectSettings() {
     if (settings) {
       setNameAr(settings.project_name_ar);
       setNameEn(settings.project_name_en);
-      setSubtitleAr(settings.project_subtitle_ar);
-      setSubtitleEn(settings.project_subtitle_en);
       setDefaultLang(settings.default_language);
       setLogoPreview(settings.logo_url);
       setIqamaAlertDays(settings.iqama_alert_days ?? 90);
@@ -88,8 +84,6 @@ export default function ProjectSettings() {
       const payload = {
         project_name_ar: nameAr,
         project_name_en: nameEn,
-        project_subtitle_ar: subtitleAr,
-        project_subtitle_en: subtitleEn,
         default_language: defaultLang,
         logo_url,
         iqama_alert_days: iqamaAlertDays,
@@ -212,20 +206,6 @@ export default function ProjectSettings() {
                 {isRTL ? 'اسم المشروع (إنجليزي)' : 'Project Name (English)'}
               </Label>
               <Input value={nameEn} onChange={e => setNameEn(e.target.value)} placeholder="Delivery System" dir="ltr" />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">
-                {isRTL ? 'العنوان الفرعي (عربي)' : 'Subtitle (Arabic)'}
-              </Label>
-              <Input value={subtitleAr} onChange={e => setSubtitleAr(e.target.value)} placeholder="إدارة المناديب" dir="rtl" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">
-                {isRTL ? 'العنوان الفرعي (إنجليزي)' : 'Subtitle (English)'}
-              </Label>
-              <Input value={subtitleEn} onChange={e => setSubtitleEn(e.target.value)} placeholder="Rider Management" dir="ltr" />
             </div>
           </div>
         </div>
