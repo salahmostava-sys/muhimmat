@@ -1,8 +1,9 @@
 import { useRef } from 'react';
-import { Download, FileSpreadsheet, Upload, Printer, Loader2 } from 'lucide-react';
+import { Download, FileSpreadsheet, Upload, Printer, Loader2, FolderOpen } from 'lucide-react';
 import { Button } from '@shared/components/ui/button';
 import { cn } from '@shared/lib/utils';
 import { useToast } from '@shared/hooks/use-toast';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 
 /** 5MB import limit */
 export const DATA_TABLE_IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -26,10 +27,7 @@ export type DataTableActionsProps = Readonly<{
   }>;
 }>;
 
-/**
- * Unified action bar: Export (outline), Template (ghost/link), Import (primary), Print (outline).
- * Centered, responsive; uses theme primary color.
- */
+/** Unified compact actions menu for file operations. */
 export function DataTableActions({
   onExport,
   onDownloadTemplate,
@@ -47,9 +45,9 @@ export function DataTableActions({
 
   const L = {
     export: labels.export ?? 'تصدير Excel',
-    template: labels.template ?? 'تحميل القالب',
+    template: labels.template ?? 'تحميل قالب الاستيراد',
     import: labels.import ?? 'استيراد Excel',
-    print: labels.print ?? 'طباعة',
+    print: labels.print ?? 'طباعة الجدول',
   };
 
   const run = async (fn: () => void | Promise<void>) => {
@@ -113,56 +111,41 @@ export function DataTableActions({
           جارٍ المعالجة...
         </span>
       )}
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={busy}
-        className="gap-1.5 min-w-[9.5rem] border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-        onClick={() => void run(onExport)}
-      >
-        <Download className="size-4" aria-hidden />
-        {L.export}
-      </Button>
-
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        disabled={busy}
-        className="gap-1.5 min-w-[9.5rem] text-primary hover:text-primary hover:bg-primary/10"
-        onClick={() => void run(onDownloadTemplate)}
-      >
-        <FileSpreadsheet className="size-4" aria-hidden />
-        {L.template}
-      </Button>
-
-      {!hideImport && (
-        <Button
-          type="button"
-          variant="default"
-          size="sm"
-          disabled={busy}
-          className="gap-1.5 min-w-[9.5rem] bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-          onClick={handleImportPick}
-        >
-          <Upload className="size-4" aria-hidden />
-          {L.import}
-        </Button>
-      )}
-
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={busy}
-        className="gap-1.5 min-w-[9.5rem] border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
-        onClick={() => void run(onPrint)}
-      >
-        <Printer className="size-4" aria-hidden />
-        {L.print}
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            className="gap-1.5 min-w-[9.5rem] border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+          >
+            <FolderOpen className="size-4" aria-hidden />
+            ملفات
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => void run(onExport)}>
+            <Download className="size-4 ml-2" aria-hidden />
+            {L.export}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => void run(onDownloadTemplate)}>
+            <FileSpreadsheet className="size-4 ml-2" aria-hidden />
+            {L.template}
+          </DropdownMenuItem>
+          {!hideImport && (
+            <DropdownMenuItem onClick={handleImportPick}>
+              <Upload className="size-4 ml-2" aria-hidden />
+              {L.import}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => void run(onPrint)}>
+            <Printer className="size-4 ml-2" aria-hidden />
+            {L.print}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
