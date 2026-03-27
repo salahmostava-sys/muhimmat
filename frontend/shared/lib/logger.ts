@@ -72,8 +72,8 @@ export const logger = {
   },
 };
 
+/** Dev-friendly alias for `logger` that still forwards to monitoring in production (no extra console there). */
 export function logError(message: string, error?: unknown, options?: { level?: LogLevel; meta?: unknown }) {
-  if (import.meta.env.PROD) return;
   const level: LogLevel = options?.level ?? 'error';
   if (level === 'warn') {
     logger.warn(message, error, { meta: options?.meta });
