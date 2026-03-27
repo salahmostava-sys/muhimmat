@@ -144,8 +144,9 @@
 
 ## المتغيرات البيئية
 
-استخدم ملفات مثل `.env` / `.env.local` (غير مرفوعة في Git).  
-يكتشف عميل Supabase في **`frontend/services/supabase/client.ts`** تلقائياً إذا تم تبديل المتغيرين بالخطأ ويصحّح الترتيب.
+استخدم ملفات مثل `.env` / `.env.local` تحت **`frontend/`** (غير مرفوعة في Git) — انسخ من **`frontend/.env.example`**.  
+التفاصيل: **`docs/ENV.md`**.  
+عميل Supabase في **`frontend/services/supabase/client.ts`** ينظّف القيم (مثل إزالة الاقتباس الزائد) ويُنبّه في الإنتاج إذا كان الرابط يبدو محلياً.
 
 ---
 
@@ -173,7 +174,9 @@ npm run build
 | [`docs/HANDOVER.md`](docs/HANDOVER.md) | تسليم للمطور الجديد: تشغيل، مجلدات، ملفات أولية |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | طبقات البيانات، aliases، قواعد React Query |
 | [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) | قواعد قبل التعديل والمراجعة |
+| [`docs/ENV.md`](docs/ENV.md) | متغيرات Supabase، محلي مقابل Vercel |
 | [`docs/README.md`](docs/README.md) | فهرس التوثيق |
+| [`CHANGELOG.md`](CHANGELOG.md) | سجل تغييرات موجزة للمشروع |
 
 ---
 

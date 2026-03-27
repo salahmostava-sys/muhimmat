@@ -9,7 +9,7 @@ Version numbers are updated when the team adopts a release tagging workflow; unt
 
 ### Added
 
-- (Document user-facing or maintainer-facing changes here before release.)
+- `docs/ENV.md` — Supabase `VITE_*` variables, `.env.local`, Vercel, troubleshooting.
 
 ---
 
