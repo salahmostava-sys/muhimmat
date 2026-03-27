@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles/index.css";
 import { ErrorBoundary } from "@shared/components/ErrorBoundary";
+import { installGlobalErrorMonitoring } from "@shared/lib/logger";
 
 const CHUNK_RELOAD_KEY = "__chunk_reload_once__";
 
@@ -34,7 +35,14 @@ globalThis.addEventListener("unhandledrejection", (event) => {
   }
 });
 
-createRoot(document.getElementById("root")!).render(
+installGlobalErrorMonitoring();
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error('Root element not found');
+}
+
+createRoot(rootElement).render(
   <ErrorBoundary>
     <App />
   </ErrorBoundary>
