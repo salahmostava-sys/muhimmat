@@ -801,7 +801,7 @@ const Advances = () => {
   const uid = authQueryUserId(userId);
   const { permissions } = usePermissions('advances');
   const [advances, setAdvances] = useState<Advance[]>([]);
-  const [employees, setEmployees] = useState<{ id: string; name: string; sponsorship_status?: string | null }[]>([]);
+  const [employees, setEmployees] = useState<{ id: string; name: string; national_id?: string | null; sponsorship_status?: string | null }[]>([]);
   const {
     data: advancesPageData,
     isLoading: loading,
@@ -817,7 +817,7 @@ const Advances = () => {
       ]);
       return {
         advances: (advRows || []) as Advance[],
-        employees: (empRows || []) as { id: string; name: string; sponsorship_status?: string | null }[],
+        employees: (empRows || []) as { id: string; name: string; national_id?: string | null; sponsorship_status?: string | null }[],
       };
     },
     retry: defaultQueryRetry,
@@ -1365,7 +1365,7 @@ const Advances = () => {
                           .map((e) => (
                             <CommandItem
                               key={e.id}
-                              value={`${e.name} ${e.id}`}
+                              value={`${e.name} ${e.national_id ?? ''} ${e.id}`}
                               onSelect={() => {
                                 setTransactionsEmployee({
                                   id: e.id,

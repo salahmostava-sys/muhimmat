@@ -238,7 +238,7 @@ export const advanceService = {
   getEmployees: async () => {
     const { data, error } = await supabase
       .from('employees')
-      .select('id, name, sponsorship_status')
+      .select('id, name, national_id, sponsorship_status')
       .eq('status', 'active')
       .order('name');
     if (error) handleSupabaseError(error, 'advanceService.getEmployees');
