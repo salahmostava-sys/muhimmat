@@ -333,7 +333,7 @@ const UsersAndPermissions = ({ embedded = false }: UsersAndPermissionsProps) => 
                     الأسماء أدناه هي صفحات النظام الفعلية. عند المطابقة مع افتراضات الدور لا تُخزّن صفوف إضافية في قاعدة البيانات.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center justify-start gap-2">
+                <div className="flex flex-wrap items-center justify-start gap-2" dir="rtl">
                   <Select value={permUserId ?? ''} onValueChange={(v) => setPermUserId(v)}>
                     <SelectTrigger className="w-[240px]">
                       <SelectValue placeholder="اختر مستخدماً" />
