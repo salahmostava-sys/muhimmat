@@ -10,3 +10,5 @@
 Start with **HANDOVER.md**, then **ARCHITECTURE.md**, then **CONTRIBUTING.md**. Use **ENV.md** when wiring Supabase or fixing “missing env” errors.
 
 The root [README.md](../README.md) describes product features and UX; these docs describe **how the repo is organized** for maintenance.
+
+**Automation:** opening a pull request on GitHub loads **`.github/pull_request_template.md`** into the description.

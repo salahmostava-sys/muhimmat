@@ -10,6 +10,7 @@ Version numbers are updated when the team adopts a release tagging workflow; unt
 ### Added
 
 - `docs/ENV.md` — Supabase `VITE_*` variables, `.env.local`, Vercel, troubleshooting.
+- `.github/pull_request_template.md` — default PR checklist for GitHub.
 
 ---
 

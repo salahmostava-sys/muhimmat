@@ -177,6 +177,7 @@ npm run build
 | [`docs/ENV.md`](docs/ENV.md) | متغيرات Supabase، محلي مقابل Vercel |
 | [`docs/README.md`](docs/README.md) | فهرس التوثيق |
 | [`CHANGELOG.md`](CHANGELOG.md) | سجل تغييرات موجزة للمشروع |
+| [`.github/pull_request_template.md`](.github/pull_request_template.md) | قالب وصف الـ PR على GitHub |
 
 ---
 
