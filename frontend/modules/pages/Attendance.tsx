@@ -11,6 +11,7 @@ import ArchiveAttendance from '@shared/components/attendance/ArchiveAttendance';
 import { useLanguage } from '@app/providers/LanguageContext';
 import { useTranslation } from 'react-i18next';
 import * as XLSX from '@e965/xlsx';
+import { printHtmlTable } from '@shared/lib/printTable';
 
 const MONTHS_AR = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -106,14 +107,7 @@ const Attendance = () => {
               <DropdownMenuItem onClick={() => {
                 const table = document.querySelector('table');
                 if (!table) return;
-                const win = globalThis.open('', '_blank');
-                if (!win) return;
-                win.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>الحضور</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:12px;font-size:15px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>سجل الحضور</h2>`);
-                if (!win.document.body) return;
-                // Append the live DOM table node to avoid string-interpolating table HTML.
-                win.document.body.appendChild(table.cloneNode(true));
-                win.document.write(`<script>globalThis.onload=()=>{globalThis.print();globalThis.onafterprint=()=>globalThis.close()}</script></body></html>`);
-                win.document.close();
+                printHtmlTable(table as HTMLTableElement, { title: 'سجل الحضور' });
               }}>🖨️ طباعة الجدول</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

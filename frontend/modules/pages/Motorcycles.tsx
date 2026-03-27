@@ -12,6 +12,7 @@ import { format, differenceInDays, parseISO } from 'date-fns';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { Skeleton } from '@shared/components/ui/skeleton';
 import { useMotorcyclesData } from '@shared/hooks/useMotorcyclesData';
+import { printHtmlTable } from '@shared/lib/printTable';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type VehicleStatus = 'active' | 'maintenance' | 'breakdown' | 'rental' | 'ended' | 'inactive';
@@ -456,14 +457,10 @@ const Motorcycles = () => {
   const handlePrint = () => {
     const table = tableRef.current;
     if (!table) return;
-    const printWindow = globalThis.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>بيانات الموتوسيكلات</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>بيانات الموتوسيكلات</h2><p class="sub">المجموع: ${filtered.length} مركبة — ${new Date().toLocaleDateString('ar-SA')}</p>`);
-    if (!printWindow.document.body) return;
-    // Append the live DOM table node to avoid string-interpolating table HTML.
-    printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>globalThis.onload=()=>{globalThis.print();globalThis.onafterprint=()=>globalThis.close()}</script></body></html>`);
-    printWindow.document.close();
+    printHtmlTable(table, {
+      title: 'بيانات الموتوسيكلات',
+      subtitle: `المجموع: ${filtered.length} مركبة — ${new Date().toLocaleDateString('ar-SA')}`,
+    });
   };
 
   const handleDelete = async (v: Vehicle) => {

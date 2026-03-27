@@ -16,6 +16,7 @@ import { usePermissions } from '@shared/hooks/usePermissions';
 import { escapeHtml } from '@shared/lib/security';
 import { authQueryUserId, useAuthQueryGate } from '@shared/hooks/useAuthQueryGate';
 import { defaultQueryRetry } from '@shared/lib/query';
+import { printHtmlTable } from '@shared/lib/printTable';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type AdvanceStatus = 'active' | 'completed' | 'paused';
@@ -667,9 +668,14 @@ const TransactionsModal = ({ employeeId, employeeName, nationalId, totalDebt, to
                             <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setEditingNoteId(null)}>إلغاء</Button>
                           </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors" onClick={() => startEditNote(inst)} title="اضغط للتعديل">
+                          <button
+                            type="button"
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors text-right w-full"
+                            onClick={() => startEditNote(inst)}
+                            title="اضغط للتعديل"
+                          >
                             {inst.notes || <span className="text-muted-foreground/30 italic">اضغط للإضافة</span>}
-                          </span>
+                          </button>
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-center">
@@ -999,14 +1005,10 @@ const Advances = () => {
   const handlePrintTable = () => {
     const table = tableRef.current;
     if (!table) return;
-    const printWindow = globalThis.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"/><title>تقرير السلف</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:11px;direction:rtl;color:#111;background:#fff}h2{text-align:center;margin-bottom:8px;font-size:15px}p.sub{text-align:center;color:#666;font-size:11px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th{background:#1e3a5f;color:#fff;padding:6px 8px;text-align:right;font-size:10px;white-space:nowrap}td{padding:5px 8px;border-bottom:1px solid #e0e0e0;text-align:right;white-space:nowrap}tr:nth-child(even) td{background:#f9f9f9}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><h2>تقرير السلف</h2><p class="sub">المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}</p>`);
-    if (!printWindow.document.body) return;
-    // Append the live DOM table node to avoid string-interpolating table HTML.
-    printWindow.document.body.appendChild(table.cloneNode(true));
-    printWindow.document.write(`<script>globalThis.onload=()=>{globalThis.print();globalThis.onafterprint=()=>globalThis.close()}</script></body></html>`);
-    printWindow.document.close();
+    printHtmlTable(table, {
+      title: 'تقرير السلف',
+      subtitle: `المجموع: ${filtered.length} مندوب — ${new Date().toLocaleDateString('ar-SA')}`,
+    });
   };
 
   const SortIcon = ({ field }: { field: string }) => {
