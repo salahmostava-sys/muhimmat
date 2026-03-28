@@ -1,6 +1,7 @@
 import { Component, type ReactNode } from 'react';
 import { getErrorContextSnapshot } from '@shared/lib/errorContextMeta';
 import { logger } from '@shared/lib/logger';
+import { isLikelyStaleChunkError, reloadOnceForStaleChunk } from '@shared/lib/chunkLoadRecovery';
 
 type Props = {
   children: ReactNode;
@@ -18,6 +19,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
+    const message = error.message || String(error);
+    /* فشل تحميل chunk بعد نشر جديد — إعادة تحميل كاملة قبل عرض شاشة الخطأ */
+    if (isLikelyStaleChunkError(message) && reloadOnceForStaleChunk()) {
+      return;
+    }
     logger.error('App crashed', error, { meta: getErrorContextSnapshot() });
   }
 
