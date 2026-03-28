@@ -9,7 +9,7 @@ import type { PagedResult } from '@shared/types/pagination';
 
 export type PlatformAccountsPagedFilters = {
   driverId?: string;
-  platformAppId?: string;
+  platformAppIds?: string[];
   branch?: BranchKey;
   search?: string;
   status?: 'active' | 'inactive' | 'all';
@@ -27,7 +27,8 @@ export function usePlatformAccountsPaged(params: {
   const { page, pageSize, filters } = params;
 
   const employeeId = filters.driverId?.trim() || undefined;
-  const appId = filters.platformAppId?.trim() || undefined;
+  const appIds =
+    filters.platformAppIds && filters.platformAppIds.length > 0 ? filters.platformAppIds : undefined;
   const branch = filters.branch === 'all' ? undefined : filters.branch;
   const status = filters.status && filters.status !== 'all' ? filters.status : undefined;
   const search = filters.search?.trim() || undefined;
@@ -40,7 +41,7 @@ export function usePlatformAccountsPaged(params: {
       page,
       pageSize,
       employeeId ?? null,
-      appId ?? null,
+      appIds?.join(',') ?? null,
       branch ?? null,
       status ?? null,
       search ?? null,
@@ -49,7 +50,7 @@ export function usePlatformAccountsPaged(params: {
       platformAccountService.getAccountsPaged({
         page,
         pageSize,
-        filters: { employeeId, appId, branch, status, search },
+        filters: { employeeId, appIds, branch, status, search },
       })
     ),
     retry: safeRetry,

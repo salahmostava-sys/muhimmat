@@ -16,6 +16,8 @@ export interface DailyOrder {
 export interface OrderFilter {
   employeeId?: string;
   appId?: string;
+  /** عدة منصات — يُفضَّل على `appId` عند التمرير من الفلتر متعدد الاختيار */
+  appIds?: string[];
   date?: string;
   monthYear?: string;
   search?: string;
@@ -127,7 +129,7 @@ export const orderService = {
     monthYear: string;
     page: number; // 1-based
     pageSize: number;
-    filters?: Pick<OrderFilter, 'employeeId' | 'appId' | 'search' | 'branch'>;
+    filters?: Pick<OrderFilter, 'employeeId' | 'appId' | 'appIds' | 'search' | 'branch'>;
   }) => {
     const { monthYear, page, pageSize } = params;
     const filters = params.filters ?? {};
@@ -147,7 +149,11 @@ export const orderService = {
       .range(fromIdx, toIdx);
 
     if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
-    if (filters.appId) query = query.eq('app_id', filters.appId);
+    if (filters.appIds && filters.appIds.length > 0) {
+      query = query.in('app_id', filters.appIds);
+    } else if (filters.appId) {
+      query = query.eq('app_id', filters.appId);
+    }
     if (filters.branch) query = query.eq('employees.city', filters.branch);
     if (filters.search?.trim()) {
       const q = filters.search.trim();

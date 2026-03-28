@@ -1,5 +1,6 @@
 import { supabase } from '@services/supabase/client';
 import { throwIfError } from '@services/serviceError';
+import { employeeService } from '@services/employeeService';
 
 export const driverService = {
   async update(id: string, payload: Record<string, unknown>) {
@@ -10,12 +11,9 @@ export const driverService = {
     throwIfError(error, 'driverService.update');
   },
 
+  /** يمر عبر التحقق من الطلبات/العمليات في `employeeService.deleteById`. */
   async delete(id: string) {
-    const { error } = await supabase
-      .from('employees')
-      .delete()
-      .eq('id', id);
-    throwIfError(error, 'driverService.delete');
+    await employeeService.deleteById(id);
   },
 };
 

@@ -76,6 +76,7 @@ export const platformAccountService = {
     filters?: {
       employeeId?: string;
       appId?: string;
+      appIds?: string[];
       status?: 'active' | 'inactive';
       branch?: 'makkah' | 'jeddah';
       search?: string;
@@ -97,7 +98,11 @@ export const platformAccountService = {
       .range(fromIdx, toIdx);
 
     if (filters.employeeId) query = query.eq('employee_id', filters.employeeId);
-    if (filters.appId) query = query.eq('app_id', filters.appId);
+    if (filters.appIds && filters.appIds.length > 0) {
+      query = query.in('app_id', filters.appIds);
+    } else if (filters.appId) {
+      query = query.eq('app_id', filters.appId);
+    }
     if (filters.status) query = query.eq('status', filters.status);
     if (filters.branch) query = query.eq('employees.city', filters.branch);
     if (filters.search?.trim()) {
@@ -127,6 +132,7 @@ export const platformAccountService = {
     filters?: {
       employeeId?: string;
       appId?: string;
+      appIds?: string[];
       status?: 'active' | 'inactive';
       branch?: 'makkah' | 'jeddah';
       search?: string;

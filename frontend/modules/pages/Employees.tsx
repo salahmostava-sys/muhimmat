@@ -35,7 +35,8 @@ import * as XLSX from '@e965/xlsx';
 import { usePermissions } from '@shared/hooks/usePermissions';
 import { isEmployeeVisibleInMonth } from '@shared/lib/employeeVisibility';
 import { createDefaultGlobalFilters } from '@shared/components/table/GlobalTableFilters';
-import { employeeService } from '@services/employeeService';
+import { employeeService, EMPLOYEE_DELETE_BLOCKED_MESSAGE } from '@services/employeeService';
+import { getErrorMessage } from '@services/serviceError';
 import { auditService } from '@services/auditService';
 import { useEmployeesData } from '@modules/employees/hooks/useEmployees';
 import { validateImportRow } from '@modules/employees/model/employeeValidation';
@@ -434,8 +435,13 @@ const Employees = () => {
       setData(d => d.filter(e => e.id !== deleteEmployee.id));
       toast({ title: 'تم الحذف', description: deleteEmployee.name });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'تعذر حذف المندوب';
-      toast({ title: 'خطأ في الحذف', description: message, variant: 'destructive' });
+      const message = getErrorMessage(err, 'تعذر حذف المندوب');
+      const blocked = message === EMPLOYEE_DELETE_BLOCKED_MESSAGE;
+      toast({
+        title: blocked ? 'لا يمكن الحذف' : 'خطأ في الحذف',
+        description: message,
+        variant: 'destructive',
+      });
     }
     setDeleting(false);
     setDeleteEmployee(null);

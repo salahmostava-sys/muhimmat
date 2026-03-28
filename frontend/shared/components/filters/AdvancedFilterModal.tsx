@@ -99,6 +99,10 @@ export function AdvancedFilterModal(props: Readonly<{
               const selected = values;
               const allSelected =
                 optionValues.length > 0 && optionValues.every((v) => selected.includes(v));
+              const someSelected =
+                optionValues.length > 0 &&
+                selected.some((v) => optionValues.includes(v)) &&
+                !allSelected;
 
               const toggleAll = () => {
                 if (allSelected) {
@@ -121,7 +125,7 @@ export function AdvancedFilterModal(props: Readonly<{
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <Checkbox
-                        checked={allSelected}
+                        checked={allSelected ? true : someSelected ? 'indeterminate' : false}
                         onCheckedChange={() => toggleAll()}
                       />
                       <span className="text-sm font-medium">الكل</span>

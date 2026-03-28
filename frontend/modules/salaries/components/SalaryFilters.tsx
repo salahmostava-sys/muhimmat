@@ -18,11 +18,11 @@ export function SalaryFilters(props: Readonly<{
           branch,
           search,
           driverId: 'all',
-          platformAppId: 'all',
+          platformAppIds: [],
           dateFrom: '',
           dateTo: '',
         }}
-        onChange={(next) => onFiltersChange({ ...next, driverId: 'all', platformAppId: 'all', dateFrom: '', dateTo: '' })}
+        onChange={(next) => onFiltersChange({ ...next, driverId: 'all', platformAppIds: [], dateFrom: '', dateTo: '' })}
         onReset={() => onFiltersChange(createDefaultGlobalFilters())}
         options={{
           enableBranch: true,

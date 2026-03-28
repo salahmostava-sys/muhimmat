@@ -2,11 +2,10 @@ import { useState, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/components/ui/tabs';
 import { Button } from '@shared/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/components/ui/select';
-import { ClipboardCheck, CalendarDays, FolderOpen, BarChart2, Archive } from 'lucide-react';
+import { ClipboardCheck, CalendarDays, FolderOpen, Archive } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@shared/components/ui/dropdown-menu';
 import DailyAttendance from '@shared/components/attendance/DailyAttendance';
 import MonthlyRecord from '@shared/components/attendance/MonthlyRecord';
-import AttendanceStats from '@shared/components/attendance/AttendanceStats';
 import ArchiveAttendance from '@shared/components/attendance/ArchiveAttendance';
 import { useLanguage } from '@app/providers/LanguageContext';
 import { useTranslation } from 'react-i18next';
@@ -17,10 +16,6 @@ import { PageSection } from '@shared/components/layout/PageScaffold';
 const MONTHS_AR = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-];
-const MONTHS_EN = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
 const currentYear = new Date().getFullYear();
@@ -115,17 +110,6 @@ const Attendance = () => {
         </div>
       </div>
 
-      <PageSection title="إحصائيات الحضور">
-        <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
-      </PageSection>
-
-      <PageSection title="الفلاتر">
-        <div className="bg-card rounded-xl border border-border/50 p-3 text-sm text-muted-foreground">
-          الشهر الحالي: <span className="font-semibold text-foreground">{MONTHS[Number(selectedMonth)]}</span>
-          {' '}— السنة: <span className="font-semibold text-foreground">{selectedYear}</span>
-        </div>
-      </PageSection>
-
       <PageSection title="الجدول والتبويبات">
         <Tabs defaultValue="daily" className="space-y-2">
           <TabsList className="bg-muted/50">
@@ -136,10 +120,6 @@ const Attendance = () => {
             <TabsTrigger value="monthly" className="gap-2">
               <CalendarDays size={15} />
               السجل الشهري
-            </TabsTrigger>
-            <TabsTrigger value="stats" className="gap-2">
-              <BarChart2 size={15} />
-              الإحصائيات
             </TabsTrigger>
             <TabsTrigger value="archive" className="gap-2">
               <Archive size={15} />
@@ -153,10 +133,6 @@ const Attendance = () => {
 
           <TabsContent value="monthly">
             <MonthlyRecord selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
-          </TabsContent>
-
-          <TabsContent value="stats">
-            <AttendanceStats selectedMonth={Number(selectedMonth)} selectedYear={Number(selectedYear)} />
           </TabsContent>
 
           <TabsContent value="archive">

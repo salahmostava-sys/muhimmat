@@ -1384,11 +1384,11 @@ function FuelDailyFastList(props: FuelDailyFastListProps) {
             search: filters.search,
             branch: filters.branch,
             driverId: filters.driverId,
-            platformAppId: 'all',
+            platformAppIds: [],
             dateFrom: '',
             dateTo: '',
           }}
-          onChange={(next) => onFiltersChange({ ...filters, ...next, platformAppId: 'all', dateFrom: '', dateTo: '' })}
+          onChange={(next) => onFiltersChange({ ...filters, ...next, platformAppIds: [], dateFrom: '', dateTo: '' })}
           onReset={() => onFiltersChange(createDefaultGlobalFilters())}
           options={{
             drivers: employees.map((e) => ({ id: e.id, name: e.name })),

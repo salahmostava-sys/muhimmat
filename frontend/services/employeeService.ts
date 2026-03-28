@@ -1,5 +1,5 @@
 import { supabase } from '@services/supabase/client';
-import { toServiceError } from '@services/serviceError';
+import { ServiceError, toServiceError } from '@services/serviceError';
 import { createPagedResult } from '@shared/types/pagination';
 import { sanitizeStoragePath } from '@shared/lib/storagePath';
 
@@ -14,6 +14,34 @@ export type SalarySchemeOption = {
   id: string;
   name: string;
 };
+
+/** رسالة موحّدة عند محاولة حذف مندوب له سجل طلبات/عمليات (تُعرض في الواجهة). */
+export const EMPLOYEE_DELETE_BLOCKED_MESSAGE =
+  'لا يمكن حذف المندوب لوجود طلبات أو عمليات مسجلة باسمه. يمكنك فقط تغيير حالته إلى (إنهاء خدمات / هروب).';
+
+const OPERATIONAL_TABLES_FOR_DELETE_GUARD = [
+  'daily_orders',
+  'advances',
+  'attendance',
+  'vehicle_assignments',
+  'platform_accounts',
+  'salary_records',
+] as const;
+
+async function employeeHasBlockingOperationalRecords(employeeId: string): Promise<boolean> {
+  const checks = await Promise.all(
+    OPERATIONAL_TABLES_FOR_DELETE_GUARD.map((table) =>
+      supabase.from(table).select('id', { count: 'exact', head: true }).eq('employee_id', employeeId)
+    )
+  );
+  for (let i = 0; i < checks.length; i++) {
+    const res = checks[i];
+    const table = OPERATIONAL_TABLES_FOR_DELETE_GUARD[i];
+    if (res.error) throw toServiceError(res.error, `employeeService.blockingCheck.${table}`);
+    if ((res.count ?? 0) > 0) return true;
+  }
+  return false;
+}
 
 export const employeeService = {
   async getAll() {
@@ -140,6 +168,9 @@ export const employeeService = {
   },
 
   async deleteById(employeeId: string) {
+    if (await employeeHasBlockingOperationalRecords(employeeId)) {
+      throw new ServiceError(EMPLOYEE_DELETE_BLOCKED_MESSAGE);
+    }
     const { error } = await supabase
       .from('employees')
       .delete()

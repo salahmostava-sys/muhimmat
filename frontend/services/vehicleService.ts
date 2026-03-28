@@ -1,6 +1,9 @@
 import { supabase } from '@services/supabase/client';
 import { handleSupabaseError } from '@services/serviceError';
 
+/** أقصى عدد صفوف يُجلب لقوائم المركبات وسجلات التوزيع (يتوافق مع حد PostgREST الافتراضي). */
+export const VEHICLES_QUERY_MAX_ROWS = 1000;
+
 export interface VehiclePayload {
   plate_number: string;
   plate_number_en?: string | null;
@@ -44,14 +47,15 @@ export const vehicleService = {
     const { data, error } = await supabase
       .from('vehicles')
       .select('*')
-      .order('plate_number');
+      .order('plate_number')
+      .limit(VEHICLES_QUERY_MAX_ROWS);
     if (error) handleSupabaseError(error, 'vehicleService.getAll');
     return data ?? [];
   },
 
   getAllWithCurrentRider: async () => {
     const [vehiclesRes, assignmentsRes] = await Promise.all([
-      supabase.from('vehicles').select('*').order('plate_number').limit(1000),
+      supabase.from('vehicles').select('*').order('plate_number').limit(VEHICLES_QUERY_MAX_ROWS),
       supabase
         .from('vehicle_assignments')
         .select('vehicle_id, employees(name)')
@@ -172,7 +176,7 @@ export const vehicleService = {
     return data ?? [];
   },
 
-  getAssignmentsWithRelations: async (limit = 200) => {
+  getAssignmentsWithRelations: async (limit = VEHICLES_QUERY_MAX_ROWS) => {
     const { data, error } = await supabase
       .from('vehicle_assignments')
       .select('*, vehicles(plate_number, type), employees(name)')
@@ -235,7 +239,8 @@ export const vehicleService = {
     const { data, error } = await supabase
       .from('vehicles')
       .select('id, plate_number, brand')
-      .order('plate_number');
+      .order('plate_number')
+      .limit(VEHICLES_QUERY_MAX_ROWS);
     if (error) handleSupabaseError(error, 'vehicleService.getForSelect');
     return data ?? [];
   },

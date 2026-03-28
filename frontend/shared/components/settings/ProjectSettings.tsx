@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLanguage } from '@app/providers/LanguageContext';
 import { useTheme } from '@app/providers/ThemeContext';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
@@ -15,6 +15,7 @@ import { useAuth } from '@app/providers/AuthContext';
 import { validateUploadFile } from '@shared/lib/validation';
 import { settingsHubService } from '@services/settingsHubService';
 import { supabase } from '@services/supabase/client';
+import { brandLogoSrc } from '@shared/lib/brandLogo';
 import { getErrorMessage } from '@shared/lib/query';
 import { logError } from '@shared/lib/logger';
 
@@ -35,13 +36,15 @@ export default function ProjectSettings() {
   const [iqamaAlertDays, setIqamaAlertDays] = useState(90);
   const [saving, setSaving] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const logoObjectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (settings) {
       setNameAr(settings.project_name_ar);
       setNameEn(settings.project_name_en);
       setDefaultLang(settings.default_language);
-      setLogoPreview(settings.logo_url);
+      setLogoPreview(brandLogoSrc(settings.logo_url, settings.updated_at) ?? settings.logo_url);
       setRemoveLogo(false);
       setIqamaAlertDays(settings.iqama_alert_days ?? 90);
     }
@@ -57,10 +60,24 @@ export default function ProjectSettings() {
       toast({ title: isRTL ? 'خطأ في الملف' : 'Invalid file', description: validation.error, variant: 'destructive' });
       return;
     }
+    if (logoObjectUrlRef.current) {
+      URL.revokeObjectURL(logoObjectUrlRef.current);
+      logoObjectUrlRef.current = null;
+    }
+    const nextUrl = URL.createObjectURL(file);
+    logoObjectUrlRef.current = nextUrl;
     setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
+    setLogoPreview(nextUrl);
     setRemoveLogo(false);
+    e.target.value = '';
   };
+
+  const clearLogoObjectUrl = useCallback(() => {
+    if (logoObjectUrlRef.current) {
+      URL.revokeObjectURL(logoObjectUrlRef.current);
+      logoObjectUrlRef.current = null;
+    }
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -70,9 +87,22 @@ export default function ProjectSettings() {
       if (removeLogo) {
         logo_url = null;
       } else if (logoFile) {
-        const ext = logoFile.name.split('.').pop();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const uid = user?.id ?? session?.user?.id;
+        if (!uid) {
+          setSaving(false);
+          toast({
+            title: isRTL ? 'تعذر الرفع' : 'Cannot upload',
+            description: isRTL ? 'يجب تسجيل الدخول لرفع الشعار.' : 'You must be signed in to upload a logo.',
+            variant: 'destructive',
+          });
+          return;
+        }
+        const ext = logoFile.name.split('.').pop() || 'png';
         const version = Date.now();
-        const path = `${user?.id ?? 'system'}/project-logo-${version}.${ext}`;
+        const path = `${uid}/project-logo-${version}.${ext}`;
         try {
           await settingsHubService.uploadCompanyLogo(path, logoFile);
         } catch (e: unknown) {
@@ -109,9 +139,10 @@ export default function ProjectSettings() {
         if (error) throw error;
       }
 
-      await refresh();
+      clearLogoObjectUrl();
       setLogoFile(null);
       setRemoveLogo(false);
+      await refresh();
       toast({ title: isRTL ? 'تم الحفظ ✓' : 'Saved ✓', description: isRTL ? 'تم تحديث إعدادات المشروع' : 'Project settings updated' });
     } catch (err: unknown) {
       logError('[ProjectSettings] save failed', err);
@@ -229,6 +260,7 @@ export default function ProjectSettings() {
               <img src={logoPreview} alt="logo" className="h-16 w-16 rounded-xl object-cover border border-border" />
               <button
                 onClick={() => {
+                  clearLogoObjectUrl();
                   setLogoPreview(null);
                   setLogoFile(null);
                   setRemoveLogo(true);
@@ -244,17 +276,23 @@ export default function ProjectSettings() {
             </div>
           )}
           <div>
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/svg+xml"
-                className="hidden"
-                onChange={handleLogoChange}
-              />
-              <Button variant="outline" size="sm" className="gap-2 pointer-events-none" asChild>
-                <span><Upload size={13} /> {isRTL ? 'رفع شعار' : 'Upload Logo'}</span>
-              </Button>
-            </label>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/svg+xml"
+              className="sr-only"
+              aria-label={isRTL ? 'اختيار ملف الشعار' : 'Choose logo file'}
+              onChange={handleLogoChange}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => logoInputRef.current?.click()}
+            >
+              <Upload size={13} /> {isRTL ? 'رفع شعار' : 'Upload Logo'}
+            </Button>
             <p className="text-xs text-muted-foreground mt-1.5">
               {isRTL ? 'PNG، JPG، SVG — الحد الأقصى 2 ميغابايت' : 'PNG, JPG, SVG — Max 2MB'}
             </p>

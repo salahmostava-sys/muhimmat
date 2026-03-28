@@ -1008,7 +1008,7 @@ const OrdersList = () => {
     filters: {
       branch: filters.branch,
       driverId: filters.driverId,
-      platformAppId: filters.platformAppId,
+      platformAppIds: filters.platformAppIds,
       search: filters.search,
     },
   });

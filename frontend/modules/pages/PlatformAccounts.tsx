@@ -568,7 +568,8 @@ const PlatformAccounts = () => {
           pageSize={fastPageSize}
           filters={{
             driverId: fastFilters.driverId || undefined,
-            platformAppId: fastFilters.platformAppId || undefined,
+            platformAppIds:
+              fastFilters.platformAppIds.length > 0 ? fastFilters.platformAppIds : undefined,
             branch: fastFilters.branch || 'all',
             search: fastFilters.search || undefined,
             status: (filterStatus as 'all' | 'active' | 'inactive'),
@@ -962,7 +963,7 @@ function PlatformAccountsFastList(props: {
   pageSize: number;
   filters: {
     driverId?: string;
-    platformAppId?: string;
+    platformAppIds?: string[];
     branch?: BranchKey;
     search?: string;
     status?: 'all' | 'active' | 'inactive';
@@ -977,7 +978,7 @@ function PlatformAccountsFastList(props: {
     pageSize,
     filters: {
       driverId: filters.driverId,
-      platformAppId: filters.platformAppId,
+      platformAppIds: filters.platformAppIds,
       branch: filters.branch,
       search: filters.search,
       status: filters.status,
@@ -1011,7 +1012,7 @@ function PlatformAccountsFastList(props: {
       const out = (await platformAccountService.exportAccounts({
         filters: {
           employeeId: filters.driverId,
-          appId: filters.platformAppId,
+          appIds: filters.platformAppIds && filters.platformAppIds.length > 0 ? filters.platformAppIds : undefined,
           branch: filters.branch && filters.branch !== 'all' ? filters.branch : undefined,
           status: filters.status && filters.status !== 'all' ? filters.status : undefined,
           search: filters.search,
@@ -1053,7 +1054,7 @@ function PlatformAccountsFastList(props: {
           value={{
             ...createDefaultGlobalFilters(),
             driverId: filters.driverId || '',
-            platformAppId: filters.platformAppId || '',
+            platformAppIds: filters.platformAppIds ?? [],
             branch: filters.branch || 'all',
             search: filters.search || '',
           }}

@@ -11,6 +11,7 @@ import { useLanguage } from '@app/providers/LanguageContext';
 import { useSystemSettings } from '@app/providers/SystemSettingsContext';
 import { useMobileSidebar } from '@app/providers/MobileSidebarContext';
 import { cn } from '@shared/lib/utils';
+import { brandLogoSrc } from '@shared/lib/brandLogo';
 import { routesManifest, routeGroupTitleAr, toPagePermissionKey, type RouteGroup } from '@app/routesManifest';
 import { useAuth } from '@app/providers/AuthContext';
 import { DEFAULT_PERMISSIONS, type AppRole } from '@shared/hooks/usePermissions';
@@ -175,7 +176,7 @@ const AppSidebar = () => {
           <Link to="/" className="flex items-center gap-3 min-w-0">
             {settings?.logo_url ? (
               <img
-                src={settings.logo_url}
+                src={brandLogoSrc(settings.logo_url, settings.updated_at)}
                 alt="logo"
                 className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
               />

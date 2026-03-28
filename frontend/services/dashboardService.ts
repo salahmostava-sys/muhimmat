@@ -183,7 +183,7 @@ export const dashboardService = {
   getSystemSettings: async () => {
     const { data, error } = await supabase
       .from('system_settings')
-      .select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url')
+      .select('project_name_ar, project_name_en, project_subtitle_ar, project_subtitle_en, logo_url, updated_at')
       .limit(1)
       .maybeSingle();
     if (error) handleSupabaseError(error, 'dashboardService.getSystemSettings');

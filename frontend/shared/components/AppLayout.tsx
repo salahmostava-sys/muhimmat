@@ -16,6 +16,7 @@ import { Sun, Moon, Menu, ChevronLeft, ChevronRight, LogOut, Settings, User, Che
 import NotificationCenter from '@shared/components/NotificationCenter';
 import GlobalSearch from '@shared/components/GlobalSearch';
 import { cn } from '@shared/lib/utils';
+import { brandLogoSrc } from '@shared/lib/brandLogo';
 import { logError } from '@shared/lib/logger';
 import { profileService } from '@services/profileService';
 
@@ -139,7 +140,7 @@ const AppLayoutInner = ({ children }: AppLayoutProps) => { // NOSONAR: layout wi
             >
               {settings?.logo_url ? (
                 <img
-                  src={settings.logo_url}
+                  src={brandLogoSrc(settings.logo_url, settings.updated_at)}
                   alt=""
                   className="h-10 w-10 sm:h-11 sm:w-11 rounded-full object-cover border-2 border-border/80 bg-card shadow-sm shrink-0"
                 />

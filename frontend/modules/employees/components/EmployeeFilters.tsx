@@ -32,12 +32,12 @@ export function EmployeeFilters({
           branch,
           search,
           driverId: 'all',
-          platformAppId: 'all',
+          platformAppIds: [],
           dateFrom: '',
           dateTo: '',
         }}
         onChange={(next) =>
-          onFiltersChange({ ...next, driverId: 'all', platformAppId: 'all', dateFrom: '', dateTo: '' })
+          onFiltersChange({ ...next, driverId: 'all', platformAppIds: [], dateFrom: '', dateTo: '' })
         }
         onReset={() => onFiltersChange(createDefaultGlobalFilters())}
         options={{

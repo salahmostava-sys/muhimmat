@@ -8,6 +8,7 @@ import { Loader2, Eye, EyeOff, Mail, Lock, Sun, Moon } from 'lucide-react';
 import { dashboardService } from '@services/dashboardService';
 import { loadRememberedEmail, persistRememberedEmail } from '@shared/lib/loginRememberStorage';
 import { logError } from '@shared/lib/logger';
+import { brandLogoSrc } from '@shared/lib/brandLogo';
 import './login.css';
 
 interface SystemSettings {
@@ -16,6 +17,7 @@ interface SystemSettings {
   project_subtitle_ar: string;
   project_subtitle_en: string;
   logo_url: string | null;
+  updated_at?: string | null;
 }
 
 const Login = () => {
@@ -40,6 +42,7 @@ const Login = () => {
         project_subtitle_ar: data.project_subtitle_ar ?? '',
         project_subtitle_en: data.project_subtitle_en ?? '',
         logo_url: data.logo_url ?? null,
+        updated_at: (data as { updated_at?: string | null }).updated_at ?? null,
       });
     });
   }, []);
@@ -113,7 +116,7 @@ const Login = () => {
         <div className="flex flex-col items-center mb-8">
           {settings?.logo_url ? (
             <img
-              src={settings.logo_url}
+              src={brandLogoSrc(settings.logo_url, settings.updated_at)}
               alt="logo"
               className="w-[8.5rem] h-[5.5rem] sm:w-40 sm:h-28 rounded-2xl object-contain mb-4 shadow-lg border border-border bg-card p-1"
             />

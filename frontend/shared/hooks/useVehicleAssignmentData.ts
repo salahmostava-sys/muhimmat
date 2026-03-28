@@ -15,7 +15,7 @@ export const useVehicleAssignmentData = () => {
     queryKey: vehicleAssignmentDataQueryKey(uid),
     queryFn: async () => {
       const [assignments, vehicles, employees] = await Promise.all([
-        vehicleService.getAssignmentsWithRelations(200),
+        vehicleService.getAssignmentsWithRelations(),
         vehicleService.getAll(),
         vehicleService.getActiveEmployees(),
       ]);

@@ -13,6 +13,8 @@ interface SystemSettings {
   default_language: string;
   theme: string;
   iqama_alert_days?: number;
+  /** لتحديث صورة الشعار في الواجهة دون كاش قديم */
+  updated_at?: string | null;
 }
 
 interface SystemSettingsContextType {
